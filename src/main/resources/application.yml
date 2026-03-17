@@ -1,0 +1,70 @@
+# 服务器基础配置
+server:
+  port: 8080 # 服务端口
+  servlet:
+    context-path: /flowable-demo # 项目访问路径（可选）
+
+# Spring核心配置
+spring:
+  # 1. 数据源配置（Flowable必须依赖，核心中的核心）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver # MySQL8+驱动（5.x用com.mysql.jdbc.Driver）
+    url: jdbc:mysql://localhost:3306/flowable_demo?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
+    username: root # 替换为你的MySQL用户名
+    password: 123456 # 替换为你的MySQL密码
+    # 连接池配置（Spring Boot默认用HikariCP，推荐显式配置）
+    hikari:
+      maximum-pool-size: 10 # 最大连接数
+      minimum-idle: 2 # 最小空闲连接
+      connection-timeout: 30000 # 连接超时时间（ms）
+      idle-timeout: 600000 # 空闲连接超时时间（ms）
+
+  # 2. 日志配置（可选，便于调试Flowable）
+  logging:
+    level:
+      org.flowable: DEBUG # Flowable核心日志级别（开发环境用DEBUG，生产用INFO）
+      org.springframework.jdbc: DEBUG # 数据库操作日志
+      com.zaxxer.hikari: INFO # 连接池日志
+
+# Flowable核心配置（重点）
+flowable:
+  # 1. 数据库相关配置
+  database-schema-update: false # 开发环境：启动自动建表/更新表；生产环境改为none（禁止自动修改表）
+  database-type: mysql # 指定数据库类型（避免自动检测出错）
+  db-history-used: true # 启用历史数据存储（审批流程必备）
+
+  # 2. 历史数据级别（决定流程执行记录的详细程度）
+  history-level: full # 完整级别（推荐）：存储所有历史数据（流程、任务、变量、操作记录）
+  # 可选级别：none（无）、activity（仅活动）、audit（审计）、full（完整）
+
+  # 3. 流程定义配置（BPMN文件扫描）
+  process:
+    definition-cache-limit: -1 # 流程定义缓存无限制（-1），生产可设固定值（如100）
+    check-process-definitions: false # 关闭启动时自动检查/部署流程（避免重复部署）
+    deployment-mode: single-resource # 单文件单独部署（便于管理BPMN文件）
+    definition-location-prefix: classpath:/processes/ # BPMN文件存放目录（需手动创建resources/processes）
+    definition-location-suffixes: .bpmn,.bpmn20.xml # 扫描的流程文件后缀（复数suffixes！）
+
+  # 4. 禁用无关模块（轻量化引擎，减少依赖）
+  app:
+    enabled: false # 禁用App引擎（6.x/7.x通用）
+  eventregistry:
+    enabled: false # 禁用事件注册模块
+  form:
+    enabled: false # 禁用表单模块（如需Flowable表单可改为true）
+  dmn:
+    enabled: false # 禁用决策表模块
+  content:
+    enabled: false # 禁用内容管理模块
+  idm:
+    enabled: false # 禁用IDM身份模块（避免依赖IdmIdentityService）
+
+  # 5. 异步执行器配置（审批流程为人工操作，建议关闭）
+  async-executor-activate: false # 关闭异步执行器（生产环境如需异步任务可改为true）
+
+  # 6. 任务配置（可选）
+  task:
+    async-history: false # 关闭异步历史记录（同步更易调试）
+  # 7. 流程实例配置（可选）
+  instance:
+    delete-orphaned-tasks: true # 删除孤立任务（避免脏数据）
