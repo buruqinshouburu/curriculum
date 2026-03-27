@@ -322,11 +322,11 @@ public class TrainingPlanGenerator {
      * 生成课程教学安排表格 - 严格按照TableCreateGenerator中的表头结构
      *
      * 表格结构：
-     * - 列数：15列（删除第6列和第11列后实际为13列）
+     * - 列数：16列（删除第6列和第11列后实际为13列）
      * - 行数：表头3行 + 模块行 + 小计1行
      *
      * 表头结构（3行）：
-     * 行0：课程模块 | 课程名称 | 修读要求 | 考核方式 | 学时安排(跨3列) | 学期安排(跨8列)
+     * 行0：课程模块（跨两行） | 课程名称 | 修读要求 | 考核方式 | 学时安排(跨3列) | 学期安排(跨8列)
      * 行1：[ Module行跨3行 ] | | | | 小计 | 讲授 | 实践 | 第一学年(跨2列) | 第二学年(跨2列) | 第三学年(跨2列) | 第四学年(跨2列)
      * 行2：[ Module行跨3行 ] | | | | | | | 秋 | 春 | 秋 | 春 | 秋 | 春 | 秋 | 春
      *
@@ -339,7 +339,7 @@ public class TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 15; // 原始15列，删除第6列和第11列后实际13列
+        int totalCols = 16; // 原始16列，删除第6列和第11列后实际13列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         table.setWidthType(TableWidthType.PCT);
@@ -351,27 +351,45 @@ public class TrainingPlanGenerator {
 
         int dataRowStart = 3;
 
-        Map<String, List<TrainingSchemeCourseModel>> couseMap = courses.stream().collect(Collectors.groupingBy(course -> course.getCourseModeChildrenName()));
+        //Map<String, List<TrainingSchemeCourseModel>> couseMap = courses.stream().collect(Collectors.groupingBy(course -> course.getCourseModeChildrenName()));
+        Map<String, Map<String, List<TrainingSchemeCourseModel>>> couseMap = TrainingSchemeCourseModel.groupCourses(courses);
         // 处理每一门课程，确定其所属模块
         AtomicInteger dataRow = new AtomicInteger(dataRowStart);
-        couseMap.forEach((modelName,courseModels) -> {
+        couseMap.forEach((modelName,courseFourLevelMap) -> {
             int moduleRowStart = dataRow.get();
-            int moduleRowEnd = dataRow.get()+courseModels.size();
-            for (int i = 0; i < courseModels.size(); i++) {
-                TrainingSchemeCourseModel course = courseModels.get(i);
-                // 设置课程数据行
-                int dataRowIndex = moduleRowStart + i;
-                setCourseDataRow(table, dataRowIndex, course,1);
-            }
+            AtomicInteger moduleRowEnd = new AtomicInteger(dataRow.get());
+            courseFourLevelMap.forEach((fourLevelName,courseModels) -> {
+                moduleRowEnd.set(courseModels.size());
+                AtomicInteger fourMoudleStart = new AtomicInteger(dataRow.get());
+                AtomicInteger fourMoudleEnd = new AtomicInteger(dataRow.get()+courseModels.size());
+                for (int i = 0; i < courseModels.size(); i++) {
+                    TrainingSchemeCourseModel course = courseModels.get(i);
+                    // 设置课程数据行
+                    int dataRowIndex = fourMoudleStart.get() + i;
+                    setCourseDataRow(table, dataRowIndex, course,2);
+                }
+                XWPFTableRow row = table.getRow(fourMoudleStart.get());
+                if(!fourLevelName.equals("-1")){
+                    XWPFTableCell cell1 = row.getCell(1);
+                    WordUtils.setCellText(cell1, fourLevelName, false, "1134");
+                    WordUtils.mergeCellsVertical(table, 0, fourMoudleStart.get(),  fourMoudleEnd.get() - 1);
+                }else{
+                    for (int i = fourMoudleStart.get(); i < fourMoudleEnd.get(); i++) {
+                        WordUtils.mergeCellsHorizontal(table, i, 0,  1);
+                    }
+                }
+                dataRow.set(fourMoudleStart.get());
+            });
             XWPFTableRow row = table.getRow(moduleRowStart);
             XWPFTableCell cell1 = row.getCell(0);
             WordUtils.setCellText(cell1, modelName, false, "1134");
-            WordUtils.mergeCellsVertical(table, 0, moduleRowStart,  moduleRowEnd - 1);
-            dataRow.set(moduleRowEnd);
+            WordUtils.mergeCellsVertical(table, 0, moduleRowStart,  moduleRowEnd.get() - 1);
+
         });
         // 设置小计行
         int totalRow = totalRows - 1;
         setTotalRow(table, totalRow);
+        deleteCol(table,totalRow,15,16);
 
         return table;
     }
@@ -461,8 +479,11 @@ public class TrainingPlanGenerator {
     private void generalEducationCoursesTableHeader(XWPFTable table) {
         // ========== 表头第1行（行号0） ==========
         // 列0：课程模块，跨行3行
-        setCellText(table.getRow(0).getCell(0), "课程\n模块", true, "1134");
+        setCellText(table.getRow(0).getCell(0), "课程模块", true, "1134");
         WordUtils.mergeCellsVertical(table, 0, 0, 2);
+        WordUtils.mergeCellsHorizontal(table, 0, 0, 1);
+        WordUtils.mergeCellsHorizontal(table, 1, 0, 1);
+        WordUtils.mergeCellsHorizontal(table, 2, 0, 1);
 
         // 列1：课程名称，跨行3行
         setCellText(table.getRow(0).getCell(1), "课程名称", true, "1985");
@@ -520,6 +541,7 @@ public class TrainingPlanGenerator {
         // 删除第一行第二行多余的列
         deleteCol(table,0,6,15); // 删除第6列（索引5）
         deleteCol(table,1,11,15);// 删除第11列（索引10）
+        deleteCol(table,2,14,15);// 删除第11列（索引10）
     }
 
     /**

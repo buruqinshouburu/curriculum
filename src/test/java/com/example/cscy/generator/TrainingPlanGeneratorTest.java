@@ -198,31 +198,38 @@ public class TrainingPlanGeneratorTest {
     private List<TrainingSchemeCourseModel> createGeneralEducationCourses() {
         List<TrainingSchemeCourseModel> courses = new ArrayList<>();
 
-        // 政治理论模块
-        courses.add(createCourse("马克思主义基本原理", 48.0, 48.0, 0.0, "必修", "考试", "政治理论", "通识课", "第一学年", "秋","计算机科学"));
-        courses.add(createCourse("毛泽东思想和中国特色社会主义理论体系概论", 64.0, 64.0, 0.0, "必修", "考试", "政治理论", "通识课", "第一学年", "春","计算机科学"));
-        courses.add(createCourse("中国共产党历史", 32.0, 32.0, 0.0, "必修", "考查", "政治理论", "通识课", "第二学年", "春","计算机科学"));
+        // 政治理论模块 - modeChildrenNameSort=1
+        // modeFourLevelName 是 courseModeChildrenName 的子模式
+        courses.add(createCourseWithFourLevel("马克思主义基本原理", 48.0, 48.0, 0.0, "必修", "考试", "政治理论", "通识课", "第一学年", "秋", "计算机科学", 1, null, null));
+        courses.add(createCourseWithFourLevel("毛泽东思想和中国特色社会主义理论体系概论", 64.0, 64.0, 0.0, "必修", "考试", "政治理论", "通识课", "第一学年", "春", "计算机科学", 1, null, null));
+        courses.add(createCourseWithFourLevel("中国共产党历史", 32.0, 32.0, 0.0, "必修", "考查", "政治理论", "通识课", "第二学年", "春", "计算机科学", 1, null, null));
+        // 选修课程 - modeFourLevelName 为 "政治理论-选修"
+        courses.add(createCourseWithFourLevel("形势与政策", 32.0, 32.0, 0.0, "任选", "考查", "政治理论", "通识课", "第二学年", "春", "计算机科学", 1, null, null));
 
-        // 军事基础模块
-        courses.add(createCourse("军事理论", 32.0, 32.0, 0.0, "必修", "考查", "军事基础", "通识课", "第一学年", "秋","计算机科学"));
-        courses.add(createCourse("军事技能训练", 2.0, 0.0, 2.0, "必修", "考查", "军事基础", "通识课", "第一学年", "秋","计算机科学"));
-        courses.add(createCourse("单兵战术", 16.0, 4.0, 12.0, "必修", "考查", "军事基础", "通识课", "第二学年", "春","计算机科学"));
-        courses.add(createCourse("射击实训", 24.0, 6.0, 18.0, "必修", "考查", "军事基础", "通识课", "第三学年", "春","计算机科学"));
+        // 军事基础模块 - modeChildrenNameSort=2
+        courses.add(createCourseWithFourLevel("军事理论", 32.0, 32.0, 0.0, "必修", "考查", "军事基础", "通识课", "第一学年", "秋", "计算机科学", 2, null, null));
+        courses.add(createCourseWithFourLevel("军事技能训练", 2.0, 0.0, 2.0, "必修", "考查", "军事基础", "通识课", "第一学年", "秋", "计算机科学", 2, null, null));
+        courses.add(createCourseWithFourLevel("单兵战术", 16.0, 4.0, 12.0, "必修", "考查", "军事基础", "通识课", "第二学年", "春", "计算机科学", 2, null, null));
+        courses.add(createCourseWithFourLevel("射击实训", 24.0, 6.0, 18.0, "必修", "考查", "军事基础", "通识课", "第三学年", "春", "计算机科学", 2, null, null));
 
-        // 基础科学模块
-        courses.add(createCourse("高等数学A", 80.0, 80.0, 0.0, "必修", "考试", "基础科学", "通识课", "第四学年", "秋","计算机科学"));
-        courses.add(createCourse("线性代数", 48.0, 48.0, 0.0, "必修", "考试", "基础科学", "通识课", "第四学年", "春","计算机科学"));
-        courses.add(createCourse("概率论与数理统计", 48.0, 48.0, 0.0, "必修", "考试", "基础科学", "通识课", "第四学年", "春","计算机科学"));
+        // 基础科学模块 - modeChildrenNameSort=3
+        courses.add(createCourseWithFourLevel("高等数学A", 80.0, 80.0, 0.0, "必修", "考试", "科学文化", "通识课", "第四学年", "秋", "计算机科学", 3, 1, "基础科学"));
+        courses.add(createCourseWithFourLevel("线性代数", 48.0, 48.0, 0.0, "必修", "考试", "科学文化", "通识课", "第四学年", "春", "计算机科学", 3, 1, "基础科学"));
+        courses.add(createCourseWithFourLevel("概率论与数理统计", 48.0, 48.0, 0.0, "必修", "考试", "科学文化", "通识课", "第四学年", "春", "计算机科学", 3, 1, "基础科学"));
+        // 物理课程 - modeFourLevelName 为 "基础科学-物理"
+        courses.add(createCourseWithFourLevel("大学物理", 64.0, 64.0, 0.0, "必修", "考试", "科学文化", "通识课", "第三学年", "秋", "计算机科学", 3, 1, "基础科学"));
 
-        // 人文与社会科学模块
-        courses.add(createCourse("大学英语A", 64.0, 64.0, 0.0, "必修", "考试", "人文与社会科学", "通识课", "第一学年", "秋","计算机科学"));
-        courses.add(createCourse("大学英语听说", 32.0, 16.0, 16.0, "必修", "考查", "人文与社会科学", "通识课", "第二学年", "春","计算机科学"));
-        courses.add(createCourse("应用文写作", 32.0, 32.0, 0.0, "任选", "考查", "人文与社会科学", "通识课", "第二学年", "春","计算机科学"));
+        // 人文与社会科学模块 - modeChildrenNameSort=4
+        courses.add(createCourseWithFourLevel("大学英语A", 64.0, 64.0, 0.0, "必修", "考试", "科学文化", "通识课", "第一学年", "秋", "计算机科学", 4, 2, "外语"));
+        courses.add(createCourseWithFourLevel("大学英语听说", 32.0, 16.0, 16.0, "必修", "考查", "科学文化", "通识课", "第二学年", "春", "计算机科学", 4, 2, "外语"));
+        courses.add(createCourseWithFourLevel("应用文写作", 32.0, 32.0, 0.0, "任选", "考查", "科学文化", "通识课", "第二学年", "春", "计算机科学", 4, 3, "人文与社会科学"));
+        courses.add(createCourseWithFourLevel("艺术鉴赏", 32.0, 32.0, 0.0, "任选", "考查", "科学文化", "通识课", "第三学年", "秋", "计算机科学", 4, 3, "人文与社会科学"));
 
-        // 人工智能与信息技术模块
-        courses.add(createCourse("计算机导论", 16.0, 16.0, 0.0, "必修", "考查", "人工智能与信息技术", "通识课", "第三学年", "秋","计算机科学"));
-        courses.add(createCourse("程序设计基础", 64.0, 32.0, 32.0, "必修", "考试", "人工智能与信息技术", "通识课", "第一学年", "秋","计算机科学"));
-        courses.add(createCourse("数据结构", 48.0, 24.0, 24.0, "必修", "考试", "人工智能与信息技术", "通识课", "第三学年", "春","计算机科学"));
+        // 人工智能与信息技术模块 - modeChildrenNameSort=5
+        courses.add(createCourseWithFourLevel("计算机导论", 16.0, 16.0, 0.0, "必修", "考查", "科学文化", "通识课", "第三学年", "秋", "计算机科学", 5, 4, "人工智能与信息技术"));
+        courses.add(createCourseWithFourLevel("程序设计基础", 64.0, 32.0, 32.0, "必修", "考试", "科学文化", "通识课", "第一学年", "秋", "计算机科学", 5, 4, "人工智能与信息技术"));
+        courses.add(createCourseWithFourLevel("数据结构", 48.0, 24.0, 24.0, "必修", "考试", "科学文化", "通识课", "第三学年", "春", "计算机科学", 5, 4, "人工智能与信息技术"));
+        courses.add(createCourseWithFourLevel("算法设计", 48.0, 24.0, 24.0, "限选", "考试", "科学文化", "通识课", "第四学年", "秋", "计算机科学", 5, 4, "人工智能与信息技术"));
 
         return courses;
     }
@@ -233,11 +240,11 @@ public class TrainingPlanGeneratorTest {
     private List<TrainingSchemeCourseModel> createMajorCategoryCourses() {
         List<TrainingSchemeCourseModel> courses = new ArrayList<>();
 
-        // 专业基础课
-        courses.add(createCourse("计算机组成原理", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第一学年", "秋","计算机科学"));
-        courses.add(createCourse("操作系统", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第二学年", "春","计算机科学"));
-        courses.add(createCourse("计算机网络", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第三学年", "春","计算机科学"));
-        courses.add(createCourse("数据库系统", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第四学年", "春","计算机科学"));
+        // 专业基础课 - modeChildrenNameSort=1, modeFourLevelSort为空表示无四级模块
+        courses.add(createCourseWithFourLevel("计算机组成原理", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第一学年", "秋", "计算机科学", 1, null, null));
+        courses.add(createCourseWithFourLevel("操作系统", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第二学年", "春", "计算机科学", 1, null, null));
+        courses.add(createCourseWithFourLevel("计算机网络", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第三学年", "春", "计算机科学", 1, null, null));
+        courses.add(createCourseWithFourLevel("数据库系统", 48.0, 32.0, 16.0, "必修", "考试", "专业大类", "专业课", "第四学年", "春", "计算机科学", 1, null, null));
 
         return courses;
     }
@@ -248,15 +255,15 @@ public class TrainingPlanGeneratorTest {
     private List<TrainingSchemeCourseModel> createMajorDirectionCourses() {
         List<TrainingSchemeCourseModel> courses = new ArrayList<>();
 
-        // 软件工程方向
-        courses.add(createCourse("软件工程", 48.0, 32.0, 16.0, "必修", "考试", "软件工程", "专业课", "第二学年", "秋","软件工程方向"));
-        courses.add(createCourse("软件测试", 32.0, 16.0, 16.0, "限选", "考查", "软件工程", "专业课", "第一学年", "春","软件工程方向"));
-        courses.add(createCourse("敏捷开发", 32.0, 16.0, 16.0, "任选", "考查", "软件工程", "专业课", "第四学年", "春","软件工程方向"));
+        // 软件工程方向 - modeChildrenNameSort=1
+        courses.add(createCourseWithFourLevel("软件工程", 48.0, 32.0, 16.0, "必修", "考试", "软件工程", "专业课", "第二学年", "秋", "软件工程方向", 1, 1, "软件工程-核心"));
+        courses.add(createCourseWithFourLevel("软件测试", 32.0, 16.0, 16.0, "限选", "考查", "软件工程", "专业课", "第一学年", "春", "软件工程方向", 1, 2, "软件工程-测试"));
+        courses.add(createCourseWithFourLevel("敏捷开发", 32.0, 16.0, 16.0, "任选", "考查", "软件工程", "专业课", "第四学年", "春", "软件工程方向", 1, 3, "软件工程-开发"));
 
-        // 数据科学方向
-        courses.add(createCourse("机器学习", 48.0, 24.0, 24.0, "限选", "考试", "数据科学", "专业课", "第一学年", "秋","数据科学方向"));
-        courses.add(createCourse("数据挖掘", 32.0, 16.0, 16.0, "限选", "考查", "数据科学", "专业课", "第三学年", "春","数据科学方向"));
-        courses.add(createCourse("大数据技术", 32.0, 16.0, 16.0, "任选", "考查", "数据科学", "专业课", "第二学年", "春","数据科学方向"));
+        // 数据科学方向 - modeChildrenNameSort=2
+        courses.add(createCourseWithFourLevel("机器学习", 48.0, 24.0, 24.0, "限选", "考试", "数据科学", "专业课", "第一学年", "秋", "数据科学方向", 2, 1, "数据科学-核心"));
+        courses.add(createCourseWithFourLevel("数据挖掘", 32.0, 16.0, 16.0, "限选", "考查", "数据科学", "专业课", "第三学年", "春", "数据科学方向", 2, 2, "数据科学-挖掘"));
+        courses.add(createCourseWithFourLevel("大数据技术", 32.0, 16.0, 16.0, "任选", "考查", "数据科学", "专业课", "第二学年", "春", "数据科学方向", 2, 3, "数据科学-大数据"));
 
         return courses;
     }
@@ -267,7 +274,21 @@ public class TrainingPlanGeneratorTest {
     private TrainingSchemeCourseModel createCourse(String name, Double hours, Double theoryHours,
                                                    Double practiceHours, String attrName, String openTerm,
                                                    String courseModeChildrenName, String courseModelName,
-                                                   String semesterSchedule, String springAutumn,String majorName) {
+                                                   String semesterSchedule, String springAutumn, String majorName) {
+        return createCourseWithFourLevel(name, hours, theoryHours, practiceHours, attrName, openTerm,
+                courseModeChildrenName, courseModelName, semesterSchedule, springAutumn, majorName,
+                null, null, null);
+    }
+
+    /**
+     * 创建带modeFourLevelName的课程对象
+     */
+    private TrainingSchemeCourseModel createCourseWithFourLevel(String name, Double hours, Double theoryHours,
+                                                                   Double practiceHours, String attrName, String openTerm,
+                                                                   String courseModeChildrenName, String courseModelName,
+                                                                   String semesterSchedule, String springAutumn,
+                                                                   String majorName, Integer modeChildrenNameSort,
+                                                                Integer modeFourLevelSort, String modeFourLevelName) {
         TrainingSchemeCourseModel course = new TrainingSchemeCourseModel();
         course.setName(name);
         course.setHours(hours);
@@ -280,6 +301,9 @@ public class TrainingPlanGeneratorTest {
         course.setSemesterSchedule(semesterSchedule);
         course.setSpringAutumn(springAutumn);
         course.setMajorName(majorName);
+        course.setModeChildrenNameSort(modeChildrenNameSort);
+        course.setModeFourLevelSort(modeFourLevelSort);
+        course.setModeFourLevelName(modeFourLevelName);
         return course;
     }
 

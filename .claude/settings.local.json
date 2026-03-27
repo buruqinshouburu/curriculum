@@ -114,7 +114,11 @@
       "Bash(powershell -Command \"Get-Process | Where-Object {$_.ProcessName -like '*java*'} | Select-Object ProcessName, Id, Path\")",
       "Bash(cmd /c \"powershell -Command \\\\\"Get-Process | Where-Object {$_.ProcessName -like '*java*'} | Select-Object ProcessName, Id, Path\\\\\"\")",
       "Bash(cmd /c \"powershell -Command \\\\\"Remove-Item 'E:\\\\work\\\\curriculum\\\\target\\\\output\\\\training_plan_generated.docx' -Force -ErrorAction SilentlyContinue\\\\\"\")",
-      "Bash(cmd /c \"powershell -Command \\\\\"Get-Process | Where-Object {$_.ProcessName -eq 'java'} | Format-Table ProcessName, Id\\\\\"\")"
+      "Bash(cmd /c \"powershell -Command \\\\\"Get-Process | Where-Object {$_.ProcessName -eq 'java'} | Format-Table ProcessName, Id\\\\\"\")",
+      "Bash(gh pr:*)",
+      "Bash(cd:*)",
+      "Bash(java -jar target/curriculum-1.0-SNAPSHOT.jar)",
+      "Bash(mvn package:*)"
     ]
   }
 }
