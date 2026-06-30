@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgrammeOutlineMapper">
+
+    <resultMap type="TeachingProgrammeOutline" id="TeachingProgrammeOutlineResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgrammeOutlineVo">
+        select id, name, create_time, creator, last_modified_time, last_modifier, remark, sysflag
+        from t_csys_teaching_programme_outline
+    </sql>
+
+    <select id="selectTeachingProgrammeOutlineList" parameterType="TeachingProgrammeOutline"
+            resultMap="TeachingProgrammeOutlineResult">
+        <include refid="selectTeachingProgrammeOutlineVo"/>
+        <where>
+            <if test="name != null  and name != ''">
+                and name like concat('%', #{name}, '%')
+            </if>
+            <if test="creator != null  and creator != ''">
+                and creator = #{creator}
+            </if>
+
+            <if test="lastModifier != null  and lastModifier != ''">
+                and last_modifier = #{lastModifier}
+            </if>
+            <if test="sysflag != null ">
+                and sysflag = #{sysflag}
+            </if>
+            <if test="startTime != null">
+                AND create_Time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_Time <![CDATA[<=]]> #{endTime}
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <select id="selectTeachingProgrammeOutlineById" parameterType="Long"
+            resultMap="TeachingProgrammeOutlineResult">
+        <include refid="selectTeachingProgrammeOutlineVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertTeachingProgrammeOutline" parameterType="TeachingProgrammeOutline" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_teaching_programme_outline
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">name,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="creator != null">creator,
+            </if>
+            <if test="lastModifiedTime != null">last_modified_time,
+            </if>
+            <if test="lastModifier != null">last_modifier,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="sysflag != null">sysflag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">#{name},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="creator != null">#{creator},
+            </if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">#{lastModifier},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="sysflag != null">#{sysflag},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgrammeOutline" parameterType="TeachingProgrammeOutline">
+        update t_csys_teaching_programme_outline
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">name =
+                #{name},
+            </if>
+            <if test="lastModifiedTime != null">last_modified_time =
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">last_modifier =
+                #{lastModifier},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="sysflag != null">sysflag =
+                #{sysflag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTeachingProgrammeOutlineById" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_outline where id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeOutlineByIds" parameterType="Long">
+        delete from t_csys_teaching_programme_outline where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

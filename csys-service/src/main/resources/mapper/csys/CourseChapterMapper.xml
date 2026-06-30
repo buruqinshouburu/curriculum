@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseChapterMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseChapter" id="CourseChapterResult">
+        <result property="id"    column="id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="name"    column="name"    />
+        <result property="content"    column="content"    />
+        <result property="hours"    column="hours"    />
+        <result property="type"    column="type"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <sql id="selectCourseChapterVo">
+        select id, course_id, name, content, hours, type, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_course_chapter
+    </sql>
+
+    <select id="selectCourseChapterList" parameterType="com.doinner.csys.domain.CourseChapter" resultMap="CourseChapterResult">
+        <include refid="selectCourseChapterVo"/>
+        <where>
+            sysflag = "0"
+            <if test="courseId != null "> and course_id = #{courseId}</if>
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="content != null  and content != ''"> and content = #{content}</if>
+            <if test="hours != null "> and hours = #{hours}</if>
+            <if test="type != null "> and type = #{type}</if>
+            <if test="creator != null  and creator != ''"> and creator = #{creator}</if>
+        </where>
+    </select>
+
+    <select id="selectCourseChapterById" parameterType="Long" resultMap="CourseChapterResult">
+        <include refid="selectCourseChapterVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertCourseChapter" parameterType="com.doinner.csys.domain.CourseChapter" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_course_chapter
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="content != null">content,</if>
+            <if test="hours != null">hours,</if>
+            <if test="type != null">type,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="content != null">#{content},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="type != null">#{type},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCourseChapters" parameterType="com.doinner.csys.domain.CourseChapter" useGeneratedKeys="true" keyProperty="courseChapterList.id">
+        insert into t_csys_course_chapter (id,course_id,name,content,hours,type,creator,last_modifier,remark)values
+        <foreach collection="courseChapterList" item="courseChapter" separator=",">
+            (
+                #{courseChapter.id},
+                #{courseChapter.courseId},
+                #{courseChapter.name},
+                #{courseChapter.content},
+                #{courseChapter.hours},
+                #{courseChapter.type},
+                #{courseChapter.creator},
+                #{courseChapter.lastModifier},
+                #{courseChapter.remark}
+            )
+        </foreach>
+
+    </insert>
+
+    <update id="updateCourseChapter" parameterType="com.doinner.csys.domain.CourseChapter">
+        update t_csys_course_chapter
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="hours != null">hours = #{hours},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCourseChapterById" parameterType="Long">
+        update t_csys_course_chapter set sysflag = "2" where id = #{id}
+    </delete>
+
+    <delete id="deleteCourseChapterByCourseId" parameterType="Long">
+        update t_csys_course_chapter set sysflag = "2" where course_id = #{courseId}
+    </delete>
+
+    <delete id="deleteCourseChapterByIds" parameterType="Long">
+        update t_csys_course_chapter set sysflag = "2" where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

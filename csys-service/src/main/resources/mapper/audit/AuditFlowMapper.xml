@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.audit.AuditFlowMapper">
+    <select id="getAuditFlowList" resultType="com.doinner.csys.entity.audit.AuditFlow">
+        select * from audit_flow a
+        <where>
+            <if test="auditFlow.name != null">
+                name like concat('%', #{auditFlow.name}, '%')
+            </if>
+            <if test="auditFlow.createBy != null" >
+               and a.create_by=#{auditFlow.createBy}
+            </if>
+            <if test="auditFlow.startTime != null and auditFlow.endTime != null">
+                and a.create_time between #{auditFlow.startTime} and #{auditFlow.endTime}
+            </if>
+        </where>
+        order by a.id desc 
+    </select>
+</mapper>

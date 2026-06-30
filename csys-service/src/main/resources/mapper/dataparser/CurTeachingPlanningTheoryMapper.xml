@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurTeachingPlanningTheoryMapper">
+
+    <resultMap type="CurTeachingPlanningTheory" id="CurTeachingPlanningTheoryResult">
+        <result property="id"    column="ID"    />
+        <result property="mainId"    column="MAIN_ID"    />
+        <result property="curNatureStatus"    column="CUR_NATURE_STATUS"    />
+        <result property="curKnowledgeTarget"    column="CUR_KNOWLEDGE_TARGET"    />
+        <result property="curAbilityTarget"    column="CUR_ABILITY_TARGET"    />
+        <result property="curIdeoPoliTarget"    column="CUR_IDEO_POLI_TARGET"    />
+        <result property="teachMethod"    column="TEACH_METHOD"    />
+        <result property="checkType"    column="CHECK_TYPE"    />
+        <result property="examType"    column="EXAM_TYPE"    />
+        <result property="examOnOff"    column="EXAM_ON_OFF"    />
+        <result property="achievement"    column="ACHIEVEMENT"    />
+        <result property="scoreStandard"    column="SCORE_STANDARD"    />
+        <result property="task"    column="TASK"    />
+        <result property="caseAnalysis"    column="CASE_ANALYSIS"    />
+        <result property="practice"    column="PRACTICE"    />
+        <result property="threeProject"    column="THREE_PROJECT"    />
+        <result property="internship"    column="INTERNSHIP"    />
+        <result property="examLast"    column="EXAM_LAST"    />
+        <result property="elseOther"    column="ELSE_OTHER"    />
+    </resultMap>
+
+    <sql id="selectCurTeachingPlanningTheoryVo">
+        select ID, MAIN_ID, CUR_NATURE_STATUS, CUR_KNOWLEDGE_TARGET,CUR_ABILITY_TARGET, CUR_IDEO_POLI_TARGET, TEACH_METHOD,
+          CHECK_TYPE, EXAM_TYPE, EXAM_ON_OFF, ACHIEVEMENT, SCORE_STANDARD, TASK, CASE_ANALYSIS, PRACTICE, THREE_PROJECT, INTERNSHIP, EXAM_LAST, ELSE_OTHER from cur_teaching_plannning_theory
+    </sql>
+
+    <select id="selectCurTeachingPlanningTheoryList" parameterType="CurTeachingPlanningTheory" resultMap="CurTeachingPlanningTheoryResult">
+        <include refid="selectCurTeachingPlanningTheoryVo"/>
+        <where>
+            <if test="college != null  and college != ''"> and COLLEGE = #{college}</if>
+        </where>
+    </select>
+
+    <select id="selectCurTeachingPlanningTheoryById" parameterType="Long" resultMap="CurTeachingPlanningTheoryResult">
+        <include refid="selectCurTeachingPlanningTheoryVo"/>
+        where ID = #{id}
+    </select>
+
+    <select id="selectCurTeachingPlanningTheoryByMainId" parameterType="Long" resultMap="CurTeachingPlanningTheoryResult">
+        <include refid="selectCurTeachingPlanningTheoryVo"/>
+        where MAIN_ID = #{mainId}
+    </select>
+
+    <select id="selectCurTeachingPlanningTheoryByMainIds" parameterType="Long" resultMap="CurTeachingPlanningTheoryResult">
+        <include refid="selectCurTeachingPlanningTheoryVo"/>
+        where MAIN_ID in
+        <foreach item="id" collection="mainIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertCurTeachingPlanningTheory" parameterType="CurTeachingPlanningTheory" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plannning_theory
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">ID,</if>
+            <if test="mainId != null">MAIN_ID,</if>
+            <if test="curNatureStatus != null">CUR_NATURE_STATUS,</if>
+            <if test="curKnowledgeTarget != null">CUR_KNOWLEDGE_TARGET,</if>
+            <if test="curAbilityTarget != null">CUR_ABILITY_TARGET,</if>
+            <if test="curIdeoPoliTarget != null">CUR_IDEO_POLI_TARGET,</if>
+            <if test="teachMethod != null">TEACH_METHOD,</if>
+            <if test="checkType != null">CHECK_TYPE,</if>
+            <if test="examType != null">EXAM_TYPE,</if>
+            <if test="examOnOff != null">EXAM_ON_OFF,</if>
+            <if test="achievement != null">ACHIEVEMENT,</if>
+            <if test="scoreStandard != null">SCORE_STANDARD,</if>
+            <if test="task != null">TASK,</if>
+            <if test="caseAnalysis != null">CASE_ANALYSIS,</if>
+            <if test="practice != null">PRACTICE,</if>
+            <if test="threeProject != null">THREE_PROJECT,</if>
+            <if test="internship != null">INTERNSHIP,</if>
+            <if test="examLast != null">EXAM_LAST,</if>
+            <if test="elseOther != null">ELSE_OTHER,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="mainId != null">#{mainId},</if>
+            <if test="curNatureStatus != null">#{curNatureStatus},</if>
+            <if test="curKnowledgeTarget != null">#{curKnowledgeTarget},</if>
+            <if test="curAbilityTarget != null">#{curAbilityTarget},</if>
+            <if test="curIdeoPoliTarget != null">#{curIdeoPoliTarget},</if>
+            <if test="teachMethod != null">#{teachMethod},</if>
+            <if test="checkType != null">#{checkType},</if>
+            <if test="examType != null">#{examType},</if>
+            <if test="examOnOff != null">#{examOnOff},</if>
+            <if test="achievement != null">#{achievement},</if>
+            <if test="scoreStandard != null">#{scoreStandard},</if>
+            <if test="task != null">#{task},</if>
+            <if test="caseAnalysis != null">#{caseAnalysis},</if>
+            <if test="practice != null">#{practice},</if>
+            <if test="threeProject != null">#{threeProject},</if>
+            <if test="internship != null">#{internship},</if>
+            <if test="examLast != null">#{examLast},</if>
+            <if test="elseOther != null">#{elseOther},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCurTeachingPlanningTheoryList" parameterType="CurTeachingPlanningTheory" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plannning_theory
+        (MAIN_ID,CUR_NATURE_STATUS,CUR_KNOWLEDGE_TARGET,CUR_ABILITY_TARGET,CUR_IDEO_POLI_TARGET,TEACH_METHOD,CHECK_TYPE,
+        EXAM_TYPE,EXAM_ON_OFF,ACHIEVEMENT,SCORE_STANDARD,TASK,CASE_ANALYSIS,PRACTICE,THREE_PROJECT,INTERNSHIP,EXAM_LAST,ELSE_OTHER)
+        values
+        <foreach collection="list" separator="," item="item" index="index">
+        (#{item.mainId},#{item.curNatureStatus},#{item.curKnowledgeTarget},#{item.curAbilityTarget},#{item.curIdeoPoliTarget},#{item.teachMethod},
+            #{item.checkType},#{item.examType},#{item.examOnOff},#{item.achievement},#{item.scoreStandard},#{item.task},#{item.caseAnalysis},
+            #{item.practice},#{item.threeProject},#{item.internship},#{item.examLast},#{item.elseOther})
+        </foreach>
+    </insert>
+
+    <update id="updateCurTeachingPlanningTheory" parameterType="CurTeachingPlanningTheory">
+        update cur_teaching_plannning_theory
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="mainId != null">MAIN_ID = #{mainId},</if>
+            <if test="mainId == null">MAIN_ID = null,</if>
+            <if test="curNatureStatus != null">CUR_NATURE_STATUS = #{curNatureStatus},</if>
+            <if test="curNatureStatus == null">CUR_NATURE_STATUS = null,</if>
+            <if test="curKnowledgeTarget != null">CUR_KNOWLEDGE_TARGET = #{curKnowledgeTarget},</if>
+            <if test="curKnowledgeTarget == null">CUR_KNOWLEDGE_TARGET = null,</if>
+            <if test="curAbilityTarget != null">CUR_ABILITY_TARGET = #{curAbilityTarget},</if>
+            <if test="curAbilityTarget == null">CUR_ABILITY_TARGET = null,</if>
+            <if test="curIdeoPoliTarget != null">CUR_IDEO_POLI_TARGET = #{curIdeoPoliTarget},</if>
+            <if test="curIdeoPoliTarget == null">CUR_IDEO_POLI_TARGET = null,</if>
+            <if test="teachMethod != null">TEACH_METHOD = #{teachMethod},</if>
+            <if test="teachMethod == null">TEACH_METHOD = null,</if>
+            <if test="checkType != null">CHECK_TYPE = #{checkType},</if>
+            <if test="checkType == null">CHECK_TYPE = null,</if>
+            <if test="examType != null">EXAM_TYPE = #{examType},</if>
+            <if test="examType == null">EXAM_TYPE = null,</if>
+            <if test="examOnOff != null">EXAM_ON_OFF = #{examOnOff},</if>
+            <if test="examOnOff == null">EXAM_ON_OFF = null,</if>
+            <if test="achievement != null">ACHIEVEMENT = #{achievement},</if>
+            <if test="achievement == null">ACHIEVEMENT = null,</if>
+            <if test="scoreStandard != null">SCORE_STANDARD = #{scoreStandard},</if>
+            <if test="scoreStandard == null">SCORE_STANDARD = null,</if>
+            <if test="task != null">TASK = #{task},</if>
+            <if test="task == null">TASK = null,</if>
+            <if test="caseAnalysis != null">CASE_ANALYSIS = #{caseAnalysis},</if>
+            <if test="caseAnalysis == null">CASE_ANALYSIS = null,</if>
+            <if test="practice != null">PRACTICE = #{practice},</if>
+            <if test="practice == null">PRACTICE = null,</if>
+            <if test="threeProject != null">THREE_PROJECT = #{threeProject},</if>
+            <if test="threeProject == null">THREE_PROJECT = null,</if>
+            <if test="internship != null">INTERNSHIP = #{internship},</if>
+            <if test="internship == null">INTERNSHIP = null,</if>
+            <if test="examLast != null">EXAM_LAST = #{examLast},</if>
+            <if test="examLast == null">EXAM_LAST = null,</if>
+            <if test="elseOther != null">ELSE_OTHER = #{elseOther},</if>
+            <if test="elseOther == null">ELSE_OTHER = null,</if>
+        </trim>
+        where ID = #{id}
+    </update>
+
+    <update id="updateCurTeachingPlanningTheoryList" parameterType="CurTeachingPlanningTheory">
+        <foreach collection="list" separator=";" item="item" index="index">
+        update cur_teaching_plannning_theory
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="item.mainId != null">MAIN_ID = #{item.mainId},</if>
+            <if test="item.mainId == null">MAIN_ID = null,</if>
+            <if test="item.curNatureStatus != null">CUR_NATURE_STATUS = #{item.curNatureStatus},</if>
+            <if test="item.curNatureStatus == null">CUR_NATURE_STATUS = null,</if>
+            <if test="item.curKnowledgeTarget != null">CUR_KNOWLEDGE_TARGET = #{item.curKnowledgeTarget},</if>
+            <if test="item.curKnowledgeTarget == null">CUR_KNOWLEDGE_TARGET = null,</if>
+            <if test="item.curAbilityTarget != null">CUR_ABILITY_TARGET = #{item.curAbilityTarget},</if>
+            <if test="item.curAbilityTarget == null">CUR_ABILITY_TARGET = null,</if>
+            <if test="item.curIdeoPoliTarget != null">CUR_IDEO_POLI_TARGET = #{item.curIdeoPoliTarget},</if>
+            <if test="item.curIdeoPoliTarget == null">CUR_IDEO_POLI_TARGET = null,</if>
+            <if test="item.teachMethod != null">TEACH_METHOD = #{item.teachMethod},</if>
+            <if test="item.teachMethod == null">TEACH_METHOD = null,</if>
+            <if test="item.checkType != null">CHECK_TYPE = #{item.checkType},</if>
+            <if test="item.checkType == null">CHECK_TYPE = null,</if>
+            <if test="item.examType != null">EXAM_TYPE = #{item.examType},</if>
+            <if test="item.examType == null">EXAM_TYPE = null,</if>
+            <if test="item.examOnOff != null">EXAM_ON_OFF = #{item.examOnOff},</if>
+            <if test="item.examOnOff == null">EXAM_ON_OFF = null,</if>
+            <if test="item.achievement != null">ACHIEVEMENT = #{item.achievement},</if>
+            <if test="item.achievement == null">ACHIEVEMENT = null,</if>
+            <if test="item.scoreStandard != null">SCORE_STANDARD = #{item.scoreStandard},</if>
+            <if test="item.scoreStandard == null">SCORE_STANDARD = null,</if>
+            <if test="item.task != null">TASK = #{item.task},</if>
+            <if test="item.task == null">TASK = null,</if>
+            <if test="item.caseAnalysis != null">CASE_ANALYSIS = #{item.caseAnalysis},</if>
+            <if test="item.caseAnalysis == null">CASE_ANALYSIS = null,</if>
+            <if test="item.practice != null">PRACTICE = #{item.practice},</if>
+            <if test="item.practice == null">PRACTICE = null,</if>
+            <if test="item.threeProject != null">THREE_PROJECT = #{item.threeProject},</if>
+            <if test="item.threeProject == null">THREE_PROJECT = null,</if>
+            <if test="item.internship != null">INTERNSHIP = #{item.internship},</if>
+            <if test="item.internship == null">INTERNSHIP = null,</if>
+            <if test="item.examLast != null">EXAM_LAST = #{item.examLast},</if>
+            <if test="item.examLast == null">EXAM_LAST = null,</if>
+            <if test="item.elseOther != null">ELSE_OTHER = #{item.elseOther},</if>
+            <if test="item.elseOther == null">ELSE_OTHER = null,</if>
+        </trim>
+        where ID = #{item.id}
+        </foreach>
+    </update>
+
+    <delete id="deleteCurTeachingPlanningTheoryById" parameterType="Long">
+        delete from cur_teaching_plannning_theory where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningTheoryByIds" parameterType="Long">
+        delete from cur_teaching_plannning_theory where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningTheoryByMainIds" parameterType="Long">
+        delete from cur_teaching_plannning_theory where MAIN_ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

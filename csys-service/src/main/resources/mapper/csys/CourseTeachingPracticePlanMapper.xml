@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseTeachingPracticePlanMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseTeachingPracticePlan" id="CourseTeachingPracticePlanResult">
+        <result property="id"    column="id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="suit"    column="suit"    />
+        <result property="taskDescribe"    column="task_describe"    />
+        <result property="knowLevel"    column="know_level"    />
+        <result property="abilityLevel"    column="ability_level"    />
+        <result property="politicsLevel"    column="politics_level"    />
+        <result property="content"    column="content"    />
+        <result property="overview"    column="overview"    />
+        <result property="practiceMethod"    column="practice_method"    />
+        <result property="exaMethod"    column="exa_method"    />
+        <result property="orgMethod"    column="org_method"    />
+        <result property="performance"    column="performance"    />
+        <result property="standard"    column="standard"    />
+        <result property="standardJson"    column="standard_json"    />
+        <result property="ask"    column="ask"    />
+        <result property="arrange"    column="arrange"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <sql id="selectCourseTeachingPracticePlanVo">
+        select id, course_id, suit, task_describe, know_level, ability_level, politics_level, content, overview, practice_method, exa_method, org_method, performance, standard, standard_json, ask, arrange, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_course_teaching_practice_plan
+    </sql>
+
+    <select id="selectCourseTeachingPracticePlanList" parameterType="com.doinner.csys.domain.CourseTeachingPracticePlan" resultMap="CourseTeachingPracticePlanResult">
+        <include refid="selectCourseTeachingPracticePlanVo"/>
+        <where>
+            sysflag = 0
+            <if test="courseId != null "> and course_id = #{courseId}</if>
+            <if test="suit != null  and suit != ''"> and suit = #{suit}</if>
+            <if test="taskDescribe != null  and taskDescribe != ''"> and task_describe = #{taskDescribe}</if>
+            <if test="knowLevel != null  and knowLevel != ''"> and know_level = #{knowLevel}</if>
+            <if test="abilityLevel != null  and abilityLevel != ''"> and ability_level = #{abilityLevel}</if>
+            <if test="politicsLevel != null  and politicsLevel != ''"> and politics_level = #{politicsLevel}</if>
+            <if test="content != null  and content != ''"> and content = #{content}</if>
+            <if test="overview != null  and overview != ''"> and overview = #{overview}</if>
+            <if test="practiceMethod != null  and practiceMethod != ''"> and practice_method = #{practiceMethod}</if>
+            <if test="exaMethod != null "> and exa_method = #{exaMethod}</if>
+            <if test="orgMethod != null  and orgMethod != ''"> and org_method = #{orgMethod}</if>
+            <if test="performance != null  and performance != ''"> and performance = #{performance}</if>
+            <if test="standard != null  and standard != ''"> and standard = #{standard}</if>
+            <if test="standardJson != null  and standardJson != ''"> and standard_json = #{standardJson}</if>
+            <if test="ask != null  and ask != ''"> and ask = #{ask}</if>
+            <if test="arrange != null  and arrange != ''"> and arrange = #{arrange}</if>
+            <if test="creator != null  and creator != ''"> and creator = #{creator}</if>
+        </where>
+    </select>
+
+    <select id="selectCourseTeachingPracticePlanById" parameterType="Long" resultMap="CourseTeachingPracticePlanResult">
+        <include refid="selectCourseTeachingPracticePlanVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectCourseTeachingPracticePlanByCourseId" parameterType="Long" resultMap="CourseTeachingPracticePlanResult">
+        <include refid="selectCourseTeachingPracticePlanVo"/>
+        where course_id = #{courseId}
+    </select>
+
+    <insert id="insertCourseTeachingPracticePlan" parameterType="com.doinner.csys.domain.CourseTeachingPracticePlan" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_course_teaching_practice_plan
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="suit != null">suit,</if>
+            <if test="taskDescribe != null">task_describe,</if>
+            <if test="knowLevel != null">know_level,</if>
+            <if test="abilityLevel != null">ability_level,</if>
+            <if test="politicsLevel != null">politics_level,</if>
+            <if test="content != null">content,</if>
+            <if test="overview != null">overview,</if>
+            <if test="practiceMethod != null">practice_method,</if>
+            <if test="exaMethod != null">exa_method,</if>
+            <if test="orgMethod != null">org_method,</if>
+            <if test="performance != null">performance,</if>
+            <if test="standard != null">standard,</if>
+            <if test="standardJson != null">standard_json,</if>
+            <if test="ask != null">ask,</if>
+            <if test="arrange != null">arrange,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="suit != null">#{suit},</if>
+            <if test="taskDescribe != null">#{taskDescribe},</if>
+            <if test="knowLevel != null">#{knowLevel},</if>
+            <if test="abilityLevel != null">#{abilityLevel},</if>
+            <if test="politicsLevel != null">#{politicsLevel},</if>
+            <if test="content != null">#{content},</if>
+            <if test="overview != null">#{overview},</if>
+            <if test="practiceMethod != null">#{practiceMethod},</if>
+            <if test="exaMethod != null">#{exaMethod},</if>
+            <if test="orgMethod != null">#{orgMethod},</if>
+            <if test="performance != null">#{performance},</if>
+            <if test="standard != null">#{standard},</if>
+            <if test="standardJson != null">#{standardJson},</if>
+            <if test="ask != null">#{ask},</if>
+            <if test="arrange != null">#{arrange},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCourseTeachingPracticePlans" parameterType="com.doinner.csys.domain.CourseTeachingPracticePlan" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_course_teaching_practice_plan (course_id, creator, last_modifier) values
+        <foreach collection="courseTeachingPracticePlanList" item="courseTeachingPracticePlan" separator=",">
+            (#{courseTeachingPracticePlan.courseId},
+            #{courseTeachingPracticePlan.creator},
+            #{courseTeachingPracticePlan.lastModifier})
+        </foreach>
+    </insert>
+
+    <update id="updateCourseTeachingPracticePlan" parameterType="com.doinner.csys.domain.CourseTeachingPracticePlan">
+        update t_csys_course_teaching_practice_plan
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="suit != null">suit = #{suit},</if>
+            <if test="taskDescribe != null">task_describe = #{taskDescribe},</if>
+            <if test="knowLevel != null">know_level = #{knowLevel},</if>
+            <if test="abilityLevel != null">ability_level = #{abilityLevel},</if>
+            <if test="politicsLevel != null">politics_level = #{politicsLevel},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="overview != null">overview = #{overview},</if>
+            <if test="practiceMethod != null">practice_method = #{practiceMethod},</if>
+            <if test="exaMethod != null">exa_method = #{exaMethod},</if>
+            <if test="orgMethod != null">org_method = #{orgMethod},</if>
+            <if test="performance != null">performance = #{performance},</if>
+            <if test="standard != null">standard = #{standard},</if>
+            <if test="standardJson != null">standard_json = #{standardJson},</if>
+            <if test="ask != null">ask = #{ask},</if>
+            <if test="arrange != null">arrange = #{arrange},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCourseTeachingPracticePlanById" parameterType="Long">
+        update t_csys_course_teaching_practice_plan set sysflag = 2 where id = #{id}
+    </delete>
+
+    <delete id="deleteCourseTeachingPracticePlanByIds" parameterType="String">
+        update t_csys_course_teaching_practice_plan set sysflag = 2 where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

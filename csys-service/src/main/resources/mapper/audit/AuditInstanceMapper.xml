@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.audit.AuditInstanceMapper">
+
+    <resultMap id="AuditInstanceResultMap" type="com.doinner.csys.entity.audit.AuditInstance">
+        <id property="id" column="id"/>
+        <result property="flowCode" column="flow_code"/>
+        <result property="flowName" column="flow_name"/>
+        <result property="businessType" column="business_type"/>
+        <result property="businessId" column="business_id"/>
+        <result property="businessTitle" column="business_title"/>
+        <result property="submitterId" column="submitter_id"/>
+        <result property="submitterName" column="submitter_name"/>
+        <result property="submitTime" column="submit_time"/>
+        <result property="currentNodeId" column="current_node_id"/>
+        <result property="currentNodeKey" column="current_node_key"/>
+        <result property="instanceStatus" column="instance_status"/>
+        <result property="finalResult" column="final_result"/>
+        <result property="finishTime" column="finish_time"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <collection property="nodes"
+                    javaType="java.util.List"
+                    resultMap="AuditInstanceNodeResultMap"/>
+    </resultMap>
+    <resultMap id="AuditInstanceNodeResultMap" type="com.doinner.csys.entity.audit.AuditInstanceNode">
+        <id property="id" column="instance_node_id"/>
+        <result property="instanceId" column="instance_id"/>
+        <result property="flowId" column="flow_id"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="nodeKey" column="node_key"/>
+        <result property="nodeName" column="node_name"/>
+        <result property="nodeOrder" column="node_order"/>
+        <result property="roleId" column="role_id"/>
+        <result property="auditorId" column="auditor_id"/>
+        <result property="auditorName" column="auditor_name"/>
+        <result property="nodeStatus" column="node_status"/>
+        <result property="auditResult" column="audit_result"/>
+        <result property="auditOpinion" column="audit_opinion"/>
+        <result property="auditTime" column="audit_time"/>
+        <result property="receiveTime" column="receive_time"/>
+    </resultMap>
+
+    <sql id="listSql">
+        SELECT
+            a.id,
+            a.flow_code,
+            a.flow_name,
+            a.business_type,
+            a.business_id,
+            a.business_title,
+            a.submitter_id,
+            a.submitter_name,
+            a.submit_time,
+            a.current_node_id,
+            a.current_node_key,
+            a.instance_status,
+            a.final_result,
+            a.finish_time,
+            a.remark,
+            a.create_time,
+            a.update_time,
+            n.id AS instance_node_id,
+            n.instance_id AS instance_id,
+            n.flow_id AS flow_id,
+            n.node_id AS node_id,
+            n.node_key AS node_key,
+            n.node_name AS node_name,
+            n.node_order AS node_order,
+            n.role_id AS role_id,
+            n.auditor_id AS auditor_id,
+            n.auditor_name AS auditor_name,
+            n.node_status AS node_status,
+            n.audit_result AS audit_result,
+            n.audit_opinion AS audit_opinion,
+            n.audit_time AS audit_time,
+            n.receive_time AS receive_time
+        FROM
+            audit_instance a
+                LEFT JOIN audit_instance_node n ON a.id = n.instance_id
+    </sql>
+
+    <select id="getTodoList" resultMap="AuditInstanceResultMap">
+        <include refid="listSql"/>
+        <where>
+            n.node_status=0
+            <if test="auditTaskVo.flowId != null">
+                and n.flow_id=#{auditTaskVo.flowId}
+            </if>
+            <if test="auditTaskVo.auditorId !=null">
+                and n.auditor_id=#{auditTaskVo.auditorId}
+            </if>
+            <if test="auditTaskVo.submitterId != null">
+                and a.submitter_id=#{auditTaskVo.submitterId}
+            </if>
+            <if test="auditTaskVo.submitterName != null">
+                and a.submitter_name like concat('%', #{auditTaskVo.submitterName}, '%')
+            </if>
+            <if test="auditTaskVo.startTime != null and auditTaskVo.endTime != null">
+                and a.submit_time between #{auditTaskVo.startTime} and #{auditTaskVo.endTime}
+            </if>
+        </where>
+        order by a.create_time desc
+    </select>
+
+    <select id="getDoneList" resultMap="AuditInstanceResultMap">
+        <include refid="listSql"/>
+        <where>
+            n.node_status in (1,2)
+            <if test="auditTaskVo.flowId != null">
+                and n.flow_id=#{auditTaskVo.flowId}
+            </if>
+            <if test="auditTaskVo.auditorId !=null">
+                and n.auditor_id=#{auditTaskVo.auditorId}
+            </if>
+            <if test="auditTaskVo.submitterId != null">
+                and a.submitter_id=#{auditTaskVo.submitterId}
+            </if>
+            <if test="auditTaskVo.submitterName != null">
+                and a.submitter_name like concat('%', #{auditTaskVo.submitterName}, '%')
+            </if>
+            <if test="auditTaskVo.startTime != null and auditTaskVo.endTime != null">
+                and a.submit_time between #{auditTaskVo.startTime} and #{auditTaskVo.endTime}
+            </if>
+            <if test="auditTaskVo.instanceStatus != null">
+                and a.instance_status = #{auditTaskVo.instanceStatus}
+            </if>
+        </where>
+        order by a.create_time desc
+    </select>
+
+    <select id="selectBySubmitter" resultMap="AuditInstanceResultMap">
+        select *
+        from audit_instance i
+        <where>
+            i.submitter_id = #{auditTaskVo.submitterId}
+            <if test="auditTaskVo.flowName != null">
+                and i.flow_name like concat('%', #{auditTaskVo.flowName}, '%')
+            </if>
+            <if test="auditTaskVo.flowId != null">
+                and i.flow_id = #{auditTaskVo.flowId}
+            </if>
+            <if test="auditTaskVo.instanceStatus != null">
+                and i.instance_status = #{auditTaskVo.instanceStatus}
+            </if>
+        </where>
+        order by i.id desc
+    </select>
+</mapper>

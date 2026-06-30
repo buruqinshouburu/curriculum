@@ -1,0 +1,36 @@
+# Tomcat
+server:
+  port: 9219
+  servlet:
+    context-path: /csys
+  tomcat:
+    uri-encoding: UTF-8
+# Spring
+spring:
+  application:
+    # 应用名称
+    name: doinner-curriculum
+  profiles:
+    # 环境配置
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        # 服务注册地址
+        server-addr: 27.132.187.88:8848
+        namespace: test
+      #        server-addr: 192.168.3.122:8848
+      config:
+        # 配置中心地址
+        server-addr: 27.132.187.88:8848
+        namespace: test
+#        group: XIEFAN_GROUP
+      #        server-addr: 192.168.3.122:8848
+        # 配置文件格式
+        file-extension: yml
+        # 共享配置
+        shared-configs:
+          - application-${spring.profiles.active}.${spring.cloud.nacos.config.file-extension}
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

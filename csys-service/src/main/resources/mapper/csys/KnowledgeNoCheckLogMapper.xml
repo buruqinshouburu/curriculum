@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeNoCheckLogMapper">
+    <resultMap type="com.doinner.csys.domain.KnowledgeNoCheckLog" id="KnowledgeNoCheckLogResult">
+        <result property="id" column="id"/>
+        <result property="sourceCourseId" column="source_course_id"/>
+        <result property="targetCourseId" column="target_course_id"/>
+    </resultMap>
+
+    <sql id="selectKnowledgeNoCheckLogVo">
+        select id, source_course_id, target_course_id
+        from t_csys_knowledge_no_check_log
+    </sql>
+
+    <select id="selectKnowledgeNoCheckLogList" parameterType="com.doinner.csys.domain.KnowledgeNoCheckLog"
+            resultMap="KnowledgeNoCheckLogResult">
+        <include refid="selectKnowledgeNoCheckLogVo"/>
+        <where>
+            <if test="sourceCourseId != null">
+                and source_course_id = #{sourceCourseId}
+            </if>
+            <if test="targetCourseId != null">
+                and target_course_id = #{targetCourseId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectKnowledgeNoCheckLogById" parameterType="Long" resultMap="KnowledgeNoCheckLogResult">
+        <include refid="selectKnowledgeNoCheckLogVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertKnowledgeNoCheckLog" parameterType="com.doinner.csys.domain.KnowledgeNoCheckLog"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_knowledge_no_check_log
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                source_course_id,
+            </if>
+            <if test="targetCourseId != null">
+                target_course_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                #{sourceCourseId},
+            </if>
+            <if test="targetCourseId != null">
+                #{targetCourseId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateKnowledgeNoCheckLog" parameterType="com.doinner.csys.domain.KnowledgeNoCheckLog">
+        update t_csys_knowledge_no_check_log
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                source_course_id = #{sourceCourseId},
+            </if>
+            <if test="targetCourseId != null">
+                target_course_id = #{targetCourseId},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteKnowledgeNoCheckLogById" parameterType="Long">
+        delete
+        from t_csys_knowledge_no_check_log
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteKnowledgeNoCheckLogByIds" parameterType="String">
+        delete
+        from t_csys_knowledge_no_check_log where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteBySourceDomainId">
+        delete
+        from t_csys_knowledge_no_check_log
+        where target_course_id = #{sourceDomainId}
+           or source_course_id = #{sourceDomainId}
+    </delete>
+
+    <select id="selectBySourceCourseIdList" resultMap="KnowledgeNoCheckLogResult">
+        SELECT source_course_id, target_course_id
+        FROM t_csys_knowledge_no_check_log
+        WHERE source_course_id in
+        <foreach collection="courseIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+        and target_course_id in
+        <foreach collection="courseIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+        GROUP BY source_course_id, target_course_id
+    </select>
+
+    <delete id="deleteByCourseId">
+        delete
+        FROM t_csys_knowledge_no_check_log
+        WHERE source_course_id in
+        <foreach collection="courseIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+        and target_course_id in
+        <foreach collection="courseIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

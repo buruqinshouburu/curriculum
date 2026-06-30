@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgePointMapper">
+    <resultMap type="com.doinner.csys.domain.KnowledgePoint" id="KnowledgePointResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.KnowledgePointVo" id="KnowledgePointVoResult">
+        <result property="courseId" column="course_id"/>
+        <result property="courseName" column="course_name"/>
+        <result property="unitId" column="unit_id"/>
+        <result property="unitName" column="unit_name"/>
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.KnowledgePointVoMaps" id="KnowledgePointVoMapResult">
+        <result property="cId" column="c_id"/>
+        <collection property="knowledgePointVoList" javaType="java.util.List" resultMap="KnowledgePointVoResult"/>
+    </resultMap>
+    <sql id="selectKnowledgePointVo">
+        select id,
+               name,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag
+        from t_csys_knowledge_point
+    </sql>
+    <sql id="selectKnowledgePointCheckVo">
+        SELECT tc.id AS course_id,
+               tc.name  course_name,
+               ku.id AS unit_id,
+               ku.name  unit_name,
+               kp.id,
+               kp.name,
+               kp.create_time,
+               kp.creator,
+               kp.last_modified_time,
+               kp.last_modifier,
+               kp.remark,
+               kp.sysflag
+        FROM t_csys_course tc
+                 inner JOIN t_csys_course_ref_ke_unit cru
+                            on tc.id = cru.course_id
+                 inner JOIN t_csys_knowledge_unit ku
+                            ON cru.unit_id = ku.id
+                 inner JOIN t_csys_knowledge_unit_ref_point krp
+                            ON ku.id = krp.unit_id
+                 INNER JOIN t_csys_knowledge_point kp
+                            ON krp.point_id = kp.id
+    </sql>
+    <sql id="selectKnowledgePointCheckVoMap">
+        SELECT tc.id AS c_id,
+            tc.id AS course_id,
+               tc.name  course_name,
+               ku.id AS unit_id,
+               ku.name  unit_name,
+               kp.id,
+               kp.name,
+               kp.create_time,
+               kp.creator,
+               kp.last_modified_time,
+               kp.last_modifier,
+               kp.remark,
+               kp.sysflag
+        FROM t_csys_course tc
+                 inner JOIN t_csys_course_ref_ke_unit cru
+                            on tc.id = cru.course_id
+                 inner JOIN t_csys_knowledge_unit ku
+                            ON cru.unit_id = ku.id
+                 inner JOIN t_csys_knowledge_unit_ref_point krp
+                            ON ku.id = krp.unit_id
+                 INNER JOIN t_csys_knowledge_point kp
+                            ON krp.point_id = kp.id
+    </sql>
+
+    <select id="selectKnowledgePointList" parameterType="com.doinner.csys.domain.KnowledgePoint"
+            resultMap="KnowledgePointResult">
+        <include refid="selectKnowledgePointVo"/>
+        <where>
+            sysflag = "0"
+            <if test="name != null  and name != ''">
+                and name like concat('%', #{name}, '%')
+            </if>
+            <if test="creator != null  and creator != ''">
+                and creator = #{creator}
+            </if>
+        </where>
+        order by id asc
+    </select>
+
+    <select id="selectKnowledgePointById" parameterType="Long" resultMap="KnowledgePointResult">
+        <include refid="selectKnowledgePointVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertKnowledgePoint" parameterType="com.doinner.csys.domain.KnowledgePoint" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_knowledge_point
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="name != null and name != ''">
+                name,
+            </if>
+            <if test="creator != null">
+                creator,
+            </if>
+
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="name != null and name != ''">
+                #{name},
+            </if>
+
+            <if test="creator != null">
+                #{creator},
+            </if>
+
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+        </trim>
+    </insert>
+
+    <insert id="insertKnowledgePoints" parameterType="com.doinner.csys.domain.KnowledgePoint" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_knowledge_point (name, creator, last_modifier, remark) values
+        <foreach collection="knowledgePointList" item="knowledgePoint" separator=",">
+            (#{knowledgePoint.name}, #{knowledgePoint.creator}, #{knowledgePoint.lastModifier},
+             #{knowledgePoint.remark})
+        </foreach>
+    </insert>
+
+    <update id="updateKnowledgePoint" parameterType="com.doinner.csys.domain.KnowledgePoint">
+        update t_csys_knowledge_point
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+
+            <if test="creator != null">
+                creator = #{creator},
+            </if>
+
+            <if test="lastModifier != null">
+                last_modifier = #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag = #{sysflag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="updateKnowledgePoints" parameterType="com.doinner.csys.domain.KnowledgePoint">
+        <foreach collection="pointList" item="point" separator=";" open="(" close=")">
+            update t_csys_knowledge_point
+            <trim prefix="SET" suffixOverrides=",">
+                <if test="point.name != null and point.name != ''">
+                    name = #{point.name},
+                </if>
+
+                <if test="point.lastModifier != null">
+                    last_modifier = #{point.lastModifier},
+                </if>
+                <if test="point.remark != null">
+                    remark = #{point.remark},
+                </if>
+            </trim>
+            where id = #{point.id}
+        </foreach>
+    </update>
+
+    <delete id="deleteKnowledgePointById" parameterType="Long">
+        update t_csys_knowledge_point
+        set sysflag = "2"
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteKnowledgePointByIds" parameterType="java.util.List">
+        update t_csys_knowledge_point
+        set sysflag = "2" where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectKnowledgePointByUnitId" resultMap="KnowledgePointResult">
+        SELECT *
+        FROM t_csys_knowledge_unit_ref_point krp
+                 LEFT JOIN t_csys_knowledge_point kp on krp.point_id = kp.id
+        WHERE krp.unit_id = #{unitId}
+    </select>
+
+    <select id="checkPoint" resultMap="KnowledgePointVoResult">
+        <include refid="selectKnowledgePointCheckVo"/>
+        WHERE kp.sysflag = 0
+          and tc.sysflag = 0
+          and ku.sysflag = 0
+          and tc.id = #{courseId}
+    </select>
+
+    <select id="checkPoints" resultMap="KnowledgePointVoMapResult">
+        <include refid="selectKnowledgePointCheckVoMap"/>
+        WHERE kp.sysflag = 0
+          and tc.sysflag = 0
+          and ku.sysflag = 0
+          and tc.id in
+        <foreach collection="courseIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+
+    <select id="checkCoursePoints" resultMap="KnowledgePointVoMapResult">
+        SELECT tc.id AS c_id,
+               tc.id AS course_id,
+               tc.name  course_name,
+               ku.id AS unit_id,
+               ku.name  unit_name,
+               kp.id,
+               kp.name,
+               kp.create_time,
+               kp.creator,
+               kp.last_modified_time,
+               kp.last_modifier
+        FROM t_csys_course tc
+                 inner JOIN t_csys_course_ref_knowledge_unit cru
+                            on tc.id = cru.course_id
+                 inner JOIN t_csys_course_knowledge_unit ku
+                            ON cru.course_unit_id = ku.id
+                 INNER JOIN t_csys_course_knowledge_point kp
+                            ON kp.unit_id = ku.id
+        WHERE  tc.sysflag = 0
+             and tc.id in
+        <foreach collection="courseIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+
+    <select id="checkPointsByDomainIds" resultMap="KnowledgePointVoMapResult">
+        select domain.id   c_id,
+               domain.id   course_id,
+               domain.name course_name,
+               domain.college_id,
+               domain.major_id,
+               domain.version,
+               domain.create_time,
+               domain.creator,
+               domain.last_modified_time,
+               domain.last_modifier,
+               domain.remark,
+               domain.sysflag,
+               domain.status,
+               unit.name   unit_name,
+               point.name  name,
+               unit.id     unit_id,
+               point.id    id
+        from t_csys_source_domain domain
+                 left join t_csys_source_domain_ref_unit domain_ref_unit
+                           on domain.id = domain_ref_unit.domain_id
+                 left join t_csys_source_unit unit
+                           on domain_ref_unit.unit_id = unit.id
+                 left join t_csys_source_unit_ref_point unit_ref_point
+                           on unit_ref_point.unit_id = unit.id
+                 left join t_csys_source_point point
+                           on unit_ref_point.point_id = point.id
+        where point.name is not null
+          and domain.id in
+        <foreach collection="domainIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+
+    <select id="checkPointsByCourseIds" resultMap="KnowledgePointVoMapResult">
+        select course.id   c_id,
+        course.id   course_id,
+        course.name course_name,
+        course.college_id,
+        course.major_id,
+        course.version,
+        course.create_time,
+        course.creator,
+        course.last_modified_time,
+        course.last_modifier,
+        course.remark,
+        course.sysflag,
+        course.status,
+        unit.name   unit_name,
+        point.name  name,
+        unit.id     unit_id,
+        point.id    id
+        from t_csys_course course
+        left join t_csys_course_ref_knowledge_unit rku
+        on rku.course_id = course.id
+        left join t_csys_course_knowledge_unit unit
+        on rku.course_unit_id = unit.id
+        left join t_csys_course_knowledge_point point
+        on point.unit_id=unit.id
+        where point.name is not null
+        and course.id in
+        <foreach collection="courseIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

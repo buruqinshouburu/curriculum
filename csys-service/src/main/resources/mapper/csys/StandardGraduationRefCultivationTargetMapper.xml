@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.StandardGraduationRefCultivationTargetMapper">
+    <resultMap type="com.doinner.csys.domain.StandardGraduationRefCultivationTarget"
+               id="StandardGraduationRefCultivationTargetResult">
+        <result property="graduationId" column="graduation_id"/>
+        <result property="cultivationTargetId" column="cultivation_target_id"/>
+    </resultMap>
+
+    <sql id="selectStandardGraduationRefCultivationTargetVo">
+        select graduation_id, cultivation_target_id
+        from t_csys_std_graduation_ref_cultivation_target
+    </sql>
+
+
+    <delete id="deleteByGraduationIds">
+        delete
+        from t_csys_std_graduation_ref_cultivation_target
+        where  graduation_id in
+        <foreach collection="list" separator="," open="(" close=")" item="id" index="index">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectAll" resultMap="StandardGraduationRefCultivationTargetResult">
+        <include refid="selectStandardGraduationRefCultivationTargetVo"/>
+    </select>
+
+    <select id="selectRefByGraduationIds" parameterType="Long" resultMap="StandardGraduationRefCultivationTargetResult">
+        <include refid="selectStandardGraduationRefCultivationTargetVo"/>
+        WHERE graduation_id IN
+        (
+        <foreach collection="standardGraduationIds" item="standardGraduationId" separator=",">
+            #{standardGraduationId}
+        </foreach>
+        )
+    </select>
+
+    <select id="selectRefByGraduationId" parameterType="Long" resultMap="StandardGraduationRefCultivationTargetResult">
+        <include refid="selectStandardGraduationRefCultivationTargetVo"/>
+        WHERE graduation_id = #{standardGraduationId}
+    </select>
+
+    <delete id="deleteStandardGraduationRefCultivationTargetByCultivationId" parameterType="Long">
+        delete
+        from t_csys_std_graduation_ref_cultivation_target
+        where graduation_id = #{graduationId}
+    </delete>
+
+    <insert id="insetList">
+        INSERT INTO t_csys_std_graduation_ref_cultivation_target (graduation_id, cultivation_target_id)
+        VALUES
+        <foreach collection="insetInfo" index="index" item="item" separator=",">
+            (#{item.graduationId}, #{item.cultivationTargetId})
+        </foreach>
+    </insert>
+
+    <select id="selectRefByTaIds" resultMap="StandardGraduationRefCultivationTargetResult">
+        select *
+        from t_csys_std_graduation_ref_cultivation_target
+        where cultivation_target_id in
+        <foreach collection="taIds" separator="," open="(" close=")" item="id">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insert">
+        INSERT INTO t_csys_std_graduation_ref_cultivation_target (graduation_id, cultivation_target_id)
+        VALUES (#{srt.graduationId}, #{srt.cultivationTargetId})
+    </insert>
+
+
+</mapper>

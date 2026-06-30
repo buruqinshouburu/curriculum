@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.StandardAbilityLevelMapper">
+
+    <resultMap type="com.doinner.csys.domain.StandardAbilityLevel" id="StandardAbilityLevelResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="describe"    column="describe"    />
+        <result property="abilityId"    column="ability_id"    />
+        <result property="order"     column="order" />
+        <result property="checkflag"    column="checkflag"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <insert id="insertStandardAbilityLevels" keyProperty="id" useGeneratedKeys="true">
+        <foreach collection="list" separator=";" item="item" index="index">
+            insert into t_csys_std_ability_level
+            <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="item.id != null">id,</if>
+                <if test="item.name != null">`name`,</if>
+                <if test="item.describe != null">`describe`,</if>
+                <if test="item.abilityId != null" >ability_id,</if>
+                <if test="item.order != null" >`order`,</if>
+                <if test="item.checkflag != null" >`checkflag`,</if>
+                <if test="item.createTime != null">create_time,</if>
+                <if test="item.creator != null">creator,</if>
+                <if test="item.lastModifiedTime != null">last_modified_time,</if>
+                <if test="item.lastModifier != null">last_modifier,</if>
+                <if test="item.remark != null">remark,</if>
+                <if test="item.sysflag != null and item.sysflag != ''">sysflag,</if>
+            </trim>
+            <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="item.id != null">#{item.id},</if>
+                <if test="item.name != null">#{item.name},</if>
+                <if test="item.describe != null">#{item.describe},</if>
+                <if test="item.abilityId != null" >#{item.abilityId},</if>
+                <if test="item.order != null" >#{item.order},</if>
+                <if test="item.checkflag != null" >#{item.checkflag},</if>
+                <if test="item.createTime != null">#{item.createTime},</if>
+                <if test="item.creator != null">#{item.creator},</if>
+                <if test="item.lastModifiedTime != null">#{item.lastModifiedTime},</if>
+                <if test="item.lastModifier != null">#{item.lastModifier},</if>
+                <if test="item.remark != null">#{item.remark},</if>
+                <if test="item.sysflag != null and item.sysflag != ''">#{item.sysflag},</if>
+            </trim>
+        </foreach>
+    </insert>
+
+    <select id="selectStandardAbilityLevelByAbilityId" resultMap="StandardAbilityLevelResult">
+        select `name`, id, `describe`, ability_id, `order`, checkflag,
+            create_time, creator, last_modified_time, last_modifier, remark, sysflag
+        from t_csys_std_ability_level where ability_id=#{abilityId} and sysflag=0
+    </select>
+
+    <select id="selectStandardAbilityLevelByAbilityIds" resultMap="StandardAbilityLevelResult">
+        select `name`, id, `describe`, ability_id, `order`, checkflag,
+               create_time, creator, last_modified_time, last_modifier, remark, sysflag
+        from t_csys_std_ability_level
+        where sysflag=0 and ability_id in
+        <foreach collection="list" separator="," item="item" index="index" open="(" close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <update id="updateStandardAbilityLevels" parameterType="java.util.List">
+        <foreach collection="list" separator=";" item="item" index="index" >
+            update t_csys_std_ability_level
+            <trim prefix="SET" suffixOverrides=",">
+                <if test="item.name != null">`name` = #{item.name},</if>
+                <if test="item.describe != null">`describe` = #{item.describe},</if>
+                <if test="item.abilityId != null" >ability_id = #{item.abilityId},</if>
+                <if test="item.order != null" >`order` = #{item.order},</if>
+                <if test="item.checkflag != null" >checkflag = #{item.checkflag},</if>
+            </trim>
+            where id = #{item.id}
+        </foreach>
+    </update>
+
+    <update id="updateStandardAbilityLevel" parameterType="com.doinner.csys.domain.StandardAbilityLevel" useGeneratedKeys="true">
+        update t_csys_std_ability_level
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">`name` = #{name},</if>
+            <if test="describe != null">`describe` = #{describe},</if>
+            <if test="abilityId != null" >ability_id = #{abilityId},</if>
+            <if test="order != null" >`order` = #{order},</if>
+            <if test="checkflag != null" >checkflag = #{checkflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <insert id="insertStandardAbilityLevel" parameterType="com.doinner.csys.domain.StandardAbilityLevel" keyProperty="id" useGeneratedKeys="true">
+        insert into t_csys_std_ability_level
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="name != null">`name`,</if>
+            <if test="describe != null">`describe`,</if>
+            <if test="abilityId != null" >ability_id,</if>
+            <if test="order != null" >`order`,</if>
+            <if test="checkflag != null" >`checkflag`,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="name != null">#{name},</if>
+            <if test="describe != null">#{describe},</if>
+            <if test="abilityId != null" >#{abilityId},</if>
+            <if test="order != null" >#{order},</if>
+            <if test="checkflag != null" >#{checkflag},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateAbilityId" parameterType="com.doinner.csys.domain.StandardAbilityLevel">
+        <foreach collection="list" separator=";" item="item" index="index">
+            update t_csys_std_ability_level set ability_id = #{item.abilityId} where id = #{item.id}
+        </foreach>
+    </update>
+
+    <update id="updateCheckLevel" parameterType="com.doinner.csys.domain.StandardAbilityLevel">
+        update t_csys_std_ability_level set checkflag = #{checkflag} where id = #{id}
+    </update>
+
+    <update id="deleteStandardAbilityLevel" parameterType="java.util.List">
+        update t_csys_std_ability_level set sysflag = 1 where id in
+        <foreach collection="list"  separator="," item="item" index="index" open="(" close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <update id="deleteStandardAbilityLevelByAbilityId" parameterType="java.lang.Long">
+        update t_csys_std_ability_level set sysflag = 1 where ability_id = #{abilityId}
+    </update>
+</mapper>

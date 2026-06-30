@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseRefKnowledgeUnitMapper">
+
+    <select id="selectByCourseId" resultType="com.doinner.csys.entity.csys.po.CourseRefKnowledgeUnit">
+        select * from t_csys_course_ref_knowledge_unit
+        where course_id=#{courseId}
+    </select>
+
+    <delete id="deleteByCourseId">
+        delete from t_csys_course_ref_knowledge_unit where course_id=#{courseId}
+    </delete>
+
+    <select id="selectByCourseIds" resultType="com.doinner.csys.entity.csys.po.CourseRefKnowledgeUnit">
+        select * from t_csys_course_ref_knowledge_unit
+        where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <delete id="deleteByCourseIds">
+        delete from t_csys_course_ref_knowledge_unit where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO t_csys_course_ref_knowledge_unit (
+        course_id, course_unit_id
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            ( #{item.courseId},#{item.courseUnitId} )
+        </foreach>
+    </insert>
+</mapper>

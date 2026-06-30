@@ -1,0 +1,698 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.StandardAbilityMapper">
+    <resultMap type="com.doinner.csys.domain.StandardAbility" id="StandardAbilityResult">
+        <result property="name" column="name"/>
+        <result property="id" column="id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="pName" column="parent_name"/>
+        <result property="url" column="url"/>
+        <result property="type" column="type"/>
+        <result property="code" column="code"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="majorId" column="major_id"/>
+        <result property="majorName" column="major_name"/>
+        <result property="subMajorId" column="sub_major_id"/>
+        <result property="subMajorName" column="sub_major_name"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="categoryName" column="category_Name"/>
+        <result property="classId" column="class_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="level" column="level"/>
+        <result property="leaf" column="leaf"/>
+        <result property="version" column="version"/>
+        <result property="sourceId" column="sourceId"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.StandardAbility" id="StandardAbilityGraduationResult">
+        <result property="name" column="name"/>
+        <result property="id" column="id"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="pName" column="parent_name"/>
+        <result property="url" column="url"/>
+        <result property="type" column="type"/>
+        <result property="code" column="code"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="majorId" column="major_id"/>
+        <result property="majorName" column="major_name"/>
+        <result property="subMajorId" column="sub_major_id"/>
+        <result property="subMajorName" column="sub_major_name"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="categoryName" column="category_Name"/>
+        <result property="classId" column="class_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="level" column="level"/>
+        <result property="leaf" column="leaf"/>
+        <result property="version" column="version"/>
+        <collection property="graduationIds" ofType="java.lang.Long">
+            <result column="graduationId"/>
+        </collection>
+    </resultMap>
+
+    <sql id="selectStandardAbilityVo">
+        select `name`,
+               id,
+               parent_id,
+               url,
+               level,
+               leaf,
+               type,
+               `code`,
+               college_id,
+               major_id,
+               sub_major_id,
+               category_Id,
+               class_id,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag,
+               version
+        from t_csys_std_ability
+    </sql>
+
+    <select id="selectStandardAbilityList" parameterType="com.doinner.csys.domain.StandardAbility"
+            resultMap="StandardAbilityResult">
+        select ability.name,
+               ability.id,
+               ability.parent_id,
+               ability.url,
+               ability.level,
+               ability.leaf,
+               ability.type,
+               ability.code,
+               ability.college_id,
+               ability.major_id,
+               ability.sub_major_id,
+               ability.class_id,
+               ability.create_time,
+               ability.creator,
+               ability.last_modified_time,
+               ability.last_modifier,
+               ability.remark,
+               ability.sysflag,
+               ability.version,
+               ability.source_id as                                                            sourceId,
+               (select name from t_csys_std_major major where major.id = ability.major_id)     major_name,
+               (select name from t_csys_std_major major where major.id = ability.sub_Major_Id) sub_Major_Name,
+               category.id                                                                     category_id,
+               category.name                                                                   category_name
+        from t_csys_std_ability ability
+                 left join t_csys_training_scheme_category category
+                           on ability.category_id = category.id
+        where ability.sysflag = 0
+        <if test="name != null  and name != ''">
+            and ability.name like concat('%', #{name}, '%')
+        </if>
+        <if test="parentId != null">
+            and ability.parent_id = #{parentId}
+        </if>
+        <if test="type != null">
+            and ability.type = #{type}
+        </if>
+        <if test="version != null">
+            and ability.version = #{version}
+        </if>
+        <if test="code != null  and code != ''">
+            and ability.code = #{code}
+        </if>
+        <if test="collegeId != null">
+            and ability.college_id = #{collegeId}
+        </if>
+        <if test="majorId != null">
+            and ability.major_id = #{majorId}
+        </if>
+        <if test="subMajorId != null">
+            and ability.sub_major_id = #{subMajorId}
+        </if>
+        <if test="categoryId != null">
+            and ability.category_Id = #{categoryId}
+        </if>
+        <if test="classId != null">
+            and ability.class_id = #{classId}
+        </if>
+        <if test="creator != null  and creator != ''">
+            and ability.creator = #{creator}
+        </if>
+        order by ability.create_time desc
+    </select>
+
+    <select id="selectStandardAbilityAndParentIdList" parameterType="com.doinner.csys.domain.StandardAbility"
+            resultMap="StandardAbilityResult">
+        select ability.name,
+               ability.id,
+               ability.parent_id,
+               ability.url,
+               ability.level,
+               ability.leaf,
+               ability.type,
+               ability.code,
+               ability.college_id,
+               ability.major_id,
+               ability.sub_major_id,
+               ability.class_id,
+               ability.create_time,
+               ability.creator,
+               ability.last_modified_time,
+               ability.last_modifier,
+               ability.remark,
+               ability.sysflag,
+               ability.version,
+               ability.source_id as                                                            sourceId,
+               (select name from t_csys_std_major major where major.id = ability.major_id)     major_name,
+               (select name from t_csys_std_major major where major.id = ability.sub_Major_Id) sub_Major_Name,
+               category.id                                                                     category_id,
+               category.name                                                                   category_name
+        from t_csys_std_ability ability
+                 left join t_csys_training_scheme_category category
+                           on ability.category_id = category.id
+        where ability.sysflag = 0
+          and ability.parent_id = -1
+        <if test="name != null  and name != ''">
+            and ability.name like concat('%', #{name}, '%')
+        </if>
+        <if test="parentId != null">
+            and ability.parent_id = #{parentId}
+        </if>
+        <if test="type != null">
+            and ability.type = #{type}
+        </if>
+        <if test="version != null">
+            and ability.version = #{version}
+        </if>
+        <if test="code != null  and code != ''">
+            and ability.code = #{code}
+        </if>
+        <if test="collegeId != null">
+            and ability.college_id = #{collegeId}
+        </if>
+        <if test="majorId != null">
+            and ability.major_id = #{majorId}
+        </if>
+        <if test="subMajorId != null">
+            and ability.sub_major_id = #{subMajorId}
+        </if>
+        <if test="categoryId != null">
+            and ability.category_Id = #{categoryId}
+        </if>
+        <if test="classId != null">
+            and ability.class_id = #{classId}
+        </if>
+        <if test="creator != null  and creator != ''">
+            and ability.creator = #{creator}
+        </if>
+        order by ability.id asc
+    </select>
+
+    <select id="selectStandardAbilityById" parameterType="Long" resultMap="StandardAbilityGraduationResult">
+        select `name`,
+               id,
+               parent_id,
+               url,
+               level,
+               leaf,
+               type,
+               `code`,
+               college_id,
+               major_id,
+               sub_major_id,
+               category_Id,
+               class_id,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag,
+               version,
+               ability_ref_graduation.graduation_id graduationId
+        from t_csys_std_ability ability
+                 left join t_csys_std_ability_ref_graduation ability_ref_graduation
+                           on ability.id = ability_ref_graduation.ability_id
+        where ability.id = #{id}
+    </select>
+
+    <select id="selectStandardAbilityByParentId" parameterType="Long" resultMap="StandardAbilityResult">
+        <include refid="selectStandardAbilityVo"/>
+        where parent_id = #{parentId}
+    </select>
+
+    <insert id="insertStandardAbility" parameterType="com.doinner.csys.domain.StandardAbility" keyProperty="id"
+            useGeneratedKeys="true">
+        insert into t_csys_std_ability
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">
+                `name`,
+            </if>
+            <if test="id != null">
+                id,
+            </if>
+            <if test="parentId != null">
+                parent_id,
+            </if>
+            <if test="url != null">
+                url,
+            </if>
+            <if test="level != null">
+                `level`,
+            </if>
+            <if test="leaf != null">
+                leaf,
+            </if>
+            <if test="type != null">
+                type,
+            </if>
+            <if test="code != null">
+                `code`,
+            </if>
+            <if test="collegeId != null">
+                college_id,
+            </if>
+            <if test="majorId != null">
+                major_id,
+            </if>
+            <if test="subMajorId != null">
+                sub_major_id,
+            </if>
+            <if test="categoryId != null">
+                category_Id,
+            </if>
+            <if test="classId != null">
+                class_id,
+            </if>
+            <if test="createTime != null">
+                create_time,
+            </if>
+            <if test="creator != null">
+                creator,
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time,
+            </if>
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="version != null">
+                version,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+            <if test="sourceId != null and sourceId != ''">
+                source_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">
+                #{name},
+            </if>
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="parentId != null">
+                #{parentId},
+            </if>
+            <if test="url != null">
+                #{url},
+            </if>
+            <if test="level != null">
+                #{level},
+            </if>
+            <if test="leaf != null">
+                #{leaf},
+            </if>
+            <if test="type != null">
+                #{type},
+            </if>
+            <if test="code != null">
+                #{code},
+            </if>
+            <if test="collegeId != null">
+                #{collegeId},
+            </if>
+            <if test="majorId != null">
+                #{majorId},
+            </if>
+            <if test="subMajorId != null">
+                #{subMajorId},
+            </if>
+            <if test="categoryId != null">
+                #{categoryId},
+            </if>
+            <if test="classId != null">
+                #{classId},
+            </if>
+            <if test="createTime != null">
+                #{createTime},
+            </if>
+            <if test="creator != null">
+                #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="version != null">
+                #{version},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+            <if test="sourceId != null and sourceId != ''">
+                #{sourceId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateStandardAbility" parameterType="com.doinner.csys.domain.StandardAbility" useGeneratedKeys="true">
+        update t_csys_std_ability
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">
+                `name` = #{name},
+            </if>
+            <if test="parentId != null">
+                parent_id = #{parentId},
+            </if>
+            <if test="url != null">
+                url = #{url},
+            </if>
+            <if test="level != null">
+                `level` = #{level},
+            </if>
+            <if test="leaf != null">
+                leaf = #{leaf},
+            </if>
+            <if test="type != null">
+                type = #{type},
+            </if>
+            <if test="code != null">
+                `code` = #{code},
+            </if>
+            <if test="collegeId != null">
+                college_id = #{collegeId},
+            </if>
+            <if test="majorId != null">
+                major_id = #{majorId},
+            </if>
+            sub_major_id = #{subMajorId},
+            category_Id  = #{categoryId},
+            <if test="classId != null">
+                class_id = #{classId},
+            </if>
+            <if test="createTime != null">
+                create_time = #{createTime},
+            </if>
+            <if test="creator != null">
+                creator = #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time = #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                last_modifier = #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="version != null">
+                version = #{version},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag = #{sysflag},
+            </if>
+            <if test="sourceId != null and sourceId != ''">
+                source_id = #{sourceId},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="deleteStandardAbilityById" parameterType="Long">
+        update t_csys_std_ability
+        set sysflag = 2
+        WHERE id = #{id}
+           or FIND_IN_SET(#{id}, url)
+    </update>
+
+    <update id="deleteStandardAbilityByIds" parameterType="String">
+        update t_csys_std_ability
+        set sysflag = 2 where
+        <foreach item="id" collection="array" open="(" separator="or" close=")">
+            (FIND_IN_SET(#{id}, url) or id = #{id})
+        </foreach>
+    </update>
+
+    <select id="selectAllAbilityById" resultMap="StandardAbilityGraduationResult">
+        select `name`,
+               id,
+               parent_id,
+               url,
+               level,
+               leaf,
+               type,
+               `code`,
+               college_id,
+               major_id,
+               sub_major_id,
+               category_Id,
+               class_id,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag,
+               version,
+               ability_ref_graduation.graduation_id graduationId
+        from t_csys_std_ability ability
+                 left join t_csys_std_ability_ref_graduation ability_ref_graduation
+                           on ability.id = ability_ref_graduation.ability_id
+        WHERE (FIND_IN_SET(#{id}, ability.url) or ability.id = #{id})
+          and ability.sysflag = '0'
+    </select>
+
+    <select id="selectStandardAbilityByIds" parameterType="Long" resultMap="StandardAbilityGraduationResult">
+        select `name`,
+               id,
+               parent_id,
+               url,
+               level,
+               leaf,
+               type,
+               `code`,
+               college_id,
+               major_id,
+               sub_major_id,
+               category_Id,
+               class_id,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag,
+               version,
+               ability_ref_graduation.graduation_id graduationId
+        from t_csys_std_ability ability
+                 left join t_csys_std_ability_ref_graduation ability_ref_graduation
+                           on ability.id = ability_ref_graduation.ability_id
+        where ability.sysflag = '0'
+        <if test="ids != null and ids.size() > 0">
+            and ability.id in
+            <foreach item="id" collection="ids" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        <if test="type != null and type != ''">
+            and ability.type = #{type}
+        </if>
+    </select>
+
+    <select id="selectUrlByPId" resultType="java.lang.String">
+        SELECT url
+        FROM t_csys_std_ability
+        WHERE id = #{pid}
+          and sysflag = '0'
+        GROUP BY url
+    </select>
+
+    <update id="updateIsLeaf">
+        update t_csys_std_ability
+        set leaf = 1
+        where id = #{id}
+    </update>
+
+    <update id="updateNotLeaf">
+        update t_csys_std_ability
+        set leaf = 0
+        where id = #{id}
+    </update>
+
+
+    <insert id="insertAbilityList" parameterType="java.util.List" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_std_ability (name, code, parent_id, leaf, type, level, url, major_id, sub_major_id,
+                                        class_id, college_id, remark, version) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.name}, #{item.code},
+             #{item.parentId}, #{item.leaf},
+             #{item.type}, #{item.level},
+             #{item.url}, #{item.majorId},
+             #{item.subMajorId}, #{item.classId},
+             #{item.collegeId}, #{item.remark}, #{item.version})
+        </foreach>
+    </insert>
+
+    <update id="updateAbilityList" parameterType="java.util.List" useGeneratedKeys="true">
+        <foreach collection="list" separator=";" item="item" index="index">
+            update t_csys_std_ability
+            <trim prefix="SET" suffixOverrides=",">
+                <if test="item.name != null">
+                    `name` = #{item.name},
+                </if>
+                <if test="item.parentId != null">
+                    parent_id = #{item.parentId},
+                </if>
+                <if test="item.url != null">
+                    url = #{item.url},
+                </if>
+                <if test="item.level != null">
+                    `level` = #{item.level},
+                </if>
+                <if test="item.leaf != null">
+                    leaf = #{item.leaf},
+                </if>
+                <if test="item.type != null">
+                    type = #{item.type},
+                </if>
+                <if test="item.code != null">
+                    `code` = #{item.code},
+                </if>
+                <if test="item.collegeId != null">
+                    college_id = #{item.collegeId},
+                </if>
+                <if test="item.majorId != null">
+                    major_id = #{item.majorId},
+                </if>
+                <if test="item.subMajorId != null">
+                    sub_major_id = #{item.subMajorId},
+                </if>
+                <if test="item.categoryId != null">
+                    category_Id = #{categoryId},
+                </if>
+                <if test="item.classId != null">
+                    class_id = #{item.classId},
+                </if>categoryId
+                <if test="item.createTime != null">
+                    create_time = #{item.createTime},
+                </if>
+                <if test="item.creator != null">
+                    creator = #{item.creator},
+                </if>
+                <if test="item.lastModifiedTime != null">
+                    last_modified_time = #{item.lastModifiedTime},
+                </if>
+                <if test="item.lastModifier != null">
+                    last_modifier = #{item.lastModifier},
+                </if>
+                <if test="item.remark != null">
+                    remark = #{item.remark},
+                </if>
+                <if test="item.version != null">
+                    version = #{item.version},
+                </if>
+                <if test="item.sysflag != null and item.sysflag != ''">
+                    sysflag = #{item.sysflag},
+                </if>
+            </trim>
+            where id = #{item.id}
+        </foreach>
+    </update>
+
+    <update id="setLeafIsNode">
+        update t_csys_std_ability
+        set leaf = 1
+        where id = #{pId}
+    </update>
+
+    <update id="updateSysFlag">
+        update t_csys_std_ability
+        set sysflag = 1
+        WHERE (FIND_IN_SET(#{id}, url))
+    </update>
+
+
+    <select id="checkIssueAbility" parameterType="com.doinner.csys.domain.StandardAbility"
+            resultMap="StandardAbilityResult">
+        select ability.id
+        from t_csys_std_ability ability
+        where ability.sysflag = 0
+          and ability.source_id is not null
+        <if test="name != null  and name != ''">
+            and ability.name like concat('%', #{name}, '%')
+        </if>
+        <if test="parentId != null">
+            and ability.parent_id = #{parentId}
+        </if>
+        <if test="type != null">
+            and ability.type = #{type}
+        </if>
+        <if test="version != null">
+            and ability.version = #{version}
+        </if>
+        <if test="code != null  and code != ''">
+            and ability.code = #{code}
+        </if>
+        <if test="collegeId != null">
+            and ability.college_id = #{collegeId}
+        </if>
+        <if test="majorId != null">
+            and ability.major_id = #{majorId}
+        </if>
+        <if test="subMajorId != null">
+            and ability.sub_major_id = #{subMajorId}
+        </if>
+        <if test="categoryId != null">
+            and ability.category_Id = #{categoryId}
+        </if>
+        <if test="classId != null">
+            and ability.class_id = #{classId}
+        </if>
+        <if test="creator != null  and creator != ''">
+            and ability.creator = #{creator}
+        </if>
+        order by ability.id desc
+    </select>
+
+    <select id="selectStandardAbilityListBySchemeId" resultType="java.util.Map">
+        select g.id, g.name, count(distinct sg.id) as pointNum
+        from t_csys_std_graduation g
+                 left join t_csys_std_graduation sg on sg.parent_id = g.id
+        where g.type = #{type}
+          and g.level = 2
+          and g.scheme_Id=#{schemeId}
+        group by  g.id, g.name
+    </select>
+</mapper>

@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.StandardCultivationMapper">
+
+    <resultMap type="com.doinner.csys.domain.StandardCultivation" id="StandardCultivationResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="code"    column="code"    />
+        <result property="parentId"    column="parent_id"    />
+        <result property="graduationId"    column="graduation_id"    />
+        <result property="leaf"    column="leaf"    />
+        <result property="level"    column="level"    />
+        <result property="url"    column="url"    />
+        <result property="collegeId"    column="college_id"    />
+        <result property="majorId"    column="major_id"    />
+        <result property="subMajorId"    column="sub_major_id"    />
+        <result property="classId"    column="class_id"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+        <result property="version"    column="version"    />
+    </resultMap>
+    <resultMap type="com.doinner.csys.domain.vo.StandardCultivationVo" id="StandardCultivationVoResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="graduationId" column="graduation_id"/>
+
+        <result property="leaf" column="leaf"/>
+        <result property="level" column="level"/>
+        <result property="url" column="url"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="majorId" column="major_id"/>
+        <result property="subMajorId" column="sub_major_id"/>
+        <result property="classId" column="class_id"/>
+        <result property="remark" column="remark"/>
+        <result property="version" column="version"/>
+        <collection property="standardCultivationRefGraduationVoList" javaType="java.util.List"
+                    resultMap="StandardCultivationRefGraduationVoResult"/>
+    </resultMap>
+    <resultMap type="com.doinner.csys.domain.vo.StandardCultivationRefGraduationVo" id="StandardCultivationRefGraduationVoResult">
+        <result property="graduationId" column="ref_g_id"/>
+        <result property="cultivationId" column="cultivation_id"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.StandardGraduationVo" id="StandardGraduationVoResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="leaf" column="leaf"/>
+        <result property="level" column="level"/>
+        <result property="url" column="url"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="majorId" column="major_id"/>
+        <result property="subMajorId" column="sub_major_id"/>
+        <result property="classId" column="class_id"/>
+        <result property="remark" column="remark"/>
+        <collection property="standardGraduationRefTargetVoList" javaType="java.util.List"
+                    resultMap="StandardGraduationRefTargetVoResult"/>
+    </resultMap>
+    <resultMap type="com.doinner.csys.domain.vo.StandardGraduationRefTargetVo" id="StandardGraduationRefTargetVoResult">
+        <result property="graduationId" column="graduation_id"/>
+        <result property="cultivationTargetId" column="ref_t_id"/>
+    </resultMap>
+
+    <sql id="selectStandardCultivationVo">
+        select id, name, code, parent_id, leaf, graduation_id, level, url, college_id, major_id, sub_major_id, class_id, create_time, creator, last_modified_time, last_modifier, remark, sysflag,version from t_csys_std_cultivation
+    </sql>
+    <sql id="selectStandardGraduationRefTargetVo">
+        SELECT sc.id,
+               sc.`name`,
+               sc.graduation_id,
+               sc.`code`,
+               sc.parent_id,
+               sc.leaf,
+               sc.`level`,
+               sc.url,
+               sc.college_id,
+               sc.major_id,
+               sc.sub_major_id,
+               sc.class_id,
+               sc.remark,
+               sc.version,
+               crg.graduation_id ref_g_id,
+               crg.cultivation_id
+        FROM t_csys_std_cultivation sc
+                 LEFT JOIN t_csys_std_cultivation_ref_graduation crg ON sc.id = crg.cultivation_id
+    </sql>
+    <select id="selectStandardCultivationList" parameterType="com.doinner.csys.domain.StandardCultivation"
+            resultMap="StandardCultivationResult">
+        <include refid="selectStandardCultivationVo"/>
+        where sysflag = 0
+        <if test="name != null  and name != ''">
+            and name like concat('%', #{name}, '%')
+        </if>
+        <if test="code != null  and code != ''">
+            and code = #{code}
+        </if>
+        <if test="parentId != null">
+            and parent_id = #{parentId}
+        </if>
+        <if test="leaf != null">
+            and leaf = #{leaf}
+        </if>
+        <if test="level != null">
+            and level = #{level}
+        </if>
+        <if test="url != null  and url != ''">
+            and url = #{url}
+        </if>
+        <if test="collegeId != null">
+            and college_id = #{collegeId}
+        </if>
+        <if test="majorId != null">
+            and major_id = #{majorId}
+        </if>
+        <if test="subMajorId != null">
+            and sub_major_id = #{subMajorId}
+        </if>
+        <if test="classId != null">
+            and class_id = #{classId}
+        </if>
+        <if test="version != null">
+            and version = #{version}
+        </if>
+    </select>
+
+    <select id="selectStandardCultivationById" parameterType="Long" resultMap="StandardCultivationResult">
+        <include refid="selectStandardCultivationVo"/>
+        where sysflag = 0
+          and id = #{id}
+    </select>
+
+    <select id="selectStandardCultivationAll" parameterType="Long" resultMap="StandardCultivationResult">
+        <include refid="selectStandardCultivationVo"/>
+        where sysflag = 0
+            and find_in_set(#{id}, url)
+           or id = #{id}
+    </select>
+
+    <select id="selectStandardCultivationAndLeafAll" parameterType="Long" resultMap="StandardCultivationResult">
+        <include refid="selectStandardCultivationVo"/>
+        where sysflag = 0 and leaf = 1
+        and find_in_set(#{id}, url)
+    </select>
+
+    <insert id="insertStandardCultivation" parameterType="com.doinner.csys.domain.StandardCultivation" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_std_cultivation
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="name != null">
+                name,
+            </if>
+            <if test="code != null">
+                code,
+            </if>
+            <if test="parentId != null">
+                parent_id,
+            </if>
+            <if test="leaf != null">
+                leaf,
+            </if>
+            <if test="level != null">
+                level,
+            </if>
+            <if test="url != null">
+                url,
+            </if>
+            <if test="collegeId != null">
+                college_id,
+            </if>
+            <if test="majorId != null">
+                major_id,
+            </if>
+            <if test="subMajorId != null">
+                sub_major_id,
+            </if>
+            <if test="classId != null">
+                class_id,
+            </if>
+            <if test="createTime != null">
+                create_time,
+            </if>
+            <if test="creator != null">
+                creator,
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time,
+            </if>
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+            <if test="version != null and version != ''">
+                version,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="name != null">
+                #{name},
+            </if>
+            <if test="code != null">
+                #{code},
+            </if>
+            <if test="parentId != null">
+                #{parentId},
+            </if>
+            <if test="leaf != null">
+                #{leaf},
+            </if>
+            <if test="level != null">
+                #{level},
+            </if>
+            <if test="url != null">
+                #{url},
+            </if>
+            <if test="collegeId != null">
+                #{collegeId},
+            </if>
+            <if test="majorId != null">
+                #{majorId},
+            </if>
+            <if test="subMajorId != null">
+                #{subMajorId},
+            </if>
+            <if test="classId != null">
+                #{classId},
+            </if>
+            <if test="createTime != null">
+                #{createTime},
+            </if>
+            <if test="creator != null">
+                #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+            <if test="version != null and version != ''">
+                #{version},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateStandardCultivation" parameterType="com.doinner.csys.domain.StandardCultivation">
+        update t_csys_std_cultivation
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">
+                name = #{name},
+            </if>
+            <if test="code != null">
+                code = #{code},
+            </if>
+            <if test="parentId != null">
+                parent_id = #{parentId},
+            </if>
+            <if test="leaf != null">
+                leaf = #{leaf},
+            </if>
+            <if test="level != null">
+                level = #{level},
+            </if>
+            <if test="url != null">
+                url = #{url},
+            </if>
+            <if test="collegeId != null">
+                college_id = #{collegeId},
+            </if>
+            <if test="majorId != null">
+                major_id = #{majorId},
+            </if>
+            sub_major_id = #{subMajorId},
+            <if test="graduationId != null">
+                graduation_id =#{graduationId},
+            </if>
+            <if test="classId != null">
+                class_id = #{classId},
+            </if>
+            <if test="createTime != null">
+                create_time = #{createTime},
+            </if>
+            <if test="creator != null">
+                creator = #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time = #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                last_modifier = #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag = #{sysflag},
+            </if>
+            <if test="version != null and version != ''">
+                version = #{version},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteStandardCultivationById" parameterType="Long">
+        UPDATE t_csys_std_cultivation
+        SET sysflag = 2
+        WHERE id = #{id}
+        or FIND_IN_SET(#{id}, url)
+    </delete>
+
+    <delete id="deleteStandardCultivationByIds" parameterType="String">
+        delete
+        from t_csys_std_cultivation where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+
+    <insert id="insertStandardCultivationList" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_std_cultivation (name, code, parent_id, leaf, level, url, graduation_id, major_id, sub_major_id, class_id, college_id, remark,version) VALUES
+        <foreach collection="standardCultivationList" item="standardCultivation" separator=",">
+            (#{standardCultivation.name}, #{standardCultivation.code},
+            #{standardCultivation.parentId}, #{standardCultivation.leaf},
+            #{standardCultivation.level}, #{standardCultivation.url}, #{standardCultivation.graduationId},
+            #{standardCultivation.majorId}, #{standardCultivation.subMajorId}, #{standardCultivation.classId},
+            #{standardCultivation.collegeId}, #{standardCultivation.remark}, #{standardCultivation.version})
+        </foreach>
+    </insert>
+
+    <update id="updateStandardCultivationList" parameterType="java.util.List">
+        <foreach collection="standardCultivationList" item="standardCultivation" index="index" separator=";">
+            update t_csys_std_cultivation AS cultivation
+            set cultivation.parent_id = #{standardCultivation.parentId},
+            cultivation.url = #{standardCultivation.url},
+            cultivation.graduation_id = #{standardCultivation.graduationId},
+            cultivation.leaf = #{standardCultivation.leaf},
+            cultivation.level = #{standardCultivation.level}
+            where cultivation.id = #{standardCultivation.id}
+        </foreach>
+    </update>
+
+    <update id="setLeafIsNode">
+        update t_csys_std_cultivation
+        set leaf = 1
+        where id = #{pId}
+    </update>
+
+    <select id="selectCultivationRefGraduation" resultMap="StandardCultivationVoResult">
+        <include refid="selectStandardGraduationRefTargetVo"/>
+        where sc.sysflag = 0
+        and FIND_IN_SET(#{id}, sc.url)
+        OR sc.id = #{id}
+    </select>
+
+    <update id="updateGraduationId">
+        update t_csys_std_cultivation
+        set graduation_id = #{graduationId}
+        WHERE sysflag = 0
+        AND FIND_IN_SET(#{id}, url)
+        OR id = #{id}
+    </update>
+
+    <select id="selectCultivationVoAll" resultMap="StandardCultivationVoResult">
+        <include refid="selectStandardCultivationVo"/>
+        where sysflag = 0
+        and find_in_set(#{id}, url)
+        or id = #{id}
+    </select>
+
+    <select id="selectCByGId" resultMap="StandardGraduationVoResult">
+        SELECT *
+        FROM t_csys_std_cultivation_ref_graduation crg
+                 LEFT JOIN t_csys_std_cultivation sc
+                           on crg.cultivation_id = sc.id
+
+        WHERE sc.sysflag = 0
+          and crg.graduation_id = #{graduationId}
+    </select>
+
+    <select id="selectCUrlPName" resultType="java.lang.String">
+        select name from t_csys_std_cultivation
+        where sysflag =0
+        and id in
+        <foreach collection="ids" separator="," open="(" close=")" item="id">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectStandardCultivationByRoot" resultMap="StandardCultivationResult">
+        <include refid="selectStandardCultivationVo"/>
+        where sysflag = 0
+        and find_in_set(#{id}, url)
+        and name = #{name}
+        and leaf = 1
+    </select>
+
+</mapper>

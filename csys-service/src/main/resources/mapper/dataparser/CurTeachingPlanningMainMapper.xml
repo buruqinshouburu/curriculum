@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurTeachingPlanningMainMapper">
+
+    <resultMap type="CurTeachingPlanningMain" id="CurTeachingPlanningMainResult">
+        <result property="id"    column="ID"    />
+        <result property="curName"    column="CUR_NAME"    />
+        <result property="curType"    column="CUR_TYPE"    />
+        <result property="curCategory"    column="CUR_CATEGORY"    />
+        <result property="curAttribute"    column="CUR_ATTRIBUTE"    />
+        <result property="writingName"    column="WRITING_NAME"    />
+        <result property="reviewCollege"    column="REVIEW_COLLEGE"    />
+        <result property="college"    column="COLLEGE"    />
+        <result property="curCode"    column="CUR_CODE"    />
+        <result property="curNameEn"    column="CUR_NAME_EN"    />
+        <result property="curPre"    column="CUR_PRE"    />
+        <result property="curFollow"    column="CUR_FOLLOW"    />
+        <result property="hours"    column="HOURS"    />
+        <result property="hoursTh"    column="HOURS_TH"    />
+        <result property="hoursPa"    column="HOURS_PA"    />
+        <result property="hoursWeek"    column="HOURS_WEEK"    />
+        <result property="hoursTeach"    column="HOURS_TEACH"    />
+        <result property="hoursExam"    column="HOURS_EXAM"    />
+        <result property="hoursOther"    column="HOURS_OTHER"    />
+        <result property="hoursUnit"    column="HOURS_UNIT"    />
+        <result property="score"    column="SCORE"    />
+        <result property="nature"    column="NATURE"    />
+        <result property="term"    column="TERM"    />
+        <result property="brief"    column="BRIEF"    />
+        <result property="fileId"    column="FILE_ID"    />
+        <result property="fileName"    column="FILE_NAME"    />
+        <result property="review"    column="REVIEW"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="status"    column="status"    />
+        <result property="analysisStatus"    column="analysis_status"    />
+    </resultMap>
+
+    <sql id="selectCurTeachingPlanningMainVo">
+        select ID, CUR_NAME, CUR_TYPE,CUR_CATEGORY, CUR_ATTRIBUTE, WRITING_NAME,REVIEW_COLLEGE,COLLEGE,CUR_CODE,CUR_NAME_EN,CUR_PRE,CUR_FOLLOW,HOURS,HOURS_TH,HOURS_PA,
+        HOURS_WEEK, HOURS_TEACH, HOURS_EXAM, HOURS_OTHER, HOURS_UNIT, SCORE,NATURE,TERM,BRIEF,
+        FILE_ID, FILE_NAME, REVIEW, create_by,create_time,update_by,update_time,remark,status,analysis_status from cur_teaching_plannning_main
+    </sql>
+
+    <select id="selectCurTeachingPlanningMainList" parameterType="CurTeachingPlanningMain" resultMap="CurTeachingPlanningMainResult">
+        <include refid="selectCurTeachingPlanningMainVo"/>
+        <where>
+            <if test="curName != null  and curName != ''"> and CUR_NAME = #{curName}</if>
+            <if test="curType != null  and curType != ''"> and CUR_TYPE = #{curType}</if>
+            <if test="college != null  and college != ''"> and COLLEGE = #{college}</if>
+            <if test="id != null  and id != ''"> and id = #{id}</if>
+        </where>
+    </select>
+
+    <select id="selectCurTeachingPlanningMainById" parameterType="Long" resultMap="CurTeachingPlanningMainResult">
+        <include refid="selectCurTeachingPlanningMainVo"/>
+        where ID = #{id}
+    </select>
+
+
+    <select id="selectCurTeachingPlanningMainByIds" parameterType="java.util.List" resultMap="CurTeachingPlanningMainResult">
+        <include refid="selectCurTeachingPlanningMainVo"/>
+        where ID in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertCurTeachingPlanningMain" parameterType="CurTeachingPlanningMain" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plannning_main
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">ID,</if>
+            <if test="curName != null">CUR_NAME,</if>
+            <if test="curType != null">CUR_TYPE,</if>
+            <if test="curCategory != null">CUR_CATEGORY,</if>
+            <if test="curAttribute != null">CUR_ATTRIBUTE,</if>
+            <if test="writingName != null">WRITING_NAME,</if>
+            <if test="reviewCollege != null">REVIEW_COLLEGE,</if>
+            <if test="college != null">COLLEGE,</if>
+            <if test="curCode != null">CUR_CODE,</if>
+            <if test="curNameEn != null">CUR_NAME_EN,</if>
+            <if test="curPre != null">CUR_PRE,</if>
+            <if test="curFollow != null">CUR_FOLLOW,</if>
+            <if test="hours != null">HOURS,</if>
+            <if test="hoursTh != null">HOURS_TH,</if>
+            <if test="hoursPa != null">HOURS_PA,</if>
+            <if test="hoursWeek != null">HOURS_WEEK,</if>
+            <if test="hoursTeach != null">HOURS_TEACH,</if>
+            <if test="hoursExam != null">HOURS_EXAM,</if>
+            <if test="hoursOther != null">HOURS_OTHER,</if>
+            <if test="hoursUnit != null">HOURS_UNIT,</if>
+            <if test="score != null">SCORE,</if>
+            <if test="nature != null">NATURE,</if>
+            <if test="term != null">TERM,</if>
+            <if test="brief != null">BRIEF,</if>
+            <if test="fileId != null">FILE_ID,</if>
+            <if test="fileName != null">FILE_NAME,</if>
+            <if test="review != null">REVIEW,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="status != null">status,</if>
+            <if test="analysisStatus != null">analysis_status,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="curName != null">#{curName},</if>
+            <if test="curType != null">#{curType},</if>
+            <if test="curCategory != null">#{curCategory},</if>
+            <if test="curAttribute != null">#{curAttribute},</if>
+            <if test="writingName != null">#{writingName},</if>
+            <if test="reviewCollege != null">#{reviewCollege},</if>
+            <if test="college != null">#{college},</if>
+            <if test="curCode != null">#{curCode},</if>
+            <if test="curNameEn != null">#{curNameEn},</if>
+            <if test="curPre != null">#{curPre},</if>
+            <if test="curFollow != null">#{curFollow},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="hoursTh != null">#{hoursTh},</if>
+            <if test="hoursPa != null">#{hoursPa},</if>
+            <if test="hoursWeek != null">#{hoursWeek},</if>
+            <if test="hoursTeach != null">#{hoursTeach},</if>
+            <if test="hoursExam != null">#{hoursExam},</if>
+            <if test="hoursOther != null">#{hoursOther},</if>
+            <if test="hoursUnit != null">#{hoursUnit},</if>
+            <if test="score != null">#{score},</if>
+            <if test="nature != null">#{nature},</if>
+            <if test="term != null">#{term},</if>
+            <if test="brief != null">#{brief},</if>
+            <if test="fileId != null">#{fileId},</if>
+            <if test="fileName != null">#{fileName},</if>
+            <if test="review != null">#{review},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="status != null">#{status},</if>
+            <if test="analysisStatus != null">#{analysisStatus},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCurTeachingPlanningMainList" parameterType="CurTeachingPlanningMain" useGeneratedKeys="true" keyProperty="id">
+        <foreach collection="list" separator=";" item="item" index="index">
+            insert into cur_teaching_plannning_main
+            <trim prefix="(" suffix=")" suffixOverrides=",">
+                <if test="item.id != null">ID,</if>
+                <if test="item.curName != null">CUR_NAME,</if>
+                <if test="item.curType != null">CUR_TYPE,</if>
+                <if test="item.curCategory != null">CUR_CATEGORY,</if>
+                <if test="item.curAttribute != null">CUR_ATTRIBUTE,</if>
+                <if test="item.writingName != null">WRITING_NAME,</if>
+                <if test="item.reviewCollege != null">REVIEW_COLLEGE,</if>
+                <if test="item.college != null">COLLEGE,</if>
+                <if test="item.curCode != null">CUR_CODE,</if>
+                <if test="item.curNameEn != null">CUR_NAME_EN,</if>
+                <if test="item.curPre != null">CUR_PRE,</if>
+                <if test="item.curFollow != null">CUR_FOLLOW,</if>
+                <if test="item.hours != null">HOURS,</if>
+                <if test="item.hoursTh != null">HOURS_TH,</if>
+                <if test="item.hoursPa != null">HOURS_PA,</if>
+                <if test="item.hoursWeek != null">HOURS_WEEK,</if>
+                <if test="item.hoursTeach != null">HOURS_TEACH,</if>
+                <if test="item.hoursExam != null">HOURS_EXAM,</if>
+                <if test="item.hoursOther != null">HOURS_OTHER,</if>
+                <if test="item.hoursUnit != null">HOURS_UNIT,</if>
+                <if test="item.score != null">SCORE,</if>
+                <if test="item.nature != null">NATURE,</if>
+                <if test="item.term != null">TERM,</if>
+                <if test="item.brief != null">BRIEF,</if>
+                <if test="item.fileId != null">FILE_ID,</if>
+                <if test="item.fileName != null">FILE_NAME,</if>
+                <if test="item.review != null">REVIEW,</if>
+                <if test="item.createBy != null">create_by,</if>
+                <if test="item.createTime != null">create_time,</if>
+                <if test="item.updateBy != null">update_by,</if>
+                <if test="item.updateTime != null">update_time,</if>
+                <if test="item.remark != null">remark,</if>
+                <if test="item.status != null">status,</if>
+                <if test="item.analysisStatus != null">analysis_status,</if>
+            </trim>
+            <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="item.id != null">#{item.id},</if>
+                <if test="item.curName != null">#{item.curName},</if>
+                <if test="item.curType != null">#{item.curType},</if>
+                <if test="item.curCategory != null">#{item.curCategory},</if>
+                <if test="item.curAttribute != null">#{item.curAttribute},</if>
+                <if test="item.writingName != null">#{item.writingName},</if>
+                <if test="item.reviewCollege != null">#{item.reviewCollege},</if>
+                <if test="item.college != null">#{item.college},</if>
+                <if test="item.curCode != null">#{item.curCode},</if>
+                <if test="item.curNameEn != null">#{item.curNameEn},</if>
+                <if test="item.curPre != null">#{item.curPre},</if>
+                <if test="item.curFollow != null">#{item.curFollow},</if>
+                <if test="item.hours != null">#{item.hours},</if>
+                <if test="item.hoursTh != null">#{item.hoursTh},</if>
+                <if test="item.hoursPa != null">#{item.hoursPa},</if>
+                <if test="item.hoursWeek != null">#{item.hoursWeek},</if>
+                <if test="item.hoursTeach != null">#{item.hoursTeach},</if>
+                <if test="item.hoursExam != null">#{item.hoursExam},</if>
+                <if test="item.hoursOther != null">#{item.hoursOther},</if>
+                <if test="item.hoursUnit != null">#{item.hoursUnit},</if>
+                <if test="item.score != null">#{item.score},</if>
+                <if test="item.nature != null">#{item.nature},</if>
+                <if test="item.term != null">#{item.term},</if>
+                <if test="item.brief != null">#{item.brief},</if>
+                <if test="item.fileId != null">#{item.fileId},</if>
+                <if test="item.fileName != null">#{item.fileName},</if>
+                <if test="item.review != null">#{item.review},</if>
+                <if test="item.createBy != null">#{item.createBy},</if>
+                <if test="item.createTime != null">#{item.createTime},</if>
+                <if test="item.updateBy != null">#{item.updateBy},</if>
+                <if test="item.updateTime != null">#{item.updateTime},</if>
+                <if test="item.remark != null">#{item.remark},</if>
+                <if test="item.status != null">#{item.status},</if>
+                <if test="item.analysisStatus != null">#{item.analysisStatus},</if>
+            </trim>
+        </foreach>
+    </insert>
+
+    <update id="updateCurTeachingPlanningMain" parameterType="CurTeachingPlanningMain">
+        update cur_teaching_plannning_main
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="curName != null">CUR_NAME = #{curName},</if>
+            <if test="curName == null">CUR_NAME = null,</if>
+            <if test="curType != null">CUR_TYPE = #{curType},</if>
+            <if test="curType == null">CUR_TYPE = null,</if>
+            <if test="curCategory != null">CUR_CATEGORY = #{curCategory},</if>
+            <if test="curCategory == null">CUR_CATEGORY = null,</if>
+            <if test="curAttribute != null">CUR_ATTRIBUTE = #{curAttribute},</if>
+            <if test="curAttribute == null">CUR_ATTRIBUTE = null,</if>
+            <if test="writingName != null">WRITING_NAME = #{writingName},</if>
+            <if test="writingName == null">WRITING_NAME = null,</if>
+            <if test="reviewCollege != null">REVIEW_COLLEGE = #{reviewCollege},</if>
+            <if test="reviewCollege == null">REVIEW_COLLEGE = null,</if>
+            <if test="college != null">COLLEGE = #{college},</if>
+            <if test="college == null">COLLEGE = null,</if>
+            <if test="curCode != null">CUR_CODE = #{curCode},</if>
+            <if test="curCode == null">CUR_CODE = null,</if>
+            <if test="curNameEn != null">CUR_NAME_EN = #{curNameEn},</if>
+            <if test="curNameEn == null">CUR_NAME_EN = null,</if>
+            <if test="curPre != null">CUR_PRE = #{curPre},</if>
+            <if test="curPre == null">CUR_PRE = null,</if>
+            <if test="curFollow != null">CUR_FOLLOW = #{curFollow},</if>
+            <if test="curFollow == null">CUR_FOLLOW = null,</if>
+            <if test="hours != null">HOURS = #{hours},</if>
+            <if test="hours == null">HOURS = null,</if>
+            <if test="hoursTh != null">HOURS_TH = #{hoursTh},</if>
+            <if test="hoursTh == null">HOURS_TH = null,</if>
+            <if test="hoursPa != null">HOURS_PA = #{hoursPa},</if>
+            <if test="hoursPa == null">HOURS_PA = null,</if>
+            <if test="hoursWeek != null">HOURS_WEEK = #{hoursWeek},</if>
+            <if test="hoursWeek == null">HOURS_WEEK = null,</if>
+            <if test="hoursTeach != null">HOURS_TEACH = #{hoursTeach},</if>
+            <if test="hoursTeach == null">HOURS_TEACH = null,</if>
+            <if test="hoursExam != null">HOURS_EXAM = #{hoursExam},</if>
+            <if test="hoursExam == null">HOURS_EXAM = null,</if>
+            <if test="hoursOther != null">HOURS_OTHER = #{hoursOther},</if>
+            <if test="hoursOther == null">HOURS_OTHER = null,</if>
+            <if test="hoursUnit != null">HOURS_UNIT = #{hoursUnit},</if>
+            <if test="hoursUnit == null">HOURS_UNIT = null,</if>
+            <if test="score != null">SCORE = #{score},</if>
+            <if test="score == null">SCORE = null,</if>
+            <if test="nature != null">NATURE = #{nature},</if>
+            <if test="nature == null">NATURE = null,</if>
+            <if test="term != null">TERM = #{term},</if>
+            <if test="term == null">TERM = null,</if>
+            <if test="brief != null">BRIEF = #{brief},</if>
+            <if test="brief == null">BRIEF = null,</if>
+            <if test="fileId != null">FILE_ID = #{fileId},</if>
+            <if test="fileId == null">FILE_ID = null ,</if>
+            <if test="fileName != null">FILE_NAME = #{fileName},</if>
+            <if test="fileName == null">FILE_NAME = null,</if>
+            <if test="review != null">REVIEW = #{review},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="analysisStatus != null">analysis_status = #{analysisStatus},</if>
+        </trim>
+        where ID = #{id}
+    </update>
+
+    <update id="updateCurTeachingPlanningMainList" parameterType="CurTeachingPlanningMain">
+        <foreach collection="list" separator=";" item="item" index="index">
+            update cur_teaching_plannning_main
+            <trim prefix="SET" suffixOverrides=",">
+                <if test="item.curName != null">CUR_NAME = #{item.curName},</if>
+                <if test="item.curName == null">CUR_NAME = null,</if>
+                <if test="item.curType != null">CUR_TYPE = #{item.curType},</if>
+                <if test="item.curType == null">CUR_TYPE = null,</if>
+                <if test="item.curCategory != null">CUR_CATEGORY = #{item.curCategory},</if>
+                <if test="item.curCategory == null">CUR_CATEGORY = null,</if>
+                <if test="item.curAttribute != null">CUR_ATTRIBUTE = #{item.curAttribute},</if>
+                <if test="item.curAttribute == null">CUR_ATTRIBUTE = null,</if>
+                <if test="item.writingName != null">WRITING_NAME = #{item.writingName},</if>
+                <if test="item.writingName == null">WRITING_NAME = null,</if>
+                <if test="item.reviewCollege != null">REVIEW_COLLEGE = #{item.reviewCollege},</if>
+                <if test="item.reviewCollege == null">REVIEW_COLLEGE = null,</if>
+                <if test="item.college != null">COLLEGE = #{item.college},</if>
+                <if test="item.college == null">COLLEGE = null,</if>
+                <if test="item.curCode != null">CUR_CODE = #{item.curCode},</if>
+                <if test="item.curCode == null">CUR_CODE = null,</if>
+                <if test="item.curNameEn != null">CUR_NAME_EN = #{item.curNameEn},</if>
+                <if test="item.curNameEn == null">CUR_NAME_EN = null,</if>
+                <if test="item.curPre != null">CUR_PRE = #{item.curPre},</if>
+                <if test="item.curPre == null">CUR_PRE = null,</if>
+                <if test="item.curFollow != null">CUR_FOLLOW = #{item.curFollow},</if>
+                <if test="item.curFollow == null">CUR_FOLLOW = null,</if>
+                <if test="item.hours != null">HOURS = #{item.hours},</if>
+                <if test="item.hours == null">HOURS = null,</if>
+                <if test="item.hoursTh != null">HOURS_TH = #{item.hoursTh},</if>
+                <if test="item.hoursTh == null">HOURS_TH = null,</if>
+                <if test="item.hoursPa != null">HOURS_PA = #{item.hoursPa},</if>
+                <if test="item.hoursPa == null">HOURS_PA = null,</if>
+                <if test="item.hoursWeek != null">HOURS_WEEK = #{item.hoursWeek},</if>
+                <if test="item.hoursWeek == null">HOURS_WEEK = null,</if>
+                <if test="item.hoursTeach != null">HOURS_TEACH = #{item.hoursTeach},</if>
+                <if test="item.hoursTeach == null">HOURS_TEACH = null,</if>
+                <if test="item.hoursExam != null">HOURS_EXAM = #{item.hoursExam},</if>
+                <if test="item.hoursExam == null">HOURS_EXAM = null,</if>
+                <if test="item.hoursOther != null">HOURS_OTHER = #{item.hoursOther},</if>
+                <if test="item.hoursOther == null">HOURS_OTHER = null,</if>
+                <if test="item.hoursUnit != null">HOURS_UNIT = #{item.hoursUnit},</if>
+                <if test="item.hoursUnit == null">HOURS_UNIT = null,</if>
+                <if test="item.score != null">SCORE = #{item.score},</if>
+                <if test="item.score == null">SCORE = null,</if>
+                <if test="item.nature != null">NATURE = #{item.nature},</if>
+                <if test="item.nature == null">NATURE = null,</if>
+                <if test="item.term != null">TERM = #{item.term},</if>
+                <if test="item.term == null">TERM = null,</if>
+                <if test="item.brief != null">BRIEF = #{item.brief},</if>
+                <if test="item.brief == null">BRIEF = null,</if>
+                <if test="item.fileId != null">FILE_ID = #{item.fileId},</if>
+                <if test="item.fileId == null">FILE_ID = null ,</if>
+                <if test="item.fileName != null">FILE_NAME = #{item.fileName},</if>
+                <if test="item.fileName == null">FILE_NAME = null,</if>
+                <if test="item.review != null">REVIEW = #{item.review},</if>
+                <if test="item.createBy != null">create_by = #{item.createBy},</if>
+                <if test="item.createTime != null">create_time = #{item.createTime},</if>
+                <if test="item.updateBy != null">update_by = #{item.updateBy},</if>
+                <if test="item.updateTime != null">update_time = #{item.updateTime},</if>
+                <if test="item.remark != null">remark = #{item.remark},</if>
+                <if test="item.status != null">status = #{item.status},</if>
+                <if test="item.analysisStatus != null">analysis_status = #{item.analysisStatus},</if>
+            </trim>
+            where ID = #{item.id}
+        </foreach>
+    </update>
+
+    <delete id="deleteCurTeachingPlanningMainById" parameterType="Long">
+        delete from cur_teaching_plannning_main where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningMainByIds" parameterType="Long">
+        delete from cur_teaching_plannning_main where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="auditCurTeachingPlanning" parameterType="CurTeachingPlanningMain">
+        update cur_teaching_plannning_main
+        set status = #{status}
+        where ID = #{id}
+    </update>
+
+
+</mapper>

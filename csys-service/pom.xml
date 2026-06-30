@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>com.doinner</groupId>
+        <artifactId>curriculum-system</artifactId>
+        <version>3.2.0</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>csys-service</artifactId>
+
+    <description>
+        csys-service系统模块
+    </description>
+
+    <properties>
+
+    </properties>
+
+    <dependencies>
+        <!-- SpringCloud Alibaba Nacos -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- SpringCloud Alibaba Nacos Config -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
+        <!-- SpringCloud Alibaba Sentinel -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
+        <!-- SpringBoot Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- SpringBoot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Swagger UI -->
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+            <version>${swagger.fox.version}</version>
+        </dependency>
+
+        <!-- doinner Common DataScope -->
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>doinner-common-datascope</artifactId>
+            <version>${doinner.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+            <version>4.0.2</version>
+        </dependency>
+
+        <!-- doinner Common Swagger -->
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>doinner-common-swagger</artifactId>
+            <version>${doinner.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>csys-service-api</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.ant</groupId>
+            <artifactId>ant</artifactId>
+            <version>1.9.7</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.13.0</version>
+        </dependency>
+
+        <!-- Mysql驱动包 -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+
+        <!-- Druid -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-starter</artifactId>
+            <version>${druid.version}</version>
+        </dependency>
+
+        <!-- Dynamic DataSource -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring-boot-starter</artifactId>
+            <version>${dynamic-ds.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>file-service-api</artifactId>
+            <version>${doinner-file.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml-schemas</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.xmlbeans</groupId>
+                    <artifactId>xmlbeans</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>kg-service-api</artifactId>
+            <version>${doinner-kg.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.monitorjbl</groupId>
+                    <artifactId>xlsx-streamer</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>fr.opensagres.xdocreport</groupId>
+            <artifactId>fr.opensagres.xdocreport.core</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.opensagres.xdocreport</groupId>
+            <artifactId>fr.opensagres.xdocreport.document</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.opensagres.xdocreport</groupId>
+            <artifactId>fr.opensagres.xdocreport.template</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.opensagres.xdocreport</groupId>
+            <artifactId>fr.opensagres.xdocreport.document.docx</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.opensagres.xdocreport</groupId>
+            <artifactId>fr.opensagres.xdocreport.template.freemarker</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.31</version>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>cn.hutool</groupId>-->
+<!--            <artifactId>hutool-all</artifactId>-->
+<!--            <version>5.6.2</version>-->
+<!--        </dependency>-->
+
+        <!-- 临时定义的mongodb driver -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+            <version>4.6.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hankcs</groupId>
+            <artifactId>hanlp</artifactId>
+            <version>portable-1.8.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-boot-starter</artifactId>
+            <version>${dynamic-ds.version}</version>
+        </dependency>
+
+        <!--<dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>doinner-starter-doinner</artifactId>
+        </dependency>-->
+
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.deepoove</groupId>
+            <artifactId>poi-tl</artifactId>
+            <version>1.12.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>transmittable-thread-local</artifactId>
+            <version>2.14.3</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>2.7.7</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

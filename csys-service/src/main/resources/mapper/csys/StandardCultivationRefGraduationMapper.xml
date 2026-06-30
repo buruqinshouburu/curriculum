@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.StandardCultivationRefGraduationMapper">
+    <resultMap type="com.doinner.csys.domain.StandardCultivationRefGraduation"
+               id="StandardCultivationRefGraduationResult">
+        <result property="cultivationId" column="cultivation_id"/>
+        <result property="graduationId" column="graduation_id"/>
+    </resultMap>
+
+    <sql id="selectStandardCultivationRefGraduationVo">
+        select cultivation_id, graduation_id
+        from t_csys_std_cultivation_ref_graduation
+    </sql>
+
+    <select id="selectStandardCultivationRefGraduationList"
+            parameterType="com.doinner.csys.domain.StandardCultivationRefGraduation"
+            resultMap="StandardCultivationRefGraduationResult">
+        <include refid="selectStandardCultivationRefGraduationVo"/>
+        <where>
+        </where>
+    </select>
+
+    <select id="selectStandardCultivationRefGraduationByCultivationId" parameterType="Long"
+            resultMap="StandardCultivationRefGraduationResult">
+        <include refid="selectStandardCultivationRefGraduationVo"/>
+        where cultivation_id = #{cultivationId}
+    </select>
+
+    <select id="selectRefByCultivationIds" parameterType="Long" resultMap="StandardCultivationRefGraduationResult">
+        <include refid="selectStandardCultivationRefGraduationVo"/>
+        WHERE cultivation_id IN
+        (
+        <foreach collection="standardCultivationIds" item="standardCultivationId" separator=",">
+            #{standardCultivationId}
+        </foreach>
+        )
+    </select>
+
+    <insert id="insertStandardCultivationRefGraduation"
+            parameterType="com.doinner.csys.domain.StandardCultivationRefGraduation">
+        insert into t_csys_std_cultivation_ref_graduation
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="cultivationId != null">
+                cultivation_id,
+            </if>
+            <if test="graduationId != null">
+                graduation_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="cultivationId != null">
+                #{cultivationId},
+            </if>
+            <if test="graduationId != null">
+                #{graduationId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateStandardCultivationRefGraduation"
+            parameterType="com.doinner.csys.domain.StandardCultivationRefGraduation">
+        update t_csys_std_cultivation_ref_graduation
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="graduationId != null">
+                graduation_id = #{graduationId},
+            </if>
+        </trim>
+        where cultivation_id = #{cultivationId}
+    </update>
+
+    <delete id="deleteStandardCultivationRefGraduationByCultivationId" parameterType="Long">
+        delete
+        from t_csys_std_cultivation_ref_graduation
+        where cultivation_id = #{cultivationId}
+    </delete>
+
+    <delete id="deleteStandardCultivationRefGraduationByCultivationIds" parameterType="String">
+        delete
+        from t_csys_std_cultivation_ref_graduation where cultivation_id in
+        <foreach item="cultivationId" collection="array" open="(" separator="," close=")">
+            #{cultivationId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByCultivationIdsIds">
+        delete
+        from t_csys_std_cultivation_ref_graduation
+        where  cultivation_id in
+        <foreach collection="list" separator="," open="(" close=")" item="id" index="index">
+            #{id}
+        </foreach>
+    </delete>
+
+    <insert id="insetList">
+        INSERT INTO t_csys_std_cultivation_ref_graduation (cultivation_id, graduation_id)
+        VALUES
+        <foreach collection="insetInfo" index="index" item="item" separator=",">
+            (#{item.cultivationId}, #{item.graduationId})
+        </foreach>
+    </insert>
+
+    <select id="selectRefByGrIds" resultMap="StandardCultivationRefGraduationResult">
+        select *
+        from t_csys_std_cultivation_ref_graduation
+        where  graduation_id in
+        <foreach collection="grIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseKnowledgeUnitMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.entity.csys.po.CourseKnowledgeUnit">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+
+    </sql>
+
+    <!-- 批量插入 -->
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_course_knowledge_unit (
+            name, sort, creator, create_time, last_modified_time, last_modifier
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.name}, #{item.sort}, #{item.creator},
+                #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据课程ID查询 -->
+    <select id="selectByCourseId" resultMap="BaseResultMap">
+        SELECT
+        ku.id, ku.name, ku.sort,ku.creator, ku.create_time, ku.last_modified_time, ku.last_modifier
+        FROM t_csys_course_knowledge_unit ku
+        inner join t_csys_course_ref_knowledge_unit crk on crk.course_unit_id=ku.id
+        WHERE crk.course_id = #{courseId}
+        ORDER BY sort ASC
+    </select>
+
+    <delete id="deleteByIds">
+        DELETE FROM t_csys_course_knowledge_unit
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectByIds" resultMap="BaseResultMap">
+        select * from t_csys_course_knowledge_unit
+        WHERE id IN
+        <foreach collection="unitIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        order by sort
+    </select>
+</mapper>

@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurTeachingPlanningTheoryChapterMapper">
+
+    <resultMap type="CurTeachingPlanningTheoryChapter" id="CurTeachingPlanningTheoryChapterResult">
+        <result property="id"    column="ID"    />
+        <result property="mainId"    column="MAIN_ID"    />
+        <result property="parentId"    column="PARENT_ID"    />
+        <result property="name"    column="NAME"    />
+        <result property="type"    column="TYPE"    />
+        <result property="content"    column="CONTENT"    />
+        <result property="masterBegin"    column="MASTER_BEGIN"    />
+        <result property="masterRequire"    column="MASTER_REQUIRE"    />
+        <result property="learnTarget"    column="LEARN_TARGET"    />
+        <result property="realizeLink"    column="REALIZE_LINK"    />
+        <result property="curContent"    column="CUR_CONTENT"    />
+        <result property="curNum"    column="CUR_NUM"    />
+        <result property="praName"    column="PRA_NAME"    />
+        <result property="praContent"    column="PRA_CONTENT"    />
+        <result property="praNum"    column="PRA_NUM"    />
+        <result property="projectName"    column="PROJECT_NAME"    />
+        <result property="projectContent"    column="PROJECT_CONTENT"    />
+        <result property="projectNum"    column="PROJECT_NUM"    />
+        <result property="totalNum"    column="TOTAL_NUM"    />
+    </resultMap>
+
+    <sql id="selectCurTeachingPlanningTheoryChapterVo">
+        select ID, MAIN_ID, PARENT_ID, NAME,TYPE,CONTENT, MASTER_BEGIN, MASTER_REQUIRE, LEARN_TARGET, REALIZE_LINK, CUR_CONTENT, CUR_NUM, PRA_NAME, PRA_CONTENT, PRA_NUM, PROJECT_NAME,
+          PROJECT_CONTENT, PROJECT_NUM, TOTAL_NUM from cur_teaching_plannning_theory_chapter
+    </sql>
+
+    <select id="selectCurTeachingPlanningTheoryChapterList" parameterType="CurTeachingPlanningTheoryChapter" resultMap="CurTeachingPlanningTheoryChapterResult">
+        <include refid="selectCurTeachingPlanningTheoryChapterVo"/>
+        <where>
+            <if test="name != null  and name != ''"> and NAME like concat('%', #{name}, '%')</if>
+            <if test="type != null "> and TYPE = #{type}</if>
+            <if test="mainId != null "> and MAIN_ID = #{mainId}</if>
+            <if test="parentId != null  and parentId != ''"> and PARENT_ID = #{parentId}</if>
+        </where>
+    </select>
+
+    <select id="selectCurTeachingPlanningTheoryChapterById" parameterType="Long" resultMap="CurTeachingPlanningTheoryChapterResult">
+        <include refid="selectCurTeachingPlanningTheoryChapterVo"/>
+        where ID = #{id}
+    </select>
+
+    <select id="selectCurTeachingPlanningTheoryChapterByMainId" parameterType="Long" resultMap="CurTeachingPlanningTheoryChapterResult">
+        <include refid="selectCurTeachingPlanningTheoryChapterVo"/>
+        where MAIN_ID = #{mainId}
+    </select>
+
+    <insert id="insertCurTeachingPlanningTheoryChapter" parameterType="CurTeachingPlanningTheoryChapter" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plannning_theory_chapter
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">ID,</if>
+            <if test="mainId != null">MAIN_ID,</if>
+            <if test="parentId != null">PARENT_ID,</if>
+            <if test="name != null">NAME,</if>
+            <if test="type != null">TYPE,</if>
+            <if test="content != null">CONTENT,</if>
+            <if test="masterBegin != null">MASTER_BEGIN,</if>
+            <if test="masterRequire != null">MASTER_REQUIRE,</if>
+            <if test="learnTarget != null">LEARN_TARGET,</if>
+            <if test="realizeLink != null">REALIZE_LINK,</if>
+            <if test="curContent != null">CUR_CONTENT,</if>
+            <if test="curNum != null">CUR_NUM,</if>
+            <if test="praName != null">PRA_NAME,</if>
+            <if test="praContent != null">PRA_CONTENT,</if>
+            <if test="praNum != null">PRA_NUM,</if>
+            <if test="projectName != null">PROJECT_NAME,</if>
+            <if test="projectContent != null">PROJECT_CONTENT,</if>
+            <if test="projectNum != null">PROJECT_NUM,</if>
+            <if test="totalNum != null">TOTAL_NUM,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="mainId != null">#{mainId},</if>
+            <if test="parentId != null">#{parentId},</if>
+            <if test="name != null">#{name},</if>
+            <if test="type != null">#{type},</if>
+            <if test="content != null">#{content},</if>
+            <if test="masterBegin != null">#{masterBegin},</if>
+            <if test="masterRequire != null">#{masterRequire},</if>
+            <if test="learnTarget != null">#{learnTarget},</if>
+            <if test="realizeLink != null">#{realizeLink},</if>
+            <if test="curContent != null">#{curContent},</if>
+            <if test="curNum != null">#{curNum},</if>
+            <if test="praName != null">#{praName},</if>
+            <if test="praContent != null">#{praContent},</if>
+            <if test="praNum != null">#{praNum},</if>
+            <if test="projectName != null">#{projectName},</if>
+            <if test="projectContent != null">#{projectContent},</if>
+            <if test="projectNum != null">#{projectNum},</if>
+            <if test="totalNum != null">#{totalNum},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCurTeachingPlanningTheoryChapterList" parameterType="CurTeachingPlanningTheoryChapter" useGeneratedKeys="true" keyProperty="id">
+        <foreach collection="list" separator=";" item="item" index="index">
+        insert into cur_teaching_plannning_theory_chapter
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="item.id != null">ID,</if>
+            <if test="item.mainId != null">MAIN_ID,</if>
+            <if test="item.parentId != null">PARENT_ID,</if>
+            <if test="item.name != null">NAME,</if>
+            <if test="item.type != null">TYPE,</if>
+            <if test="item.content != null">CONTENT,</if>
+            <if test="item.masterBegin != null">MASTER_BEGIN,</if>
+            <if test="item.masterRequire != null">MASTER_REQUIRE,</if>
+            <if test="item.learnTarget != null">LEARN_TARGET,</if>
+            <if test="item.realizeLink != null">REALIZE_LINK,</if>
+            <if test="item.curContent != null">CUR_CONTENT,</if>
+            <if test="item.curNum != null">CUR_NUM,</if>
+            <if test="item.praName != null">PRA_NAME,</if>
+            <if test="item.praContent != null">PRA_CONTENT,</if>
+            <if test="item.praNum != null">PRA_NUM,</if>
+            <if test="item.projectName != null">PROJECT_NAME,</if>
+            <if test="item.projectContent != null">PROJECT_CONTENT,</if>
+            <if test="item.projectNum != null">PROJECT_NUM,</if>
+            <if test="item.totalNum != null">TOTAL_NUM,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="item.id != null">#{item.id},</if>
+            <if test="item.mainId != null">#{item.mainId},</if>
+            <if test="item.parentId != null">#{item.parentId},</if>
+            <if test="item.name != null">#{item.name},</if>
+            <if test="item.type != null">#{item.type},</if>
+            <if test="item.content != null">#{item.content},</if>
+            <if test="item.masterBegin != null">#{item.masterBegin},</if>
+            <if test="item.masterRequire != null">#{item.masterRequire},</if>
+            <if test="item.learnTarget != null">#{item.learnTarget},</if>
+            <if test="item.realizeLink != null">#{item.realizeLink},</if>
+            <if test="item.curContent != null">#{item.curContent},</if>
+            <if test="item.curNum != null">#{item.curNum},</if>
+            <if test="item.praName != null">#{item.praName},</if>
+            <if test="item.praContent != null">#{item.praContent},</if>
+            <if test="item.praNum != null">#{item.praNum},</if>
+            <if test="item.projectName != null">#{item.projectName},</if>
+            <if test="item.projectContent != null">#{item.projectContent},</if>
+            <if test="item.projectNum != null">#{item.projectNum},</if>
+            <if test="item.totalNum != null">#{item.totalNum},</if>
+        </trim>
+        </foreach>
+    </insert>
+
+    <update id="updateCurTeachingPlanningTheoryChapter" parameterType="CurTeachingPlanningTheoryChapter">
+        update cur_teaching_plannning_theory_chapter
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="mainId != null">MAIN_ID = #{mainId},</if>
+            <if test="mainId == null">MAIN_ID = null,</if>
+            <if test="parentId != null">PARENT_ID = #{parentId},</if>
+            <if test="parentId == null">PARENT_ID = null,</if>
+            <if test="name != null">NAME = #{name},</if>
+            <if test="name == null">NAME = null,</if>
+            <if test="type != null">TYPE = #{type},</if>
+            <if test="type == null">TYPE = null,</if>
+            <if test="content != null">CONTENT = #{content},</if>
+            <if test="content == null">CONTENT = null,</if>
+            <if test="masterBegin != null">MASTER_BEGIN = #{masterBegin},</if>
+            <if test="masterBegin == null">MASTER_BEGIN = null,</if>
+            <if test="masterRequire != null">MASTER_REQUIRE = #{masterRequire},</if>
+            <if test="masterRequire == null">MASTER_REQUIRE = null,</if>
+            <if test="learnTarget != null">LEARN_TARGET = #{learnTarget},</if>
+            <if test="learnTarget == null">LEARN_TARGET = null,</if>
+            <if test="realizeLink != null">REALIZE_LINK = #{realizeLink},</if>
+            <if test="realizeLink == null">REALIZE_LINK = null,</if>
+            <if test="curContent != null">CUR_CONTENT = #{curContent},</if>
+            <if test="curContent == null">CUR_CONTENT = null,</if>
+            <if test="curNum != null">CUR_NUM = #{curNum},</if>
+            <if test="curNum == null">CUR_NUM = null,</if>
+            <if test="praName != null">PRA_NAME = #{praName},</if>
+            <if test="praName == null">PRA_NAME = null,</if>
+            <if test="praContent != null">PRA_CONTENT = #{praContent},</if>
+            <if test="praContent == null">PRA_CONTENT = null,</if>
+            <if test="praNum != null">PRA_NUM = #{praNum},</if>
+            <if test="praNum == null">PRA_NUM = null,</if>
+            <if test="projectName != null">PROJECT_NAME = #{projectName},</if>
+            <if test="projectName == null">PROJECT_NAME = null,</if>
+            <if test="projectContent != null">PROJECT_CONTENT = #{projectContent},</if>
+            <if test="projectContent == null">PROJECT_CONTENT = null,</if>
+            <if test="projectNum != null">PROJECT_NUM = #{projectNum},</if>
+            <if test="projectNum == null">PROJECT_NUM = null,</if>
+            <if test="totalNum != null">TOTAL_NUM = #{totalNum},</if>
+            <if test="totalNum == null">TOTAL_NUM = null,</if>
+        </trim>
+        where ID = #{id}
+    </update>
+
+    <delete id="deleteCurTeachingPlanningTheoryChapterById" parameterType="Long">
+        delete from cur_teaching_plannning_theory_chapter where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningTheoryChapterByIds" parameterType="Long">
+        delete from cur_teaching_plannning_theory_chapter where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningTheoryChapterByMainId" parameterType="Long">
+        delete from cur_teaching_plannning_theory_chapter where MAIN_ID = #{mainId}
+    </delete>
+
+
+    <select id="selectCurTeachingPlanByParentId"  parameterType="Long" resultMap="CurTeachingPlanningTheoryChapterResult">
+        <include refid="selectCurTeachingPlanningTheoryChapterVo"/>
+        where PARENT_ID = #{parentId}
+    </select>
+
+</mapper>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseReviewMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseReview" id="CourseReviewResult">
+        <result property="id"    column="id"    />
+        <result property="review"    column="review"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="deptBy"    column="dept_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <sql id="selectCourseReviewVo">
+        select id, review, course_id, dept_by, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_course_review
+    </sql>
+
+    <select id="selectCourseReviewList" parameterType="com.doinner.csys.domain.CourseReview" resultMap="CourseReviewResult">
+        <include refid="selectCourseReviewVo"/>
+        <where>
+            sysflag = 0
+            <if test="review != null  and review != ''"> and review = #{review}</if>
+            <if test="courseId != null "> and course_id = #{courseId}</if>
+            <if test="deptBy != null "> and dept_by = #{deptBy}</if>
+        </where>
+         order by id desc
+    </select>
+
+    <select id="selectCourseReviewById" parameterType="Long" resultMap="CourseReviewResult">
+        <include refid="selectCourseReviewVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertCourseReview" parameterType="com.doinner.csys.domain.CourseReview" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_course_review
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="review != null and review != ''">review,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="deptBy != null">dept_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="review != null and review != ''">#{review},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="deptBy != null">#{deptBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCourseReview" parameterType="com.doinner.csys.domain.CourseReview">
+        update t_csys_course_review
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="review != null and review != ''">review = #{review},</if>
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="deptBy != null">dept_by = #{deptBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCourseReviewById" parameterType="Long">
+        delete from t_csys_course_review where id = #{id}
+    </delete>
+
+    <delete id="deleteCourseReviewByIds" parameterType="String">
+        delete from t_csys_course_review where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+
+
+    <insert id="insertReview" useGeneratedKeys="true" keyProperty="reviewList.id">
+        insert into t_csys_course_review(review, course_id, dept_by, creator, last_modifier, remark) VALUES
+        <foreach collection="reviewList" item="rw" separator=",">
+            (#{rw.review},
+            #{rw.courseId},
+            #{rw.deptBy},
+            #{rw.creator},
+            #{rw.lastModifier},
+            #{rw.remark})
+        </foreach>
+    </insert>
+</mapper>

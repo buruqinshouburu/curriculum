@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeUnitMapper">
+    <resultMap type="com.doinner.csys.domain.KnowledgeUnit" id="KnowledgeUnitResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="initLevel" column="init_level"/>
+        <result property="requireLevel" column="require_level"/>
+        <result property="learnTarget" column="learn_target"/>
+        <result property="realizeLink" column="realize_link"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <sql id="selectKnowledgeUnitVo">
+        select id,
+               name,
+               init_level,
+               require_level,
+               learn_target,
+               realize_link,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag
+        from t_csys_knowledge_unit
+    </sql>
+
+    <select id="selectKnowledgeUnitList" parameterType="com.doinner.csys.domain.KnowledgeUnit"
+            resultMap="KnowledgeUnitResult">
+        <include refid="selectKnowledgeUnitVo"/>
+        <where>
+            sysflag = "0"
+            <if test="name != null  and name != ''">
+                and name like concat('%', #{name}, '%')
+            </if>
+            <if test="initLevel != null">
+                and init_level = #{initLevel}
+            </if>
+            <if test="requireLevel != null">
+                and require_level = #{requireLevel}
+            </if>
+            <if test="learnTarget != null  and learnTarget != ''">
+                and learn_target = #{learnTarget}
+            </if>
+            <if test="realizeLink != null  and realizeLink != ''">
+                and realize_link = #{realizeLink}
+            </if>
+            <if test="creator != null  and creator != ''">
+                and creator = #{creator}
+            </if>
+        </where>
+        order by id asc
+    </select>
+
+    <select id="selectKnowledgeUnitById" parameterType="Long" resultMap="KnowledgeUnitResult">
+        <include refid="selectKnowledgeUnitVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertKnowledgeUnit" parameterType="com.doinner.csys.domain.KnowledgeUnit" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_knowledge_unit
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="name != null and name != ''">
+                name,
+            </if>
+            <if test="initLevel != null">
+                init_level,
+            </if>
+            <if test="requireLevel != null">
+                require_level,
+            </if>
+            <if test="learnTarget != null">
+                learn_target,
+            </if>
+            <if test="realizeLink != null">
+                realize_link,
+            </if>
+
+            <if test="creator != null">
+                creator,
+            </if>
+
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="name != null and name != ''">
+                #{name},
+            </if>
+            <if test="initLevel != null">
+                #{initLevel},
+            </if>
+            <if test="requireLevel != null">
+                #{requireLevel},
+            </if>
+            <if test="learnTarget != null">
+                #{learnTarget},
+            </if>
+            <if test="realizeLink != null">
+                #{realizeLink},
+            </if>
+
+            <if test="creator != null">
+                #{creator},
+            </if>
+
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+        </trim>
+    </insert>
+
+    <insert id="insertKnowledgeUnits" parameterType="com.doinner.csys.domain.KnowledgeUnit" useGeneratedKeys="true" keyProperty="knowledgeUnitList.id">
+        insert into t_csys_knowledge_unit (id,name,init_level,require_level,learn_target,realize_link,creator,last_modifier,remark) values
+        <foreach collection="knowledgeUnitList" item="knowledgeUnit" separator=",">
+            (
+                #{knowledgeUnit.id},
+                #{knowledgeUnit.name},
+                #{knowledgeUnit.initLevel},
+                #{knowledgeUnit.requireLevel},
+                #{knowledgeUnit.learnTarget},
+                #{knowledgeUnit.realizeLink},
+                #{knowledgeUnit.creator},
+                #{knowledgeUnit.lastModifier},
+                #{knowledgeUnit.remark}
+            )
+        </foreach>
+    </insert>
+
+    <update id="updateKnowledgeUnit" parameterType="com.doinner.csys.domain.KnowledgeUnit">
+        update t_csys_knowledge_unit
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            init_level = #{initLevel},
+            require_level = #{requireLevel},
+            <if test="learnTarget != null">
+                learn_target = #{learnTarget},
+            </if>
+            <if test="realizeLink != null">
+                realize_link = #{realizeLink},
+            </if>
+
+            <if test="creator != null">
+                creator = #{creator},
+            </if>
+
+            <if test="lastModifier != null">
+                last_modifier = #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag = #{sysflag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="updateKnowledgeUnits" parameterType="com.doinner.csys.domain.KnowledgeUnit">
+        <foreach collection="knowledgeUnitList" item="knowledgeUnit" separator=";">
+            update t_csys_knowledge_unit
+            <trim prefix="SET" suffixOverrides=",">
+                <if test="knowledgeUnit.name != null and knowledgeUnit.name != ''">
+                    name = #{knowledgeUnit.name},
+                </if>
+                <if test="knowledgeUnit.initLevel != null">
+                    init_level = #{knowledgeUnit.initLevel},
+                </if>
+                <if test="knowledgeUnit.requireLevel != null">
+                    require_level = #{knowledgeUnit.requireLevel},
+                </if>
+                <if test="knowledgeUnit.learnTarget != null">
+                    learn_target = #{knowledgeUnit.learnTarget},
+                </if>
+                <if test="knowledgeUnit.realizeLink != null">
+                    realize_link = #{knowledgeUnit.realizeLink},
+                </if>
+
+                <if test="knowledgeUnit.lastModifier != null">
+                    last_modifier = #{knowledgeUnit.lastModifier},
+                </if>
+                <if test="knowledgeUnit.remark != null">
+                    remark = #{knowledgeUnit.remark},
+                </if>
+            </trim>
+            where id = #{knowledgeUnit.id}
+        </foreach>
+    </update>
+
+    <delete id="deleteKnowledgeUnitById" parameterType="Long">
+        update t_csys_knowledge_unit
+        set sysflag = "2"
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteKnowledgeUnitByIds" parameterType="java.util.List">
+        update t_csys_knowledge_unit
+        set sysflag = "2" where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectKnowledgeUnitListByCourseId" resultMap="KnowledgeUnitResult">
+        SELECT *
+        FROM t_csys_course_ref_ke_unit cfu
+                 LEFT JOIN t_csys_knowledge_unit ku on cfu.unit_id = ku.id
+        where ku.sysflag = 0
+          and cfu.course_id = #{courseId}
+    </select>
+</mapper>

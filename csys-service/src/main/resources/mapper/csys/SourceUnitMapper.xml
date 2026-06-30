@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.SourceUnitMapper">
+
+    <resultMap type="SourceUnit" id="SourceUnitResult">
+            <result property="id" column="id"/>
+            <result property="name" column="name"/>
+            <result property="initLevel" column="init_level"/>
+            <result property="requireLevel" column="require_level"/>
+            <result property="learnTarget" column="learn_target"/>
+            <result property="realizeLink" column="realize_link"/>
+            <result property="createTime" column="create_time"/>
+            <result property="creator" column="creator"/>
+            <result property="lastModifiedTime" column="last_modified_time"/>
+            <result property="lastModifier" column="last_modifier"/>
+            <result property="remark" column="remark"/>
+            <result property="sysflag" column="sysflag"/>
+            <result property="deptBy" column="dept_by"/>
+    </resultMap>
+
+    <sql id="selectSourceUnitVo">
+        select id, name, init_level, require_level, learn_target, realize_link, create_time, creator, last_modified_time, last_modifier, remark, sysflag, dept_by
+        from t_csys_source_unit
+    </sql>
+
+    <select id="selectSourceUnitList" parameterType="SourceUnit" resultMap="SourceUnitResult">
+        <include refid="selectSourceUnitVo"/>
+        <where>
+                        <if test="name != null  and name != ''">
+                            and name like concat('%', #{name}, '%')
+                        </if>
+                        <if test="initLevel != null ">
+                            and init_level = #{initLevel}
+                        </if>
+                        <if test="requireLevel != null ">
+                            and require_level = #{requireLevel}
+                        </if>
+                        <if test="learnTarget != null  and learnTarget != ''">
+                            and learn_target = #{learnTarget}
+                        </if>
+                        <if test="realizeLink != null  and realizeLink != ''">
+                            and realize_link = #{realizeLink}
+                        </if>
+                        <if test="lastModifiedTime != null ">
+                            and last_modified_time = #{lastModifiedTime}
+                        </if>
+                        <if test="lastModifier != null  and lastModifier != ''">
+                            and last_modifier = #{lastModifier}
+                        </if>
+                        <if test="sysflag != null  and sysflag != ''">
+                            and sysflag = #{sysflag}
+                        </if>
+                        <if test="deptBy != null ">
+                            and dept_by = #{deptBy}
+                        </if>
+        </where>
+    </select>
+
+    <select id="selectSourceUnitById" parameterType="Long"
+            resultMap="SourceUnitResult">
+            <include refid="selectSourceUnitVo"/>
+            where id = #{id}
+    </select>
+
+    <insert id="insertSourceUnit" parameterType="SourceUnit" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_source_unit
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                name,
+            </if>
+            <if test="initLevel != null">
+                init_level,
+            </if>
+            <if test="requireLevel != null">
+                require_level,
+            </if>
+            <if test="learnTarget != null">
+                learn_target,
+            </if>
+            <if test="realizeLink != null">
+                realize_link,
+            </if>
+            <if test="createTime != null">
+                create_time,
+            </if>
+            <if test="creator != null">
+                creator,
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time,
+            </if>
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+            <if test="deptBy != null">
+                dept_by,
+            </if>
+            <if test="type != null">
+                type,
+            </if>
+            <if test="sourceId != null">
+                source_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                #{name},
+            </if>
+            <if test="initLevel != null">
+                #{initLevel},
+            </if>
+            <if test="requireLevel != null">
+                #{requireLevel},
+            </if>
+            <if test="learnTarget != null">
+                #{learnTarget},
+            </if>
+            <if test="realizeLink != null">
+                #{realizeLink},
+            </if>
+            <if test="createTime != null">
+                #{createTime},
+            </if>
+            <if test="creator != null">
+                #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+            <if test="deptBy != null">
+                #{deptBy},
+            </if>
+            <if test="type != null">
+                #{type},
+            </if>
+            <if test="sourceId != null">
+                #{sourceId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateSourceUnit" parameterType="SourceUnit">
+        update t_csys_source_unit
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                name =
+                #{name},
+            </if>
+            <if test="initLevel != null">
+                init_level =
+                #{initLevel},
+            </if>
+            <if test="requireLevel != null">
+                require_level =
+                #{requireLevel},
+            </if>
+            <if test="learnTarget != null">
+                learn_target =
+                #{learnTarget},
+            </if>
+            <if test="realizeLink != null">
+                realize_link =
+                #{realizeLink},
+            </if>
+            <if test="createTime != null">
+                create_time =
+                #{createTime},
+            </if>
+            <if test="creator != null">
+                creator =
+                #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time =
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                last_modifier =
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark =
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag =
+                #{sysflag},
+            </if>
+            <if test="deptBy != null">
+                dept_by =
+                #{deptBy},
+            </if>
+            <if test="type != null">
+                type =
+                #{type},
+            </if>
+            <if test="sourceId != null">
+                source_id =
+                #{sourceId},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteSourceUnitById" parameterType="Long">
+        delete
+        from t_csys_source_unit where id = #{id}
+    </delete>
+
+    <delete id="deleteSourceUnitByIds" parameterType="String">
+        delete from t_csys_source_unit where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

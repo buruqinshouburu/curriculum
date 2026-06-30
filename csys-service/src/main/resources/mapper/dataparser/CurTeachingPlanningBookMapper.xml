@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurTeachingPlanningBookMapper">
+
+    <resultMap type="CurTeachingPlanningBook" id="CurTeachingPlanningBookResult">
+        <result property="id"    column="ID"    />
+        <result property="mainId"    column="MAIN_ID"    />
+        <result property="name"    column="NAME"    />
+        <result property="type"    column="TYPE"    />
+        <result property="autherName"    column="AUTHER_NAME"    />
+        <result property="pubName"    column="PUB_NAME"    />
+        <result property="version"    column="VERSION"    />
+        <result property="pubTime"    column="PUB_TIME"    />
+    </resultMap>
+
+    <sql id="selectCurTeachingPlanningBookVo">
+        select ID, MAIN_ID, NAME, TYPE,AUTHER_NAME,PUB_NAME,VERSION,PUB_TIME from cur_teaching_plannning_book
+    </sql>
+
+    <select id="selectCurTeachingPlanningBookList" parameterType="CurTeachingPlanningBook" resultMap="CurTeachingPlanningBookResult">
+        <include refid="selectCurTeachingPlanningBookVo"/>
+        <where>
+            <if test="name != null  and name != ''"> and NAME like concat('%', #{name}, '%')</if>
+            <if test="type != null  and type != ''"> and TYPE = #{type}</if>
+        </where>
+    </select>
+
+    <select id="selectCurTeachingPlanningBookById" parameterType="Long" resultMap="CurTeachingPlanningBookResult">
+        <include refid="selectCurTeachingPlanningBookVo"/>
+        where ID = #{id}
+    </select>
+
+    <select id="selectCurTeachingPlanningBookByMainId" parameterType="Long" resultMap="CurTeachingPlanningBookResult">
+        <include refid="selectCurTeachingPlanningBookVo"/>
+        where MAIN_ID = #{mainId}
+    </select>
+
+    <insert id="insertCurTeachingPlanningBook" parameterType="CurTeachingPlanningBook" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plannning_book
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">ID,</if>
+            <if test="mainId != null">MAIN_ID,</if>
+            <if test="name != null">NAME,</if>
+            <if test="type != null">TYPE,</if>
+            <if test="autherName != null">AUTHER_NAME,</if>
+            <if test="pubName != null">PUB_NAME,</if>
+            <if test="version != null">VERSION,</if>
+            <if test="pubTime != null">PUB_TIME,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="mainId != null">#{mainId},</if>
+            <if test="name != null">#{name},</if>
+            <if test="type != null">#{type},</if>
+            <if test="autherName != null">#{autherName},</if>
+            <if test="pubName != null">#{pubName},</if>
+            <if test="version != null">#{version},</if>
+            <if test="pubTime != null">#{pubTime},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCurTeachingPlanningBookList" parameterType="CurTeachingPlanningBook" useGeneratedKeys="true" keyProperty="id">
+        <foreach collection="list" separator=";" item="item" index="index">
+        insert into cur_teaching_plannning_book
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="item.id != null">ID,</if>
+            <if test="item.mainId != null">MAIN_ID,</if>
+            <if test="item.name != null">NAME,</if>
+            <if test="item.type != null">TYPE,</if>
+            <if test="item.autherName != null">AUTHER_NAME,</if>
+            <if test="item.pubName != null">PUB_NAME,</if>
+            <if test="item.version != null">VERSION,</if>
+            <if test="item.pubTime != null">PUB_TIME,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="item.id != null">#{item.id},</if>
+            <if test="item.mainId != null">#{item.mainId},</if>
+            <if test="item.name != null">#{item.name},</if>
+            <if test="item.type != null">#{item.type},</if>
+            <if test="item.autherName != null">#{item.autherName},</if>
+            <if test="item.pubName != null">#{item.pubName},</if>
+            <if test="item.version != null">#{item.version},</if>
+            <if test="item.pubTime != null">#{item.pubTime},</if>
+        </trim>
+        </foreach>
+    </insert>
+
+    <update id="updateCurTeachingPlanningBook" parameterType="CurTeachingPlanningBook">
+        update cur_teaching_plannning_book
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="mainId != null">MAIN_ID = #{mainId},</if>
+            <if test="mainId == null">MAIN_ID = null,</if>
+            <if test="name != null">NAME = #{name},</if>
+            <if test="name == null">NAME = null,</if>
+            <if test="type != null">TYPE = #{type},</if>
+            <if test="type == null">TYPE = null,</if>
+            <if test="autherName != null">AUTHER_NAME = #{autherName},</if>
+            <if test="autherName == null">AUTHER_NAME = null,</if>
+            <if test="pubName != null">PUB_NAME = #{pubName},</if>
+            <if test="pubName == null">PUB_NAME = null,</if>
+            <if test="version != null">VERSION = #{version},</if>
+            <if test="version == null">VERSION = null,</if>
+            <if test="pubTime != null">PUB_TIME = #{pubTime},</if>
+            <if test="pubTime == null">PUB_TIME = null,</if>
+        </trim>
+        where ID = #{id}
+    </update>
+
+    <delete id="deleteCurTeachingPlanningBookById" parameterType="Long">
+        delete from cur_teaching_plannning_book where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningBookByIds" parameterType="Long">
+        delete from cur_teaching_plannning_book where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningBookByMainId" parameterType="Long">
+        delete from cur_teaching_plannning_book where MAIN_ID = #{mainId}
+    </delete>
+
+</mapper>

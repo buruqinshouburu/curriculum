@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.StandardMajorMapper">
+
+    <resultMap type="com.doinner.csys.domain.StandardMajor" id="StandardMajorResult">
+        <result property="id"    column="id"    />
+        <result property="name"    column="name"    />
+        <result property="code"    column="code"    />
+        <result property="parentId"    column="parent_id"    />
+        <result property="level"    column="level"    />
+        <result property="collegeId"    column="college_id"    />
+        <result property="classId"    column="class_id"    />
+        <result property="categoryId"    column="category_id"    />
+        <result property="categoryName"    column="category_name"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <sql id="selectStandardMajorVo">
+        select id, name, code, parent_id, level,leaf, college_id,category_Id, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_std_major
+    </sql>
+
+    <select id="selectStandardMajorList" parameterType="com.doinner.csys.domain.StandardMajor" resultMap="StandardMajorResult">
+        select major.id, major.name, major.code, major.parent_id, major.level, major.college_id,major.category_Id,
+        major.create_time, major.creator, major.last_modified_time,major.class_id ,
+        major.last_modifier, major.remark,  major.sysflag,
+        category.name  category_name
+        from t_csys_std_major major
+        left join t_csys_training_scheme_category category
+        on major.category_id = category.id
+        <where>
+            <if test="name != null  and name != ''"> and major.name like concat('%', #{name}, '%')</if>
+            <if test="code != null  and code != ''"> and major.code = #{code}</if>
+            <if test="parentId != null "> and major.parent_id = #{parentId}</if>
+            <if test="level != null "> and major.level = #{level}</if>
+            <if test="collegeId != null "> and major.college_id = #{collegeId}</if>
+            <if test="categoryId != null "> and major.category_id = #{categoryId}</if>
+            AND major.sysflag = 0
+        </where>
+    </select>
+
+    <select id="selectStandardMajorAccurate" resultMap="StandardMajorResult">
+        select major.id, major.name, major.code, major.parent_id, major.level, major.college_id,major.category_Id,
+        major.create_time, major.creator, major.last_modified_time,major.class_id ,
+        major.last_modifier, major.remark,  major.sysflag,
+        category.name  category_name,category.url categoryUrl
+        from t_csys_std_major major
+        left join t_csys_training_scheme_category category
+        on major.category_id = category.id
+        <where>
+            <if test="name != null  and name != ''"> and major.name like concat('%', #{name}, '%')</if>
+            <if test="code != null  and code != ''"> and major.code = #{code}</if>
+            <if test="parentId != null "> and major.parent_id = #{parentId}</if>
+            <if test="level != null "> and major.level = #{level}</if>
+            <if test="collegeId != null "> and major.college_id = #{collegeId}</if>
+            <if test="categoryId != null "> and major.category_id = #{categoryId}</if>
+            <if test="classId != null "> and major.class_id = #{classId}</if>
+            AND major.sysflag = 0
+        </where>
+        order by major.id desc
+    </select>
+
+    <select id="selectStandardMajorById" parameterType="Long" resultMap="StandardMajorResult">
+        <include refid="selectStandardMajorVo"/>
+        where id = #{id} AND sysflag = 0
+    </select>
+
+    <select id="selectStandardMajorByIds" parameterType="Long" resultMap="StandardMajorResult">
+        <include refid="selectStandardMajorVo"/>
+        where sysflag = 0
+        <if test="ids != null and ids.size() > 0">
+            and id in
+            <foreach item="id" collection="ids" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectStandardMajorByParentId" parameterType="Long" resultMap="StandardMajorResult">
+        <include refid="selectStandardMajorVo"/>
+        where parent_id = #{parentId} AND sysflag = 0
+    </select>
+
+    <insert id="insertStandardMajor" parameterType="com.doinner.csys.domain.StandardMajor" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_std_major
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="name != null">name,</if>
+            <if test="code != null">code,</if>
+            <if test="parentId != null">parent_id,</if>
+            <if test="level != null">level,</if>
+            <if test="collegeId != null">college_id,</if>
+            <if test="categoryId != null">category_id,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+            <if test="classId != null">class_Id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="name != null">#{name},</if>
+            <if test="code != null">#{code},</if>
+            <if test="parentId != null">#{parentId},</if>
+            <if test="level != null">#{level},</if>
+            <if test="collegeId != null">#{collegeId},</if>
+            <if test="categoryId != null">#{categoryId},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+            <if test="classId != null">#{classId},</if>
+         </trim>
+    </insert>
+
+    <update id="updateStandardMajor" parameterType="com.doinner.csys.domain.StandardMajor">
+        update t_csys_std_major
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="level != null">level = #{level},</if>
+            <if test="leaf != null">leaf = #{leaf},</if>
+            <if test="collegeId != null">college_id = #{collegeId},</if>
+            <if test="classId != null">class_Id = #{classId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteStandardMajorById" parameterType="Long">
+        update t_csys_std_major set sysflag = 1 where id = #{id}
+    </delete>
+
+    <delete id="deleteStandardMajorByParentId" parameterType="Long">
+        update t_csys_std_major set sysflag = 1 where parent_id = #{parentId}
+    </delete>
+
+    <delete id="deleteStandardMajorByIds" parameterType="String">
+        update t_csys_std_major set sysflag = 1 where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <resultMap id="StatisticsMajorResult" type="com.doinner.csys.domain.vo.MajorCountVo">
+        <result property="collegeId"    column="college_id"    />
+        <result property="collegeName"    column="college_name"    />
+        <result property="majorNum"    column="major_count"    />
+        <result property="minMajorNum"    column="sub_major_count"    />
+    </resultMap>
+
+    <select id="majorCount" resultMap="StatisticsMajorResult">
+        SELECT
+            sm.college_id as college_id,
+            dept.dept_name as college_name,
+            sum(if(sm.parent_id = -1, 1, 0)) as major_count,
+            sum(if(sm.leaf != 0, if(sm.class_id = 3,2,1), 0)) as sub_major_count
+        FROM
+            t_csys_std_major sm
+                left join sys_dept dept on sm.college_id = dept.dept_id
+        group by college_id
+        order by major_count desc, sub_major_count desc
+    </select>
+
+    <select id="selectStandardMajorByCategories" resultMap="StandardMajorResult">
+        select *
+        from t_csys_std_major tm
+        WHERE category_id IN
+        <foreach item="categoryId" collection="categoryIds" open="(" separator="," close=")">
+            #{categoryId}
+        </foreach>
+        AND sysflag = 0
+    </select>
+
+    <select id="selectStandardMajorByCategory" resultMap="StandardMajorResult">
+        select * from t_csys_std_major tm
+        WHERE category_id = #{categoryId}
+        AND sysflag = 0
+    </select>
+
+    <select id="selectSubMajorList" resultType="java.util.Map">
+        select id,name from t_csys_std_major where level=2 and sysflag=0
+    </select>
+</mapper>

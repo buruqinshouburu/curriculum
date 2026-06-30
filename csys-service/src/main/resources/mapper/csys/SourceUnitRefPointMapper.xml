@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.SourceUnitRefPointMapper">
+
+    <resultMap type="SourceUnitRefPoint" id="SourceUnitRefPointResult">
+            <result property="unitId" column="unit_id"/>
+            <result property="pointId" column="point_id"/>
+    </resultMap>
+
+    <sql id="selectSourceUnitRefPointVo">
+        select unit_id, point_id
+        from t_csys_source_unit_ref_point
+    </sql>
+
+    <select id="selectSourceUnitRefPointList" parameterType="SourceUnitRefPoint" resultMap="SourceUnitRefPointResult">
+        <include refid="selectSourceUnitRefPointVo"/>
+        <where>
+        </where>
+    </select>
+
+    <select id="selectSourceUnitRefPointByUnitId" parameterType="Long"
+            resultMap="SourceUnitRefPointResult">
+            <include refid="selectSourceUnitRefPointVo"/>
+            where unit_id = #{unitId}
+    </select>
+
+    <select id="selectSourceUnitRefPointByUnitIds" parameterType="Long"
+            resultMap="SourceUnitRefPointResult">
+        <include refid="selectSourceUnitRefPointVo"/>
+        where unit_id in
+        <foreach collection="unitIds" index="index" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+    </select>
+
+    <insert id="insertSourceUnitRefPoint" parameterType="SourceUnitRefPoint">
+        insert into t_csys_source_unit_ref_point
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="unitId != null">unit_id,
+                    </if>
+                    <if test="pointId != null">point_id,
+                    </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="unitId != null">#{unitId},
+                    </if>
+                    <if test="pointId != null">#{pointId},
+                    </if>
+        </trim>
+    </insert>
+
+    <update id="updateSourceUnitRefPoint" parameterType="SourceUnitRefPoint">
+        update t_csys_source_unit_ref_point
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="pointId != null">point_id =
+                        #{pointId},
+                    </if>
+        </trim>
+        where unit_id = #{unitId}
+    </update>
+
+    <delete id="deleteSourceUnitRefPointByUnitId" parameterType="Long">
+        delete
+        from t_csys_source_unit_ref_point where unit_id = #{unitId}
+    </delete>
+
+    <delete id="deleteSourceUnitRefPointByUnitIds" parameterType="String">
+        delete from t_csys_source_unit_ref_point where unit_id in
+        <foreach item="unitId" collection="array" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteSourceUnitRefPointByPointIds" parameterType="Long">
+        delete from t_csys_source_unit_ref_point where point_id in
+        <foreach item="pointId" collection="array" open="(" separator="," close=")">
+            #{pointId}
+        </foreach>
+    </delete>
+</mapper>

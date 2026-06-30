@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeUnitRefStdCultivationMapper">
+    <resultMap type="com.doinner.csys.domain.KnowledgeUnitRefStdCultivation" id="KnowledgeUnitRefStdCultivationResult">
+        <result property="schemeId" column="scheme_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="unitId" column="unit_id"/>
+        <result property="cultivationId" column="cultivation_id"/>
+    </resultMap>
+
+    <sql id="selectKnowledgeUnitRefStdCultivationVo">
+        select scheme_id, course_id, unit_id, cultivation_id
+        from t_csys_knowledge_unit_ref_std_cultivation
+    </sql>
+
+    <select id="selectKnowledgeUnitRefStdCultivationList"
+            parameterType="com.doinner.csys.domain.KnowledgeUnitRefStdCultivation"
+            resultMap="KnowledgeUnitRefStdCultivationResult">
+        <include refid="selectKnowledgeUnitRefStdCultivationVo"/>
+        <where>
+            <if test="schemeId != null">
+                and scheme_id = #{schemeId}
+            </if>
+            <if test="courseId != null">
+                and course_id = #{courseId}
+            </if>
+            <if test="cultivationId != null">
+                and cultivation_id = #{cultivationId}
+            </if>
+            <if test="unitId != null">
+                and unit_id = #{unitId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectKnowledgeUnitRefStdCultivationByUnitId" parameterType="Long"
+            resultMap="KnowledgeUnitRefStdCultivationResult">
+        <include refid="selectKnowledgeUnitRefStdCultivationVo"/>
+        where unit_id = #{unitId}
+    </select>
+
+    <select id="selectKnowledgeUnitRefStdCultivationsByKnowledgeUnitIds" parameterType="Long"
+            resultMap="KnowledgeUnitRefStdCultivationResult">
+        <include refid="selectKnowledgeUnitRefStdCultivationVo"/>
+        where unit_id IN
+        (
+        <foreach collection="knowledgeUnitIds" item="knowledgeUnitId" separator=",">
+            #{knowledgeUnitId}
+        </foreach>
+        )
+    </select>
+
+    <insert id="insertKnowledgeUnitRefStdCultivations">
+        insert into t_csys_knowledge_unit_ref_std_cultivation(scheme_id, course_id, unit_id, cultivation_id) values
+        <foreach collection="knowledgeUnitRefStdCultivations" item="knowledgeUnitRefStdCultivation" separator=",">
+            (#{knowledgeUnitRefStdCultivation.schemeId},
+             #{knowledgeUnitRefStdCultivation.courseId},
+             #{knowledgeUnitRefStdCultivation.unitId},
+             #{knowledgeUnitRefStdCultivation.cultivationId})
+        </foreach>
+    </insert>
+
+    <insert id="insertKnowledgeUnitRefStdCultivation"
+            parameterType="com.doinner.csys.domain.KnowledgeUnitRefStdCultivation">
+        insert into t_csys_knowledge_unit_ref_std_cultivation
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">
+                scheme_id,
+            </if>
+            <if test="courseId != null">
+                course_id,
+            </if>
+            <if test="unitId != null">
+                unit_id,
+            </if>
+            <if test="cultivationId != null">
+                cultivation_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">
+                #{schemeId},
+            </if>
+            <if test="courseId != null">
+                #{courseId},
+            </if>
+            <if test="unitId != null">
+                #{unitId},
+            </if>
+            <if test="cultivationId != null">
+                #{cultivationId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateKnowledgeUnitRefStdCultivation"
+            parameterType="com.doinner.csys.domain.KnowledgeUnitRefStdCultivation">
+        update t_csys_knowledge_unit_ref_std_cultivation
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="schemeId != null">
+                scheme_id = #{schemeId},
+            </if>
+            <if test="courseId != null">
+                course_id = #{courseId},
+            </if>
+            <if test="cultivationId != null">
+                cultivation_id = #{cultivationId},
+            </if>
+        </trim>
+        where unit_id = #{unitId}
+    </update>
+
+    <delete id="deleteKnowledgeUnitRefStdCultivationByUnitId" parameterType="Long">
+        delete
+        from t_csys_knowledge_unit_ref_std_cultivation
+        where unit_id = #{unitId}
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefStdCultivationByUnitIds" parameterType="String">
+        delete
+        from t_csys_knowledge_unit_ref_std_cultivation where unit_id in
+        <foreach item="unitId" collection="array" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefStdCultivationBySchemeId" parameterType="Long">
+        delete
+        from t_csys_knowledge_unit_ref_std_cultivation
+        where scheme_id = #{schemeId}
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefStdCultivationBySchemeIds" parameterType="Long">
+        delete
+        from t_csys_knowledge_unit_ref_std_cultivation
+        where scheme_id in
+        <foreach item="schemeId" collection="array" open="(" separator="," close=")">
+            #{schemeId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefStdCultivationByCourseIdsAndUnitIds" parameterType="Long">
+        delete
+        from t_csys_knowledge_unit_ref_std_cultivation where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        and unit_id in
+        <foreach item="unitId" collection="unitIds" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefStdCultivationBySchemeIdAndCourseIdsAndUnitIds" parameterType="Long">
+        delete
+        from t_csys_knowledge_unit_ref_std_cultivation where scheme_id = #{schemeId} and course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        and unit_id in
+        <foreach item="unitId" collection="unitIds" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <select id="selectRefByCuIds" resultMap="KnowledgeUnitRefStdCultivationResult">
+        select *
+        from t_csys_knowledge_unit_ref_std_cultivation
+        where cultivation_id in
+        <foreach collection="cuIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

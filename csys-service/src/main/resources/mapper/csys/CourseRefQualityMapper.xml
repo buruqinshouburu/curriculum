@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseRefQualityMapper">
+
+    <resultMap type="CourseRefQuality" id="CourseRefQualityResult">
+            <result property="courseId" column="course_id"/>
+            <result property="qualityId" column="quality_id"/>
+        <result property="collegeId" column="college_Id"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="majorId" column="major_Id"/>
+        <result property="courseTargetId" column="course_target_Id"/>
+    </resultMap>
+
+    <sql id="selectCourseRefQualityVo">
+        select course_id, quality_id,college_Id,category_Id,major_Id,course_target_Id
+        from t_csys_course_ref_quality
+    </sql>
+
+    <select id="selectCourseRefQualityList" parameterType="CourseRefQuality" resultMap="CourseRefQualityResult">
+        <include refid="selectCourseRefQualityVo"/>
+        <where>
+                        <if test="courseId != null ">
+                            and course_id = #{courseId}
+                        </if>
+                        <if test="qualityId != null ">
+                            and quality_id = #{qualityId}
+                        </if>
+            <if test="collegeId != null ">
+                and college_Id = #{collegeId}
+            </if>
+            <if test="categoryId != null ">
+                and category_Id = #{categoryId}
+            </if>
+            <if test="majorId != null ">
+                and major_Id = #{majorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectCourseRefQualityByCourseId" parameterType="Long"
+            resultMap="CourseRefQualityResult">
+            <include refid="selectCourseRefQualityVo"/>
+            where course_id = #{courseId}
+    </select>
+
+    <select id="selectCourseRefQualityByCourseTargetId" parameterType="Long"
+            resultMap="CourseRefQualityResult">
+        <include refid="selectCourseRefQualityVo"/>
+        where course_target_id = #{courseTargetId}
+    </select>
+
+    <select id="selectCourseRefQualityByQualityId" parameterType="Long"
+            resultMap="CourseRefQualityResult">
+        <include refid="selectCourseRefQualityVo"/>
+        where quality_Id = #{qualityId}
+    </select>
+
+    <insert id="insertCourseRefQuality" parameterType="CourseRefQuality">
+        insert into t_csys_course_ref_quality
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">course_id,
+                    </if>
+                    <if test="qualityId != null">quality_id,
+                    </if>
+            <if test="collegeId != null">college_Id,
+            </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+            <if test="majorId != null">major_Id,
+            </if>
+            <if test="courseTargetId != null">course_target_Id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">#{courseId},
+                    </if>
+                    <if test="qualityId != null">#{qualityId},
+                    </if>
+            <if test="collegeId != null">#{collegeId},
+            </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+            <if test="majorId != null">#{majorId},
+            </if>
+            <if test="courseTargetId != null">#{courseTargetId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateCourseRefQuality" parameterType="CourseRefQuality">
+        update t_csys_course_ref_quality
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="qualityId != null">quality_id =
+                        #{qualityId},
+                    </if>
+        </trim>
+        where course_id = #{courseId}
+    </update>
+
+    <delete id="deleteCourseRefQualityByCourseId" parameterType="Long">
+        delete
+        from t_csys_course_ref_quality where course_id = #{courseId}
+        <if test="courseTargetId != null ">
+            and course_Target_Id = #{courseTargetId}
+        </if>
+        <if test="collegeId != null ">
+            and college_Id = #{collegeId}
+        </if>
+        <if test="categoryId != null ">
+            and category_Id = #{categoryId}
+        </if>
+        <if test="majorId != null ">
+            and major_Id = #{majorId}
+        </if>
+    </delete>
+
+    <delete id="deleteCourseRefQualityByCourseIds" parameterType="String">
+        delete from t_csys_course_ref_quality where course_id in
+        <foreach item="courseId" collection="array" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <select id="selectCourseTargetRefQualityByCourseIds" resultType="com.doinner.csys.domain.CourseRefQuality">
+        <include refid="selectCourseRefQualityVo"/>
+        where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <insert id="insertCourseTargetRefQualityList">
+        insert into t_csys_course_ref_quality (course_id, quality_id, course_target_id,
+        college_Id, category_Id, major_Id
+        )
+        values
+        <foreach collection="courseTargetRefQualityList" item="ref" separator=",">
+            (#{ref.courseId,jdbcType=BIGINT}, #{ref.qualityId,jdbcType=BIGINT}, #{ref.courseTargetId,jdbcType=BIGINT},
+            #{ref.collegeId,jdbcType=BIGINT}, #{ref.categoryId,jdbcType=BIGINT}, #{ref.majorId,jdbcType=BIGINT}
+            )
+        </foreach>
+    </insert>
+</mapper>

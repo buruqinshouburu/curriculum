@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper">
+    <resultMap type="com.doinner.csys.domain.TrainingSchemeCourseSchedule" id="TrainingSchemeCourseScheduleResult">
+        <result property="id" column="id"/>
+        <result property="schemeId" column="scheme_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="type" column="type"/>
+        <result property="term" column="term"/>
+        <result property="hours" column="hours"/>
+        <result property="theoryHours" column="theory_hours"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="checked" column="checked"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleVo"
+               id="TrainingSchemeCourseScheduleVoResult">
+        <result property="id" column="id"/>
+        <result property="schemeId" column="scheme_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="courseName" column="course_name"/>
+        <result property="beforeCourseId" column="c_before"/>
+        <result property="afterCourseId" column="c_after"/>
+        <result property="type" column="type"/>
+        <result property="term" column="term"/>
+        <result property="hours" column="hours"/>
+        <result property="theoryHours" column="theory_hours"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="checked" column="checked"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="courseAttr" column="course_attr"/>
+        <result property="c_type" column="c_type"/>
+        <result property="timeWeek" column="time_Week"/>
+        <result property="unit" column="unit"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.statisticsVo.TrainingSchemeCourseScheduleStatisticsVo"
+               id="TrainingSchemeCourseScheduleStatisticsVoResult">
+        <result property="schemeId" column="scheme_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="term" column="term"/>
+        <result property="sTheoryHours" column="s_theory_hours"/>
+        <result property="sTeachHours" column="s_teach_hours"/>
+        <result property="sPracticeHours" column="s_practice_hours"/>
+        <result property="cTheoryHours" column="c_theory_hours"/>
+        <result property="cTeachHours" column="c_teach_hours"/>
+        <result property="cPracticeHours" column="c_practice_hours"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.statisticsVo.StandardCultivationTargetStatisticsVo"
+               id="StandardGraduationStatisticsVoResult">
+        <result property="denominatorId" column="denominator_id"/>
+        <result property="numeratorCount" column="numerator_count"/>
+    </resultMap>
+    <!--    <sql id="selectTrainingSchemeCourseScheduleVo">-->
+    <!--        select id, scheme_id, course_id, type, term, hours, theory_hours, practice_hours, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_training_scheme_course_schedule-->
+    <!--    </sql>-->
+
+    <sql id="selectTrainingSchemeCourseScheduleVo">
+        select tcs.*,
+               c.name             as course_name,
+               c.before_course_id as c_before,
+               c.after_course_id  as c_after,
+               c.course_attr,
+               c.type             as c_type,
+               c.time_Week,
+               c.unit,
+               c.source_id,
+               c.academic_terms_number as academicTermsNumber,
+               c.semester_Schedule as semesterSchedule
+        from t_csys_training_scheme_course_schedule tcs
+                 left join t_csys_course c ON c.id = tcs.course_id
+    </sql>
+
+    <select id="selectTrainingSchemeCourseScheduleList"
+            parameterType="com.doinner.csys.domain.TrainingSchemeCourseSchedule"
+            resultMap="TrainingSchemeCourseScheduleVoResult">
+        <include refid="selectTrainingSchemeCourseScheduleVo"/>
+        <where>
+            <if test="schemeId != null">
+                and tcs.scheme_id = #{schemeId}
+            </if>
+            <if test="courseId != null">
+                and tcs.course_id = #{courseId}
+            </if>
+            <if test="type != null">
+                and tcs.type = #{type}
+            </if>
+            <if test="term != null">
+                and tcs.term = #{term}
+            </if>
+            <if test="hours != null">
+                and tcs.hours = #{hours}
+            </if>
+            <if test="theoryHours != null">
+                and tcs.theory_hours = #{theoryHours}
+            </if>
+            <if test="teachHours != null">
+                and tcs.teach_hours = #{teachHours}
+            </if>
+            <if test="practiceHours != null">
+                and tcs.practice_hours = #{practiceHours}
+            </if>
+            <if test="checked != null">
+                and tcs.checked = #{checked}
+            </if>
+            <if test="creator != null  and creator != ''">
+                and tcs.creator = #{creator}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectTrainingSchemeCourseScheduleById" parameterType="Long"
+            resultMap="TrainingSchemeCourseScheduleVoResult">
+        <include refid="selectTrainingSchemeCourseScheduleVo"/>
+        where tcs.id = #{id}
+    </select>
+
+    <insert id="insertTrainingSchemeCourseSchedule" parameterType="com.doinner.csys.domain.TrainingSchemeCourseSchedule"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into t_csys_training_scheme_course_schedule
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="schemeId != null">
+                scheme_id,
+            </if>
+            <if test="courseId != null">
+                course_id,
+            </if>
+            <if test="type != null">
+                type,
+            </if>
+            <if test="term != null">
+                term,
+            </if>
+            <if test="hours != null">
+                hours,
+            </if>
+            <if test="theoryHours != null">
+                theory_hours,
+            </if>
+            <if test="teachHours != null">
+                teach_hours,
+            </if>
+            <if test="practiceHours != null">
+                practice_hours,
+            </if>
+            <if test="checked != null">
+                checked,
+            </if>
+            <if test="createTime != null">
+                create_time,
+            </if>
+            <if test="creator != null">
+                creator,
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time,
+            </if>
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="schemeId != null">
+                #{schemeId},
+            </if>
+            <if test="courseId != null">
+                #{courseId},
+            </if>
+            <if test="type != null">
+                #{type},
+            </if>
+            <if test="term != null">
+                #{term},
+            </if>
+            <if test="hours != null">
+                #{hours},
+            </if>
+            <if test="theoryHours != null">
+                #{theoryHours},
+            </if>
+            <if test="practiceHours != null">
+                #{practiceHours},
+            </if>
+            <if test="checked != null">
+                #{checked},
+            </if>
+            <if test="createTime != null">
+                #{createTime},
+            </if>
+            <if test="creator != null">
+                #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+        </trim>
+    </insert>
+
+    <insert id="insertTrainingSchemeCourseSchedules">
+        insert into t_csys_training_scheme_course_schedule
+        (scheme_id, course_id, type, term, hours, theory_hours, teach_hours,practice_hours, checked,course_attr,credits) values
+        <foreach collection="trainingSchemeCourseSchedules" item="trainingSchemeCourseSchedule" separator=",">
+            (#{trainingSchemeCourseSchedule.schemeId},
+             #{trainingSchemeCourseSchedule.courseId},
+             #{trainingSchemeCourseSchedule.type},
+             #{trainingSchemeCourseSchedule.term},
+             #{trainingSchemeCourseSchedule.hours},
+             #{trainingSchemeCourseSchedule.theoryHours},
+             #{trainingSchemeCourseSchedule.teachHours},
+             #{trainingSchemeCourseSchedule.practiceHours},
+             #{trainingSchemeCourseSchedule.checked},
+            #{trainingSchemeCourseSchedule.courseAttr},
+            #{trainingSchemeCourseSchedule.credits})
+        </foreach>
+    </insert>
+
+    <update id="updateTrainingSchemeCourseSchedule"
+            parameterType="com.doinner.csys.domain.TrainingSchemeCourseSchedule">
+        update t_csys_training_scheme_course_schedule
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="schemeId != null">
+                scheme_id = #{schemeId},
+            </if>
+            <if test="courseId != null">
+                course_id = #{courseId},
+            </if>
+            <if test="type != null">
+                type = #{type},
+            </if>
+            <if test="term != null">
+                term = #{term},
+            </if>
+            <if test="hours != null">
+                hours = #{hours},
+            </if>
+            <if test="theoryHours != null">
+                theory_hours = #{theoryHours},
+            </if>
+            <if test="teachHours != null">
+                teach_hours = #{teachHours},
+            </if>
+            <if test="practiceHours != null">
+                practice_hours = #{practiceHours},
+            </if>
+            <if test="checked != null">
+                checked = #{checked},
+            </if>
+            <if test="createTime != null">
+                create_time = #{createTime},
+            </if>
+            <if test="creator != null">
+                creator = #{creator},
+            </if>
+            <if test="lastModifiedTime != null">
+                last_modified_time = #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">
+                last_modifier = #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag = #{sysflag},
+            </if>
+            <if test="courseAttr != null and courseAttr != ''">
+                course_attr = #{courseAttr},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTrainingSchemeCourseScheduleById" parameterType="Long">
+        delete
+        from t_csys_training_scheme_course_schedule
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteTrainingSchemeCourseScheduleByIds" parameterType="String">
+        delete
+        from t_csys_training_scheme_course_schedule where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteTrainingSchemeCourseScheduleByTrainingSchemeId" parameterType="Long">
+        delete
+        from t_csys_training_scheme_course_schedule
+        where scheme_id = #{trainingSchemeId}
+    </delete>
+
+    <delete id="deleteTrainingSchemeCourseScheduleByTrainingSchemeIds" parameterType="Long">
+        delete
+        from t_csys_training_scheme_course_schedule
+        where scheme_id in
+        <foreach item="schemeId" collection="array" open="(" separator="," close=")">
+            #{schemeId}
+        </foreach>
+    </delete>
+
+    <select id="selectHoursBySchemeId" resultMap="TrainingSchemeCourseScheduleStatisticsVoResult">
+        SELECT sc.scheme_id,
+               sc.theory_hours   AS s_theory_hours,
+               sc.teach_hours   AS s_teach_hours,
+               sc.practice_hours AS s_practice_hours,
+               c.id              as course_id,
+               c.theory_hours    as c_theory_hours,
+               c.teach_hours    as c_teach_hours,
+               c.practice_hours  as c_practice_hours,
+               sc.term
+        FROM t_csys_training_scheme_course_schedule sc
+                 LEFT JOIN t_csys_course c ON sc.course_id = c.id
+        WHERE sc.scheme_id = #{schemeId}
+        and sc.checked = 1
+    </select>
+
+    <select id="selectHoursBySchemeIds" parameterType="Long" resultMap="TrainingSchemeCourseScheduleStatisticsVoResult">
+        SELECT sc.scheme_id,
+               sc.theory_hours   AS s_theory_hours,
+               sc.teach_hours   AS s_teach_hours,
+               sc.practice_hours AS s_practice_hours,
+               c.id              as course_id,
+               c.theory_hours    as c_theory_hours,
+               c.teach_hours    as c_teach_hours,
+               c.practice_hours  as c_practice_hours,
+               sc.term
+        FROM t_csys_training_scheme_course_schedule sc
+                 LEFT JOIN t_csys_course c ON sc.course_id = c.id
+        WHERE sc.scheme_id in
+        <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
+            #{schemeId}
+        </foreach>
+        and sc.checked = 1
+    </select>
+
+    <select id="selectCourseTypeBySchemeId" resultMap="StandardGraduationStatisticsVoResult">
+        SELECT type        as denominator_id,
+               count(type) as numerator_count
+        FROM t_csys_training_scheme_course_schedule
+        WHERE scheme_id = #{schemeId}
+        GROUP BY type
+        ORDER BY type
+    </select>
+
+    <select id="selectCourseTypeBySchemeIds" parameterType="Long" resultMap="StandardGraduationStatisticsVoResult">
+        SELECT type        as denominator_id,
+               count(type) as numerator_count
+        FROM t_csys_training_scheme_course_schedule
+        WHERE scheme_id in
+        <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
+            #{schemeId}
+        </foreach>
+        GROUP BY type
+        ORDER BY type
+    </select>
+
+    <delete id="deleteByCourseIds">
+        delete from t_csys_training_scheme_course_schedule
+        where course_id in
+        <foreach item="courseId" collection="ids" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <resultMap type="com.doinner.csys.domain.vo.CourseChooseStatusVo" id="CourseChooseStatusVoResult">
+        <result property="sourceCourseId" column="source_course_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="courseName" column="course_name"/>
+        <result property="courseCode" column="course_code"/>
+        <result property="schemeId" column="scheme_id"/>
+        <result property="term" column="term"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="collegeName" column="college_name"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="majorName" column="major_name"/>
+    </resultMap>
+
+    <!--
+        查询课程被选用情况(用于"课程被选用情况表"导出)。
+        入参为源课程ID集合；通过 source_id 定位被选用课程(c2)，c2 即被各培养方案引用排课的课程实例。
+        课程名称/编号取自源课程(cs)；选用单位(学院)/选用专业类/选用专业均取自排课所属培养方案(ts)的
+        college_id / category_id / major_id 关联字段；学期学时取自 c2 的排课记录(tcs)。
+    -->
+    <select id="selectCourseChooseStatus" resultMap="CourseChooseStatusVoResult">
+        select c2.source_id as source_course_id,
+        cs.name as course_name,
+        cs.code as course_code,
+        c2.id as course_id,
+        tcs.scheme_id as scheme_id,
+        tcs.term as term,
+        tcs.teach_hours as teach_hours,
+        tcs.practice_hours as practice_hours,
+        cd.dept_name as college_name,
+        tsc.name as category_name,
+        major_tab.name as major_name
+        from t_csys_course c2
+        left join t_csys_course cs on cs.id = c2.source_id
+        left join t_csys_training_scheme_course_schedule tcs on tcs.course_id = c2.id
+        left join t_csys_training_scheme ts on ts.id = tcs.scheme_id
+        left join sys_dept cd on cd.dept_id = ts.college_id and cd.del_flag = 0
+        left join t_csys_std_major tsc on tsc.id = ts.major_id
+        left join (select group_concat(m.name separator '、') as name,srm.scheme_id from t_csys_std_major m inner join
+        t_csys_scheme_ref_major srm on m.id = srm.major_id group by srm.scheme_id) major_tab
+        on major_tab.scheme_id=ts.id
+        where c2.source_id in
+        <foreach item="sourceCourseId" collection="sourceCourseIds" open="(" separator="," close=")">
+            #{sourceCourseId}
+        </foreach>
+        and c2.sysflag = 0
+        order by c2.source_id, c2.id, tcs.term
+    </select>
+</mapper>

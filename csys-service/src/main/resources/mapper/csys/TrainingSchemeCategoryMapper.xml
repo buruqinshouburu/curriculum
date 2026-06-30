@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TrainingSchemeCategoryMapper">
+
+    <resultMap type="com.doinner.csys.domain.TrainingSchemeCategory" id="TrainingSchemeCategoryResult">
+        <result property="id"    column="id"    />
+        <result property="parentId"    column="parent_id"    />
+        <result property="name"    column="name"    />
+        <result property="leaf"    column="leaf"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+        <result property="count" column="ts_count"    />
+        <result property="level" column="level"    />
+        <result property="url" column="url"    />
+    </resultMap>
+
+    <sql id="selectTrainingSchemeCategoryVo">
+        select id, parent_id, name, leaf, create_time, creator, last_modified_time, last_modifier, remark, sysflag,level,url from t_csys_training_scheme_category
+    </sql>
+
+    <sql id="selectTrainingSchemeCategoryVoCount">
+        select
+            tsc.*,
+            count(ts.id) as ts_count
+        from t_csys_training_scheme_category tsc
+        left join t_csys_training_scheme ts on ts.category_id = tsc.id
+    </sql>
+
+    <select id="selectTrainingSchemeCategoryList" parameterType="com.doinner.csys.domain.TrainingSchemeCategory" resultMap="TrainingSchemeCategoryResult">
+        <include refid="selectTrainingSchemeCategoryVoCount"/>
+        <where>
+            <if test="parentId != null "> and tsc.parent_id = #{parentId}</if>
+            <if test="name != null  and name != ''"> and tsc.name like concat('%', #{name}, '%')</if>
+            <if test="creator != null  and creator != ''"> and tsc.creator = #{creator}</if>
+            <if test="leaf != null"> and tsc.leaf = #{leaf}</if>
+            and tsc.sysflag = '0'
+            group by tsc.id
+        </where>
+    </select>
+
+    <select id="selectTrainingSchemeCategoryById" parameterType="Long" resultMap="TrainingSchemeCategoryResult">
+        <include refid="selectTrainingSchemeCategoryVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertTrainingSchemeCategory" parameterType="com.doinner.csys.domain.TrainingSchemeCategory" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into t_csys_training_scheme_category
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="parentId != null">parent_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="leaf != null and leaf != ''">leaf,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+            <if test="url != null and url != ''">url,</if>
+            <if test="level != null and level != ''">level,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="parentId != null">#{parentId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="leaf != null and leaf != ''">#{leaf},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+            <if test="url != null and url != ''">#{url},</if>
+            <if test="level != null and level != ''">#{level},</if>
+         </trim>
+    </insert>
+
+    <update id="updateTrainingSchemeCategory" parameterType="com.doinner.csys.domain.TrainingSchemeCategory">
+        update t_csys_training_scheme_category
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="leaf != null and leaf != ''">leaf = #{leaf},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTrainingSchemeCategoryById" parameterType="Long">
+        update t_csys_training_scheme_category
+        <set>sysflag = 2</set>
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteTrainingSchemeCategoryByIds" parameterType="String">
+        update t_csys_training_scheme_category
+        <set>sysflag = 2</set>
+        where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="deleteTrainingSchemeCategory" parameterType="Long">
+        update t_csys_training_scheme_category
+        <set>sysflag = 2</set>
+        where id = #{id}
+    </update>
+
+    <update id="deleteTrainingSchemeCategoryList" parameterType="String">
+        update t_csys_training_scheme_category
+        <set>sysflag = 2</set>
+        where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <resultMap id="majorCountResult" type="com.doinner.csys.domain.vo.CategoryCountVo">
+        <result property="systemId" column="system_type"    />
+        <result property="categoryCount" column="category_count"    />
+        <result property="schemeCount" column="scheme_count"    />
+        <collection property="categoryList" javaType="java.util.List" resultMap="categoryResult"    />
+    </resultMap>
+
+    <resultMap id="categoryResult" type="com.doinner.csys.domain.vo.CategoryVo">
+        <result property="categoryId" column="category_id"    />
+        <result property="categoryName" column="category_name"    />
+    </resultMap>
+
+    <select id="majorCount" resultMap="majorCountResult">
+        SELECT
+            t.*,
+            tsc.id AS category_id,
+            tsc.NAME AS category_name
+        FROM
+            (
+                SELECT
+                    tsc.system_type AS system_type,
+                    count(
+                            DISTINCT ( tsc.id )) AS category_count,
+                    count( ts.id ) AS scheme_count
+                FROM
+                    t_csys_training_scheme_category tsc
+                        LEFT JOIN t_csys_training_scheme ts ON ts.category_id = tsc.id
+                        AND ts.sysflag = '0' and ts.program_name is not null
+                WHERE
+                    tsc.system_type IS NOT NULL
+                GROUP BY
+                    system_type
+            ) AS t
+                LEFT JOIN t_csys_training_scheme_category tsc ON t.system_type = tsc.system_type
+    </select>
+
+    <select id="selectTrainingSchemeCategoryIdsBySystemId" resultType="Long" parameterType="Long">
+        select ID from t_csys_training_scheme_category
+        where system_type = #{systemId}
+        AND sysflag = 0
+    </select>
+
+    <select id="selectAllTrainingSchemeCategoryById" resultMap="TrainingSchemeCategoryResult">
+        <include refid="selectTrainingSchemeCategoryVo"/>
+        WHERE id = #{id}
+        or FIND_IN_SET(#{id}, url)
+    </select>
+
+    <delete id="deleteTrainingSchemeCategoryByIdList">
+        update t_csys_training_scheme_category
+        <set>sysflag = 2</set>
+        where id in
+        <foreach item="id" collection="categoriesIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

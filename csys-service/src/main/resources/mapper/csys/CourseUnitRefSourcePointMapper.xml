@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseUnitRefSourcePointMapper">
+
+    <resultMap type="CourseUnitRefSourcePoint" id="CourseUnitRefSourcePointResult">
+            <result property="unitId" column="unit_id"/>
+            <result property="pointId" column="point_id"/>
+            <result property="courseId" column="course_id"/>
+        <result property="collegeId" column="college_Id"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="majorId" column="major_Id"/>
+        <result property="courseTargetId" column="course_target_Id"/>
+    </resultMap>
+
+    <sql id="selectCourseUnitRefSourcePointVo">
+        select unit_id, point_id,course_id,college_Id,category_Id,major_Id,course_target_Id
+        from t_csys_course_unit_ref_source_point
+    </sql>
+
+    <select id="selectCourseUnitRefSourcePointList" parameterType="CourseUnitRefSourcePoint" resultMap="CourseUnitRefSourcePointResult">
+        <include refid="selectCourseUnitRefSourcePointVo"/>
+        <where>
+                        <if test="unitId != null ">
+                            and unit_id = #{unitId}
+                        </if>
+                        <if test="pointId != null ">
+                            and point_id = #{pointId}
+                        </if>
+            <if test="courseId != null ">
+                and course_id = #{courseId}
+            </if>
+            <if test="collegeId != null ">
+                and college_Id = #{collegeId}
+            </if>
+            <if test="categoryId != null ">
+                and category_Id = #{categoryId}
+            </if>
+            <if test="majorId != null ">
+                and major_Id = #{majorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectCourseUnitRefSourcePointByUnitId" parameterType="Long"
+            resultMap="CourseUnitRefSourcePointResult">
+            <include refid="selectCourseUnitRefSourcePointVo"/>
+            where unit_id = #{unitId}
+    </select>
+
+    <insert id="insertCourseUnitRefSourcePoint" parameterType="CourseUnitRefSourcePoint">
+        insert into t_csys_course_unit_ref_source_point
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="unitId != null">unit_id,
+                    </if>
+                    <if test="pointId != null">point_id,
+                    </if>
+            <if test="courseId != null">course_id,
+            </if>
+            <if test="collegeId != null">college_Id,
+            </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+            <if test="majorId != null">major_Id,
+            </if>
+            <if test="courseTargetId != null">course_target_Id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="unitId != null">#{unitId},
+                    </if>
+                    <if test="pointId != null">#{pointId},
+                    </if>
+            <if test="courseId != null">#{courseId},
+            </if>
+            <if test="collegeId != null">#{collegeId},
+            </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+            <if test="majorId != null">#{majorId},
+            </if>
+            <if test="courseTargetId != null">#{courseTargetId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateCourseUnitRefSourcePoint" parameterType="CourseUnitRefSourcePoint">
+        update t_csys_course_unit_ref_source_point
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="pointId != null">point_id =
+                        #{pointId},
+                    </if>
+        </trim>
+        where unit_id = #{unitId}
+    </update>
+
+    <delete id="deleteCourseUnitRefSourcePointByUnitId" parameterType="Long">
+        delete
+        from t_csys_course_unit_ref_source_point where unit_id = #{unitId}
+    </delete>
+    <delete id="deleteCourseUnitRefSourcePointByCourseId" parameterType="Long">
+        delete
+        from t_csys_course_unit_ref_source_point where course_id = #{courseId}
+        <if test="courseTargetId != null ">
+            and course_Target_Id = #{courseTargetId}
+        </if>
+        <if test="collegeId != null ">
+            and college_Id = #{collegeId}
+        </if>
+        <if test="categoryId != null ">
+            and category_Id = #{categoryId}
+        </if>
+        <if test="majorId != null ">
+            and major_Id = #{majorId}
+        </if>
+    </delete>
+
+    <delete id="deleteCourseUnitRefSourcePointByUnitIds" parameterType="String">
+        delete from t_csys_course_unit_ref_source_point where unit_id in
+        <foreach item="unitId" collection="array" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByCourseIds" parameterType="Long">
+        delete from t_csys_course_unit_ref_source_point where course_id in
+        <foreach item="courseId" collection="array" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <select id="selectCourseUnitRefSourcePointByPointIds" parameterType="Long"
+            resultMap="CourseUnitRefSourcePointResult">
+        <include refid="selectCourseUnitRefSourcePointVo"/>
+        where point_id in
+        <foreach item="pointId" collection="array" open="(" separator="," close=")">
+            #{pointId}
+        </foreach>
+    </select>
+
+    <select id="selectCourseTargetRefSourcePointByCourseIds"
+            resultType="com.doinner.csys.domain.CourseUnitRefSourcePoint">
+        <include refid="selectCourseUnitRefSourcePointVo"/>
+        where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <insert id="insertCourseUnitRefSourcePointList">
+        insert into t_csys_course_unit_ref_source_point (unit_id, point_id, course_id,
+        course_target_id, college_Id, category_Id,
+        major_Id)
+        values
+        <foreach collection="courseTargetRefPointList" item="ref" separator=",">
+            (#{ref.unitId,jdbcType=BIGINT}, #{ref.pointId,jdbcType=BIGINT}, #{ref.courseId,jdbcType=BIGINT},
+            #{ref.courseTargetId,jdbcType=BIGINT}, #{ref.collegeId,jdbcType=BIGINT}, #{ref.categoryId,jdbcType=BIGINT},
+            #{ref.majorId,jdbcType=BIGINT})
+        </foreach>
+
+    </insert>
+</mapper>

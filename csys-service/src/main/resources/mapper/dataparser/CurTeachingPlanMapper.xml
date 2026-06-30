@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurTeachingPlanMapper">
+
+    <resultMap type="CurTeachingPlan" id="CurTeachingPlanResult">
+        <result property="id"    column="ID"    />
+        <result property="name"    column="NAME"    />
+        <result property="planId"    column="PLAN_ID"    />
+        <result property="courseSelection"    column="COURSE_SELECTION"    />
+        <result property="college"    column="COLLEGE"    />
+    </resultMap>
+
+    <sql id="selectCurTeachingPlanVo">
+        select ID, NAME, PLAN_ID, COURSE_SELECTION,COLLEGE from cur_teaching_plan
+    </sql>
+
+    <select id="selectCurTeachingPlanList" parameterType="CurTeachingPlan" resultMap="CurTeachingPlanResult">
+        <include refid="selectCurTeachingPlanVo"/>
+        <where>
+            <if test="name != null  and name != ''"> and NAME like concat('%', #{name}, '%')</if>
+            <if test="planId != null "> and PLAN_ID = #{planId}</if>
+            <if test="courseSelection != null  and courseSelection != ''"> and COURSE_SELECTION = #{courseSelection}</if>
+            <if test="college != null  and college != ''"> and COLLEGE = #{college}</if>
+        </where>
+    </select>
+
+    <select id="selectCurTeachingPlanById" parameterType="Long" resultMap="CurTeachingPlanResult">
+        <include refid="selectCurTeachingPlanVo"/>
+        where ID = #{id}
+    </select>
+
+    <insert id="insertCurTeachingPlan" parameterType="CurTeachingPlan" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plan
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">ID,</if>
+            <if test="name != null">NAME,</if>
+            <if test="planId != null">PLAN_ID,</if>
+            <if test="courseSelection != null">COURSE_SELECTION,</if>
+            <if test="college != null">COLLEGE,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="name != null">#{name},</if>
+            <if test="planId != null">#{planId},</if>
+            <if test="courseSelection != null">#{courseSelection},</if>
+            <if test="college != null">#{college},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCurTeachingPlan" parameterType="CurTeachingPlan">
+        update cur_teaching_plan
+        SET NAME = #{name},
+            PLAN_ID = #{planId},
+            COURSE_SELECTION = #{courseSelection}
+        where ID = #{id}
+    </update>
+
+    <delete id="deleteCurTeachingPlanById" parameterType="Long">
+        delete from cur_teaching_plan where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurTeachingPlanByIds" parameterType="String">
+        delete from cur_teaching_plan where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+
+    <select id="selectCurTeachingPlanByPlanningIds"  parameterType="String" resultMap="CurTeachingPlanResult">
+        <include refid="selectCurTeachingPlanVo"/>
+        where PLAN_ID in
+        <foreach item="id" collection="planningIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+</mapper>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseRefAbilityMapper">
+
+    <resultMap type="CourseRefAbility" id="CourseRefAbilityResult">
+            <result property="courseId" column="course_id"/>
+            <result property="abilityId" column="ability_id"/>
+        <result property="collegeId" column="college_Id"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="majorId" column="major_Id"/>
+        <result property="courseTargetId" column="course_target_Id"/>
+
+    </resultMap>
+
+    <sql id="selectCourseRefAbilityVo">
+        select course_id, ability_id,college_Id,category_Id,major_Id,course_target_Id
+        from t_csys_course_ref_ability
+    </sql>
+
+    <select id="selectCourseRefAbilityList" parameterType="CourseRefAbility" resultMap="CourseRefAbilityResult">
+        <include refid="selectCourseRefAbilityVo"/>
+        <where>
+                        <if test="courseId != null ">
+                            and course_id = #{courseId}
+                        </if>
+                        <if test="abilityId != null ">
+                            and ability_id = #{abilityId}
+                        </if>
+            <if test="collegeId != null ">
+                and college_Id = #{collegeId}
+            </if>
+            <if test="categoryId != null ">
+                and category_Id = #{categoryId}
+            </if>
+            <if test="majorId != null ">
+                and major_Id = #{majorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectCourseRefAbilityByCourseId" parameterType="Long"
+            resultMap="CourseRefAbilityResult">
+            <include refid="selectCourseRefAbilityVo"/>
+            where course_id = #{courseId}
+    </select>
+
+    <select id="selectCourseRefAbilityByCourseTargetId" parameterType="Long"
+            resultMap="CourseRefAbilityResult">
+        <include refid="selectCourseRefAbilityVo"/>
+        where course_target_id = #{courseTargetId}
+    </select>
+
+    <select id="selectCourseRefAbilityByAbilityId" parameterType="Long"
+            resultMap="CourseRefAbilityResult">
+        <include refid="selectCourseRefAbilityVo"/>
+        where ability_id = #{abilityId}
+    </select>
+
+    <insert id="insertCourseRefAbility" parameterType="CourseRefAbility">
+        insert into t_csys_course_ref_ability
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">course_id,
+                    </if>
+                    <if test="abilityId != null">ability_id,
+                    </if>
+            <if test="collegeId != null">college_Id,
+            </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+            <if test="majorId != null">major_Id,
+            </if>
+            <if test="courseTargetId != null">course_target_Id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">#{courseId},
+                    </if>
+                    <if test="abilityId != null">#{abilityId},
+                    </if>
+            <if test="collegeId != null">#{collegeId},
+            </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+            <if test="majorId != null">#{majorId},
+            </if>
+            <if test="courseTargetId != null">#{courseTargetId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateCourseRefAbility" parameterType="CourseRefAbility">
+        update t_csys_course_ref_ability
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="abilityId != null">ability_id =
+                        #{abilityId},
+                    </if>
+        </trim>
+        where course_id = #{courseId}
+    </update>
+
+    <delete id="deleteCourseRefAbilityByCourseId" parameterType="Long">
+        delete
+        from t_csys_course_ref_ability where course_id = #{courseId}
+        <if test="courseTargetId != null ">
+            and course_Target_Id = #{courseTargetId}
+        </if>
+        <if test="collegeId != null ">
+            and college_Id = #{collegeId}
+        </if>
+        <if test="categoryId != null ">
+            and category_Id = #{categoryId}
+        </if>
+        <if test="majorId != null ">
+            and major_Id = #{majorId}
+        </if>
+    </delete>
+
+    <delete id="deleteCourseRefAbilityByCourseIds" parameterType="String">
+        delete from t_csys_course_ref_ability where course_id in
+        <foreach item="courseId" collection="array" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <select id="selectCourseTargetRefAbilityByCourseIds" resultType="com.doinner.csys.domain.CourseRefAbility">
+        <include refid="selectCourseRefAbilityVo"/>
+        where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <insert id="insertCourseTargetRefAbilityList">
+        insert into t_csys_course_ref_ability (course_id, ability_id, course_target_id,
+        college_Id, category_Id, major_Id
+        )
+        values
+        <foreach collection="courseTargetRefAbilityList" item="ref" separator=",">
+            (#{ref.courseId,jdbcType=BIGINT}, #{ref.abilityId,jdbcType=BIGINT}, #{ref.courseTargetId,jdbcType=BIGINT},
+            #{ref.collegeId,jdbcType=BIGINT}, #{ref.categoryId,jdbcType=BIGINT}, #{ref.majorId,jdbcType=BIGINT}
+            )
+        </foreach>
+    </insert>
+</mapper>

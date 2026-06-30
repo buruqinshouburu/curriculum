@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TrainingSchemeWeekMapper">
+    <resultMap type="com.doinner.csys.domain.TrainingSchemeWeek" id="TrainingSchemeWeekResult">
+        <result property="id" column="id"/>
+        <result property="schemeId" column="scheme_id"/>
+        <result property="courseTeaching" column="course_teaching"/>
+        <result property="practiceTeaching" column="practice_teaching"/>
+        <result property="vacation" column="vacation"/>
+        <result property="motorDriven" column="motor_driven"/>
+    </resultMap>
+
+    <sql id="selectTrainingSchemeWeekVo">
+        select id, scheme_id, course_teaching, practice_teaching, vacation, motor_driven
+        from t_csys_training_scheme_week
+    </sql>
+
+    <select id="selectTrainingSchemeWeekList" parameterType="com.doinner.csys.domain.TrainingSchemeWeek"
+            resultMap="TrainingSchemeWeekResult">
+        <include refid="selectTrainingSchemeWeekVo"/>
+        <where>
+            <if test="schemeId != null">
+                and scheme_id = #{schemeId}
+            </if>
+            <if test="courseTeaching != null">
+                and course_teaching = #{courseTeaching}
+            </if>
+            <if test="practiceTeaching != null">
+                and practice_teaching = #{practiceTeaching}
+            </if>
+            <if test="vacation != null">
+                and vacation = #{vacation}
+            </if>
+            <if test="motorDriven != null">
+                and motor_driven = #{motorDriven}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectTrainingSchemeWeekById" parameterType="Long" resultMap="TrainingSchemeWeekResult">
+        <include refid="selectTrainingSchemeWeekVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertTrainingSchemeWeek" parameterType="com.doinner.csys.domain.TrainingSchemeWeek"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_training_scheme_week
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">
+                scheme_id,
+            </if>
+            <if test="courseTeaching != null">
+                course_teaching,
+            </if>
+            <if test="practiceTeaching != null">
+                practice_teaching,
+            </if>
+            <if test="vacation != null">
+                vacation,
+            </if>
+            <if test="motorDriven != null">
+                motor_driven,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">
+                #{schemeId},
+            </if>
+            <if test="courseTeaching != null">
+                #{courseTeaching},
+            </if>
+            <if test="practiceTeaching != null">
+                #{practiceTeaching},
+            </if>
+            <if test="vacation != null">
+                #{vacation},
+            </if>
+            <if test="motorDriven != null">
+                #{motorDriven},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateTrainingSchemeWeek" parameterType="com.doinner.csys.domain.TrainingSchemeWeek">
+        update t_csys_training_scheme_week
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="schemeId != null">
+                scheme_id = #{schemeId},
+            </if>
+            <if test="courseTeaching != null">
+                course_teaching = #{courseTeaching},
+            </if>
+            <if test="practiceTeaching != null">
+                practice_teaching = #{practiceTeaching},
+            </if>
+            <if test="vacation != null">
+                vacation = #{vacation},
+            </if>
+            <if test="motorDriven != null">
+                motor_driven = #{motorDriven},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTrainingSchemeWeekById" parameterType="Long">
+        delete
+        from t_csys_training_scheme_week
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteTrainingSchemeWeekByIds" parameterType="String">
+        delete
+        from t_csys_training_scheme_week where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectTrainingSchemeWeekBySchemeId" resultMap="TrainingSchemeWeekResult">
+        select *
+        from t_csys_training_scheme_week
+        where scheme_id = #{id}
+        LIMIT 1
+    </select>
+</mapper>

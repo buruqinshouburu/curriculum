@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgrammeInstanceMapper">
+
+    <resultMap type="com.doinner.csys.domain.TeachingProgrammeInstance" id="TeachingProgrammeInstanceResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="version" column="version"/>
+        <result property="outlineId" column="outline_id"/>
+        <result property="outlineName" column="outline_name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="fileId" column="file_id"/>
+        <result property="status" column="status"/>
+        <result property="downloadUrl" column="download_url"/>
+        <result property="previewUrl" column="preview_url"/>
+        <result property="collegeId" column="college_Id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="majorId" column="major_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="majorName" column="major_name"/>
+        <result property="collegeName" column="college_name"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgrammeInstanceVo">
+        select i.id, concat(i.version,c.name,m.name,'教学大纲') as name,i.version, i.outline_id, i.create_time, i.creator, i.last_modified_time, i.last_modifier,
+               i.remark, i.sysflag,i.file_id,i.status,i.download_url,i.preview_url,i.college_Id,i.category_id,i.major_id,c.name as category_name,m.name as major_name
+        from t_csys_teaching_programme_instance i
+                 left join t_csys_training_scheme_category c on c.id=i.category_id
+                 left join t_csys_std_major m on m.id=i.major_id
+    </sql>
+
+    <select id="selectTeachingProgrammeInstanceList" parameterType="com.doinner.csys.domain.TeachingProgrammeInstance"
+            resultMap="TeachingProgrammeInstanceResult">
+        select instance.id, concat(instance.version,c.name,m.name,'教学大纲') as name,instance.version, instance.outline_id,outline.name outline_name,instance.college_Id,
+        instance.create_time, instance.creator, instance.last_modified_time, instance.last_modifier, instance.remark, instance.sysflag,instance.status status,
+        instance.file_id file_id,instance.download_url,instance.preview_url,instance.category_id,instance.major_id,c.name as category_name,m.name as major_name
+        from t_csys_teaching_programme_instance instance
+        left join t_csys_teaching_programme_outline outline
+        on instance.outline_id = outline.id
+        left join t_csys_training_scheme_category c on c.id=instance.category_id
+        left join t_csys_std_major m on m.id=instance.major_id
+        <where>
+            <if test="name != null  and name != ''">
+                and instance.name like concat('%', #{name}, '%')
+            </if>
+            <if test="version != null ">
+                and instance.version = #{version}
+            </if>
+            <if test="outlineId != null ">
+                and instance.outline_id = #{outlineId}
+            </if>
+            <if test="creator != null  and creator != ''">
+                and instance.creator = #{creator}
+            </if>
+            <if test="lastModifiedTime != null ">
+                and instance.last_modified_time = #{lastModifiedTime}
+            </if>
+            <if test="lastModifier != null  and lastModifier != ''">
+                and instance.last_modifier = #{lastModifier}
+            </if>
+            <if test="sysflag != null ">
+                and instance.sysflag = #{sysflag}
+            </if>
+            <if test="status != null ">
+                and instance.status = #{status}
+            </if>
+            <if test="collegeId != null ">
+                and instance.college_Id = #{collegeId}
+            </if>
+            <if test="categoryId != null ">
+                and instance.category_id = #{categoryId}
+            </if>
+            <if test="majorId != null ">
+                and instance.major_id = #{majorId}
+            </if>
+        </where>
+        <choose>
+            <when test="database_prop != null and database_prop != ''">
+                order by ${database_prop} ${order}
+            </when>
+            <otherwise>
+                order by instance.id desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectTeachingProgrammeInstanceById" parameterType="Long"
+            resultMap="TeachingProgrammeInstanceResult">
+        <include refid="selectTeachingProgrammeInstanceVo"/>
+        where i.id = #{id} order by i.id desc
+    </select>
+
+    <insert id="insertTeachingProgrammeInstance" parameterType="com.doinner.csys.domain.TeachingProgrammeInstance" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_teaching_programme_instance
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">name,
+            </if>
+            <if test="outlineId != null">outline_id,
+            </if>
+            <if test="version != null">version,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="creator != null">creator,
+            </if>
+            <if test="lastModifiedTime != null">last_modified_time,
+            </if>
+            <if test="lastModifier != null">last_modifier,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="sysflag != null">sysflag,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="collegeId != null">college_Id,
+            </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+            <if test="majorId != null">major_Id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">#{name},
+            </if>
+            <if test="outlineId != null">#{outlineId},
+            </if>
+            <if test="version != null">#{version},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="creator != null">#{creator},
+            </if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">#{lastModifier},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="sysflag != null">#{sysflag},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="collegeId != null">#{collegeId},
+            </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+            <if test="majorId != null">#{majorId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgrammeInstance" parameterType="com.doinner.csys.domain.TeachingProgrammeInstance">
+        update t_csys_teaching_programme_instance
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">name =
+                #{name},
+            </if>
+            <if test="outlineId != null">outline_id =
+                #{outlineId},
+            </if>
+            <if test="version != null">version =
+                #{version},
+            </if>
+            <if test="lastModifiedTime != null">last_modified_time =
+                #{lastModifiedTime},
+            </if>
+            <if test="lastModifier != null">last_modifier =
+                #{lastModifier},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="sysflag != null">sysflag =
+                #{sysflag},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="categoryId != null">category_id =
+                #{categoryId},
+            </if>
+            <if test="majorId != null">major_id =
+                #{majorId},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTeachingProgrammeInstanceById" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_instance where id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeInstanceByIds" parameterType="Long">
+        delete from t_csys_teaching_programme_instance where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="updateInstanceFileId">
+        UPDATE t_csys_teaching_programme_instance SET file_id = #{fileId},download_url=#{downloadUrl},preview_url=#{previewUrl} WHERE id = #{instanceId}
+    </update>
+</mapper>

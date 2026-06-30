@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TrainingSchemeRefCourseMapper">
+
+    <resultMap type="com.doinner.csys.domain.TrainingSchemeRefCourse" id="TrainingSchemeRefCourseResult">
+        <result property="schemeId"    column="scheme_id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="id"    column="id"    />
+    </resultMap>
+
+    <sql id="selectTrainingSchemeRefCourseVo">
+        select scheme_id, course_id,id from t_csys_training_scheme_ref_course
+    </sql>
+
+    <select id="selectTrainingSchemeRefCourseList" parameterType="com.doinner.csys.domain.TrainingSchemeRefCourse" resultMap="TrainingSchemeRefCourseResult">
+        <include refid="selectTrainingSchemeRefCourseVo"/>
+        <where>
+            <if test="schemeId != null "> and scheme_id = #{schemeId}</if>
+            <if test="courseId != null "> and course_id = #{courseId}</if>
+        </where>
+    </select>
+
+    <select id="selectTrainingSchemeRefCourseById" parameterType="Long" resultMap="TrainingSchemeRefCourseResult">
+        <include refid="selectTrainingSchemeRefCourseVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectTrainingSchemeRefCourseByTrainingSchemeVoId" parameterType="Long" resultMap="TrainingSchemeRefCourseResult">
+        <include refid="selectTrainingSchemeRefCourseVo"/>
+        where scheme_id = #{schemeId}
+    </select>
+
+
+    <select id="selectTrainingSchemeRefCourseByTrainingIdAndType" parameterType="Long" resultMap="TrainingSchemeRefCourseResult">
+        select scheme_id, course_id,c.id id from t_csys_training_scheme_ref_course tsrc
+        inner join t_csys_course c on c.id=tsrc.course_id
+        where tsrc.scheme_id = #{schemeId}
+        <choose>
+            <when test="type != null and type != ''">
+                and c.type = #{type}
+            </when>
+            <otherwise>
+                and c.type in (1,3)
+            </otherwise>
+        </choose>
+    </select>
+
+    <insert id="insertTrainingSchemeRefCourses"  useGeneratedKeys="true" keyProperty="trainingSchemeRefCourses.id">
+        insert into t_csys_training_scheme_ref_course(scheme_id,course_id) values
+        <foreach collection="trainingSchemeRefCourses" item="trainingSchemeRefCourse" separator=",">
+            (#{trainingSchemeRefCourse.schemeId},
+             #{trainingSchemeRefCourse.courseId})
+        </foreach>
+    </insert>
+
+    <insert id="insertTrainingSchemeRefCourse" parameterType="com.doinner.csys.domain.TrainingSchemeRefCourse">
+        insert into t_csys_training_scheme_ref_course
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">scheme_id,</if>
+            <if test="courseId != null">course_id,</if>
+            <if test="id != null">id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">#{schemeId},</if>
+            <if test="courseId != null">#{courseId},</if>
+            <if test="courseTypeId != null">#{courseTypeId},</if>
+            <if test="id != null">#{id},</if>
+         </trim>
+    </insert>
+
+    <update id="updateTrainingSchemeRefCourse" parameterType="com.doinner.csys.domain.TrainingSchemeRefCourse">
+        update t_csys_training_scheme_ref_course
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="schemeId != null">scheme_id = #{schemeId},</if>
+            <if test="courseId != null">course_id = #{courseId},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTrainingSchemeRefCourseById" parameterType="Long">
+        delete from t_csys_training_scheme_ref_course where id = #{id}
+    </delete>
+
+    <delete id="deleteTrainingSchemeRefCourseByIds" parameterType="String">
+        delete from t_csys_training_scheme_ref_course where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteTrainingSchemeRefCourseBySchemeId" parameterType="Long">
+        delete from t_csys_training_scheme_ref_course where scheme_id = #{schemeId}
+    </delete>
+
+    <delete id="deleteTrainingSchemeRefCourseBySchemeIds" parameterType="String">
+        delete from t_csys_training_scheme_ref_course where scheme_id in
+        <foreach item="schemeId" collection="array" open="(" separator="," close=")">
+            #{schemeId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteTrainingSchemeRefCourseByCourseIds">
+        delete from t_csys_training_scheme_ref_course
+        where course_id in
+        <foreach item="courseId" collection="ids" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <select id="selectTrainingSchemeRefCourseByTrainingSchemeVoIdAndCourseType"
+            resultMap="TrainingSchemeRefCourseResult">
+        select tsrc.* from t_csys_training_scheme_ref_course tsrc
+        inner join t_csys_course c on c.id=tsrc.course_id
+        where tsrc.scheme_id=#{trainingCourseVo.schemeId}
+        <choose>
+            <when test='trainingCourseVo.type == "1"'>
+                and c.type in (1,3)
+            </when>
+            <otherwise>
+                and c.type = #{trainingCourseVo.type}
+            </otherwise>
+        </choose>
+        <if test="trainingCourseVo.name !=null">
+            and c.name like concat('%', #{trainingCourseVo.name}, '%')
+        </if>
+        <if test="trainingCourseVo.code !=null">
+            and c.code=#{trainingCourseVo.code}
+        </if>
+        <if test="trainingCourseVo.categoryId !=null">
+            and c.category_Id=#{trainingCourseVo.categoryId}
+        </if>
+        <if test="trainingCourseVo.majorId !=null">
+            and c.major_Id=#{trainingCourseVo.majorId}
+        </if>
+        <if test="trainingCourseVo.collegeId !=null">
+            and c.category_Id=#{trainingCourseVo.collegeId}
+        </if>
+        <if test="trainingCourseVo.courseModule !=null">
+            and c.course_Module=#{trainingCourseVo.courseModule}
+        </if>
+        <if test="trainingCourseVo.courseAttr !=null">
+            and c.course_attr=#{trainingCourseVo.courseAttr}
+        </if>
+        <if test="trainingCourseVo.hours !=null">
+            and c.hours=#{trainingCourseVo.hours}
+        </if>
+        <if test="trainingCourseVo.credit !=null">
+            and c.credit=#{trainingCourseVo.credit}
+        </if>
+    </select>
+</mapper>

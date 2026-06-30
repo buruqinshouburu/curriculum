@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgrammeAttributeMapper">
+
+    <resultMap type="TeachingProgrammeAttribute" id="TeachingProgrammeAttributeResult">
+            <result property="id" column="id"/>
+            <result property="instanceId" column="instance_id"/>
+            <result property="attributeName" column="attribute_name"/>
+            <result property="attributeValue" column="attribute_value"/>
+            <result property="templateId" column="template_id"/>
+            <result property="templateParentId" column="template_parent_Id"/>
+            <result property="parentId" column="parent_Id"/>
+            <result property="sort" column="sort"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgrammeAttributeVo">
+        select id, instance_id, attribute_name, attribute_value, template_id, template_parent_Id, parent_Id,sort
+        from t_csys_teaching_programme_attribute
+    </sql>
+
+    <select id="selectTeachingProgrammeAttributeList" parameterType="TeachingProgrammeAttribute" resultMap="TeachingProgrammeAttributeResult">
+        <include refid="selectTeachingProgrammeAttributeVo"/>
+        <where>
+                        <if test="instanceId != null ">
+                            and instance_id = #{instanceId}
+                        </if>
+                        <if test="attributeName != null  and attributeName != ''">
+                            and attribute_name like concat('%', #{attributeName}, '%')
+                        </if>
+                        <if test="attributeValue != null  and attributeValue != ''">
+                            and attribute_value = #{attributeValue}
+                        </if>
+                        <if test="templateId != null ">
+                            and template_id = #{templateId}
+                        </if>
+                        <if test="templateParentId != null ">
+                            and template_parent_Id = #{templateParentId}
+                        </if>
+            <if test="parentId != null ">
+                and parent_Id = #{parentId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectTeachingProgrammeAttributeById" parameterType="Long"
+            resultMap="TeachingProgrammeAttributeResult">
+            <include refid="selectTeachingProgrammeAttributeVo"/>
+            where id = #{id}
+    </select>
+
+    <insert id="insertTeachingProgrammeAttribute" parameterType="TeachingProgrammeAttribute" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_teaching_programme_attribute
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="instanceId != null">instance_id,
+                    </if>
+                    <if test="attributeName != null">attribute_name,
+                    </if>
+                    <if test="attributeValue != null">attribute_value,
+                    </if>
+                    <if test="templateId != null">template_id,
+                    </if>
+                    <if test="templateParentId != null">template_parent_Id,
+                    </if>
+            <if test="parentId != null">parent_Id,
+            </if>
+            <if test="sort != null">sort,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="instanceId != null">#{instanceId},
+                    </if>
+                    <if test="attributeName != null">#{attributeName},
+                    </if>
+                    <if test="attributeValue != null">#{attributeValue},
+                    </if>
+                    <if test="templateId != null">#{templateId},
+                    </if>
+                    <if test="templateParentId != null">#{templateParentId},
+                    </if>
+            <if test="parentId != null">#{parentId},
+            </if>
+            <if test="sort != null">#{sort},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgrammeAttribute" parameterType="TeachingProgrammeAttribute">
+        update t_csys_teaching_programme_attribute
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="instanceId != null">instance_id =
+                        #{instanceId},
+                    </if>
+                    <if test="attributeName != null">attribute_name =
+                        #{attributeName},
+                    </if>
+                    <if test="attributeValue != null">attribute_value =
+                        #{attributeValue},
+                    </if>
+                    <if test="templateId != null">template_id =
+                        #{templateId},
+                    </if>
+                    <if test="templateParentId != null">template_Parent_Id =
+                        #{templateParentId},
+                    </if>
+            <if test="parentId != null">parent_Id =
+                #{parentId},
+            </if>
+            <if test="sort != null">sort =
+                #{sort},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTeachingProgrammeAttributeById" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_attribute where id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeAttributeByInstanceId" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_attribute where instance_id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeAttributeByIds" parameterType="Long">
+        delete from t_csys_teaching_programme_attribute where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

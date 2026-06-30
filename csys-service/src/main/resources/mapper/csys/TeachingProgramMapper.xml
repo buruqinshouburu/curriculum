@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgramMapper">
+
+    <resultMap type="TeachingProgram" id="TeachingProgramResult">
+            <result property="id" column="id"/>
+            <result property="courseId" column="course_id"/>
+            <result property="version" column="version"/>
+            <result property="term" column="term"/>
+            <result property="createTime" column="create_time"/>
+            <result property="creator" column="creator"/>
+            <result property="lastModifiedTime" column="last_modified_time"/>
+            <result property="lastModifier" column="last_modifier"/>
+            <result property="remark" column="remark"/>
+            <result property="sysflag" column="sysflag"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgramVo">
+        select id, course_id, version, term, create_time, creator, last_modified_time, last_modifier, remark, sysflag
+        from t_csys_teaching_program
+    </sql>
+
+    <select id="selectTeachingProgramList" parameterType="TeachingProgram" resultMap="TeachingProgramResult">
+        <include refid="selectTeachingProgramVo"/>
+        <where>
+                        <if test="courseId != null ">
+                            and course_id = #{courseId}
+                        </if>
+                        <if test="version != null  and version != ''">
+                            and version = #{version}
+                        </if>
+                        <if test="term != null  and term != ''">
+                            and term = #{term}
+                        </if>
+                        <if test="creator != null  and creator != ''">
+                            and creator = #{creator}
+                        </if>
+                        <if test="lastModifiedTime != null ">
+                            and last_modified_time = #{lastModifiedTime}
+                        </if>
+                        <if test="lastModifier != null  and lastModifier != ''">
+                            and last_modifier = #{lastModifier}
+                        </if>
+                        <if test="sysflag != null ">
+                            and sysflag = #{sysflag}
+                        </if>
+        </where>
+    </select>
+
+    <select id="selectTeachingProgramById" parameterType="Long"
+            resultMap="TeachingProgramResult">
+            <include refid="selectTeachingProgramVo"/>
+            where id = #{id}
+    </select>
+
+    <insert id="insertTeachingProgram" parameterType="TeachingProgram" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_teaching_program
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">course_id,
+                    </if>
+                    <if test="version != null">version,
+                    </if>
+                    <if test="term != null">term,
+                    </if>
+                    <if test="creator != null">creator,
+                    </if>
+                    <if test="lastModifier != null">last_modifier,
+                    </if>
+                    <if test="remark != null">remark,
+                    </if>
+                    <if test="sysflag != null">sysflag,
+                    </if>
+            LAST_MODIFIED_TIME,
+            CREATE_TIME
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">#{courseId},
+                    </if>
+                    <if test="version != null">#{version},
+                    </if>
+                    <if test="term != null">#{term},
+                    </if>
+                    <if test="creator != null">#{creator},
+                    </if>
+                    <if test="lastModifiedTime != null">#{lastModifiedTime},
+                    </if>
+                    <if test="remark != null">#{remark},
+                    </if>
+                    <if test="sysflag != null">#{sysflag},
+                    </if>
+            sysdate(),
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgram" parameterType="TeachingProgram">
+        update t_csys_teaching_program
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="courseId != null">course_id =
+                        #{courseId},
+                    </if>
+                    <if test="version != null">version =
+                        #{version},
+                    </if>
+                    <if test="term != null">term =
+                        #{term},
+                    </if>
+                    <if test="createTime != null">create_time =
+                        #{createTime},
+                    </if>
+                    <if test="creator != null">creator =
+                        #{creator},
+                    </if>
+                    <if test="lastModifier != null">last_modifier =
+                        #{lastModifier},
+                    </if>
+                    <if test="remark != null">remark =
+                        #{remark},
+                    </if>
+                    <if test="sysflag != null">sysflag =
+                        #{sysflag},
+                    </if>
+            LAST_MODIFIED_TIME = sysdate()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTeachingProgramById" parameterType="Long">
+        delete
+        from t_csys_teaching_program where id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgramByIds" parameterType="String">
+        delete from t_csys_teaching_program where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

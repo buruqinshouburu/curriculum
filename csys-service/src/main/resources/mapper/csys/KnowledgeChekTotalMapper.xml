@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeChekTotalMapper">
+    <resultMap type="com.doinner.csys.domain.KnowledgeChekTotal" id="KnowledgeChekTotalResult">
+        <result property="id" column="id"/>
+        <result property="sourceCourseId" column="source_course_id"/>
+        <result property="totalUnitNum" column="total_unit_num"/>
+        <result property="totalPointNum" column="total_point_num"/>
+    </resultMap>
+
+    <sql id="selectKnowledgeChekTotalVo">
+        select id, source_course_id, total_unit_num, total_point_num
+        from t_csys_knowledge_chek_total
+    </sql>
+
+    <select id="selectKnowledgeChekTotalList" parameterType="com.doinner.csys.domain.KnowledgeChekTotal"
+            resultMap="KnowledgeChekTotalResult">
+        <include refid="selectKnowledgeChekTotalVo"/>
+        <where>
+            <if test="sourceCourseId != null">
+                and source_course_id = #{sourceCourseId}
+            </if>
+            <if test="totalUnitNum != null">
+                and total_unit_num = #{totalUnitNum}
+            </if>
+            <if test="totalPointNum != null">
+                and total_point_num = #{totalPointNum}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectKnowledgeChekTotalById" parameterType="Long" resultMap="KnowledgeChekTotalResult">
+        <include refid="selectKnowledgeChekTotalVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertKnowledgeChekTotal" parameterType="com.doinner.csys.domain.KnowledgeChekTotal"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_knowledge_chek_total
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                source_course_id,
+            </if>
+            <if test="totalUnitNum != null">
+                total_unit_num,
+            </if>
+            <if test="totalPointNum != null">
+                total_point_num,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                #{sourceCourseId},
+            </if>
+            <if test="totalUnitNum != null">
+                #{totalUnitNum},
+            </if>
+            <if test="totalPointNum != null">
+                #{totalPointNum},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateKnowledgeChekTotal" parameterType="com.doinner.csys.domain.KnowledgeChekTotal">
+        update t_csys_knowledge_chek_total
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                source_course_id = #{sourceCourseId},
+            </if>
+            <if test="totalUnitNum != null">
+                total_unit_num = #{totalUnitNum},
+            </if>
+            <if test="totalPointNum != null">
+                total_point_num = #{totalPointNum},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteKnowledgeChekTotalById" parameterType="Long">
+        delete
+        from t_csys_knowledge_chek_total
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteKnowledgeChekTotalByIds" parameterType="String">
+        delete
+        from t_csys_knowledge_chek_total where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectBySourceCourseId" resultMap="KnowledgeChekTotalResult">
+        select *
+        from t_csys_knowledge_chek_total
+        where source_course_id = #{id}
+    </select>
+
+    <select id="selectTotalBySourceCourseIds" resultMap="KnowledgeChekTotalResult">
+        SELECT SUM(total_unit_num) as total_unit_num, SUM(total_point_num) as total_point_num
+        FROM t_csys_knowledge_chek_total
+        WHERE source_course_id in
+        <foreach collection="sourceDomainIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <delete id="deleteBySourceDomainId">
+        delete
+        from t_csys_knowledge_chek_total
+        where source_course_id = #{sourceDomainId}
+    </delete>
+
+    <delete id="deleteByCourseId">
+        delete
+        FROM t_csys_knowledge_chek_total
+        WHERE source_course_id in
+        <foreach collection="courseIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

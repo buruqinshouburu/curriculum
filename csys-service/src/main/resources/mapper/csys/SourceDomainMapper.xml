@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.SourceDomainMapper">
+
+    <resultMap type="SourceDomain" id="SourceDomainResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="version" column="version"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="majorId" column="major_id"/>
+        <result property="majorName" column="major_name"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="status" column="status"/>
+        <result property="type" column="type"/>
+        <result property="sourceId" column="source_id"/>
+        <collection property="sourceUnits" javaType="java.util.List" resultMap="SourceUnitResult"/>
+    </resultMap>
+
+    <resultMap type="SourceUnit" id="SourceUnitResult">
+        <result property="id" column="unit_id"/>
+        <result property="name" column="unit_name"/>
+        <collection property="sourcePoints" javaType="java.util.List" resultMap="SourcePointResult"/>
+    </resultMap>
+
+    <resultMap type="SourcePoint" id="SourcePointResult">
+        <result property="id" column="point_id"/>
+        <result property="name" column="point_name"/>
+    </resultMap>
+
+    <sql id="selectSourceDomainVo">
+        select id, name,version, college_id, major_id,category_Id, create_time, creator, last_modified_time, last_modifier, remark, sysflag,status
+        from t_csys_source_domain
+    </sql>
+
+    <select id="selectSourceDomainList" parameterType="SourceDomain" resultMap="SourceDomainResult">
+        select domain.id, domain.name, domain.version, domain.college_id, domain.major_id, domain.create_time,
+        domain.creator, domain.last_modified_time,domain.status,
+        domain.last_modifier, domain.remark, domain.sysflag,major.name major_name,
+        category.id category_id,category.name category_name,domain.source_id
+        from t_csys_source_domain domain
+        left join t_csys_std_major major
+        on domain.major_id = major.id
+        left join t_csys_training_scheme_category category
+        on domain.category_Id = category.id
+        <where>
+            <if test="name != null  and name != ''">
+                and domain.name like concat('%', #{name}, '%')
+            </if>
+            <if test="collegeId != null ">
+                and domain.college_id = #{collegeId}
+            </if>
+            <if test="majorId != null ">
+                and domain.major_id = #{majorId}
+            </if>
+            <if test="categoryId != null ">
+                and domain.category_Id = #{categoryId}
+            </if>
+            <if test="version != null ">
+                and domain.version = #{version}
+            </if>
+            <if test="creator != null  and creator != ''">
+                and domain.creator = #{creator}
+            </if>
+            <if test="lastModifier != null  and lastModifier != ''">
+                and domain.last_modifier = #{lastModifier}
+            </if>
+            <if test="sysflag != null ">
+                and domain.sysflag = #{sysflag}
+            </if>
+            <if test="status != null ">
+                and domain.status = #{status}
+            </if>
+            <if test="type != null ">
+                and domain.type = #{type}
+            </if>
+        </where>
+        order by domain.id desc
+    </select>
+
+    <select id="selectSourceDomainById" parameterType="Long"
+            resultMap="SourceDomainResult">
+        select domain.id, domain.name, domain.college_id, domain.major_id,domain.version,
+            domain.create_time, domain.creator, domain.last_modified_time, domain.last_modifier, domain.remark, domain.sysflag,domain.status,
+            unit.name unit_name,point.name point_name,unit.id unit_id,point.id point_id,domain.source_id source_id
+            from t_csys_source_domain domain
+			left join t_csys_source_domain_ref_unit domain_ref_unit
+			on domain.id = domain_ref_unit.domain_id
+			left join t_csys_source_unit unit
+			on domain_ref_unit.unit_id = unit.id
+			left join t_csys_source_unit_ref_point unit_ref_point
+			on unit_ref_point.unit_id = unit.id
+			left join t_csys_source_point point
+			on unit_ref_point.point_id = point.id
+        where domain.id = #{id}
+    </select>
+
+
+    <select id="selectSourceDomainByCourseId" parameterType="Long"
+            resultMap="SourceDomainResult">
+        select domain.id, domain.name, domain.college_id, domain.major_id,domain.version,
+        domain.create_time, domain.creator, domain.last_modified_time, domain.last_modifier, domain.remark, domain.sysflag,domain.status,
+        unit.name unit_name,point.name point_name,unit.id unit_id,point.id point_id
+        from t_csys_course_ref_source_domain course_ref_domain left join
+        t_csys_source_domain domain on course_ref_domain.domain_id = domain.id
+        left join t_csys_source_domain_ref_unit domain_ref_unit
+        on domain.id = domain_ref_unit.domain_id
+        left join t_csys_source_unit unit
+        on domain_ref_unit.unit_id = unit.id
+        left join t_csys_source_unit_ref_point unit_ref_point
+        on unit_ref_point.unit_id = unit.id
+        left join t_csys_source_point point
+        on unit_ref_point.point_id = point.id
+        <where>
+            <if test="courseId != null  and courseId != ''">
+                and course_ref_domain.course_id = #{courseId}
+            </if>
+        </where>
+    </select>
+
+
+
+    <insert id="insertSourceDomain" parameterType="SourceDomain" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_source_domain
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">name,
+            </if>
+            <if test="version != null">version,
+            </if>
+            <if test="collegeId != null">college_id,
+            </if>
+            <if test="majorId != null">major_id,
+            </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+            <if test="creator != null">creator,
+            </if>
+            <if test="lastModifier != null">last_modifier,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="sysflag != null">sysflag,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="type != null">type,
+            </if>
+            <if test="sourceId != null">source_id,
+            </if>
+            LAST_MODIFIED_TIME,
+            CREATE_TIME
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">#{name},
+            </if>
+            <if test="version != null">#{version},
+            </if>
+            <if test="collegeId != null">#{collegeId},
+            </if>
+            <if test="majorId != null">#{majorId},
+            </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+            <if test="creator != null">#{creator},
+            </if>
+            <if test="lastModifier != null">#{lastModifier},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="sysflag != null">#{sysflag},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="type != null">#{type},
+            </if>
+            <if test="sourceId != null">#{sourceId},
+            </if>
+            sysdate(),
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateSourceDomain" parameterType="SourceDomain">
+        update t_csys_source_domain
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">name =
+                #{name},
+            </if>
+            <if test="version != null">version =
+                #{version},
+            </if>
+            college_id = #{collegeId},
+            major_id = #{majorId},
+            category_Id = #{categoryId},
+            <if test="lastModifier != null">last_modifier =
+                #{lastModifier},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="sysflag != null">sysflag =
+                #{sysflag},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="type != null">type =
+                #{type},
+            </if>
+            <if test="sourceId != null">source_id =
+                #{sourceId},
+            </if>
+            LAST_MODIFIED_TIME = sysdate()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteSourceDomainById" parameterType="Long">
+        delete
+        from t_csys_source_domain where id = #{id}
+    </delete>
+
+    <delete id="deleteSourceDomainByIds" parameterType="String">
+        delete from t_csys_source_domain where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+
+    <select id="selectSourceDomainByCourseId" parameterType="Long"
+            resultMap="SourceDomainResult">
+        select domain.id,domain.name,unit.id unit_id ,unit.name unit_name,
+               point.id point_id,point.name point_name
+        from t_csys_course_ref_source_domain courseRefDomain
+                 left join t_csys_source_domain domain on courseRefDomain.domain_id = domain.id
+            left join t_csys_course_domain_ref_source_unit domainRefUnit on domain.id = domainRefUnit.domain_id
+            left join t_csys_source_unit unit on domainRefUnit.unit_id = unit.id
+            left join t_csys_course_unit_ref_source_point unitRefPoint on unit.id = unitRefPoint.unit_id
+            left join t_csys_source_point point on unitRefPoint.point_id = point.id
+        where courseRefDomain.course_id = #{courseId}
+    </select>
+
+    <select id="selectSourceDomainByCourseTargetId" parameterType="Long"
+            resultMap="SourceDomainResult">
+        select domainRefUnit.domain_ID id,
+        (select domain.name from t_csys_source_domain domain where domain.id = domainRefUnit.domain_id) name,
+        unit.id unit_id ,unit.name unit_name,
+        point.id point_id,point.name point_name
+        from t_csys_course_domain_ref_source_unit domainRefUnit
+        left join t_csys_source_unit unit on domainRefUnit.unit_id = unit.id
+        left join t_csys_course_unit_ref_source_point unitRefPoint on unit.id = unitRefPoint.unit_id
+        left join t_csys_source_point point on unitRefPoint.point_id = point.id
+        where domainRefUnit.course_target_id = #{courseTargetId}
+    </select>
+
+    <select id="selectSourceDomainByIds" parameterType="Long"
+            resultMap="SourceDomainResult">
+        select domain.id, domain.name, domain.college_id, domain.major_id,domain.version,domain.type type,
+               domain.create_time, domain.creator, domain.last_modified_time, domain.last_modifier, domain.remark, domain.sysflag,domain.status,
+               unit.name unit_name,point.name point_name,unit.id unit_id,point.id point_id,
+               category.id category_id,category.name category_name
+        from t_csys_source_domain domain
+			left join t_csys_source_domain_ref_unit domain_ref_unit
+        on domain.id = domain_ref_unit.domain_id
+            left join t_csys_source_unit unit
+            on domain_ref_unit.unit_id = unit.id
+            left join t_csys_source_unit_ref_point unit_ref_point
+            on unit_ref_point.unit_id = unit.id
+            left join t_csys_source_point point
+            on unit_ref_point.point_id = point.id
+            left join t_csys_training_scheme_category category
+            on domain.category_Id = category.id
+        where 1= 1
+        <if test="ids != null and ids.size() > 0">
+            and domain.id in
+            <foreach item="id" collection="ids" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+</mapper>

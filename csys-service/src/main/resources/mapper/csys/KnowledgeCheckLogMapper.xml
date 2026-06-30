@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeCheckLogMapper">
+    <resultMap type="com.doinner.csys.domain.KnowledgeCheckLog" id="KnowledgeCheckLogResult">
+        <result property="id" column="id"/>
+        <result property="sourceCourseId" column="source_course_id"/>
+        <result property="sourceCourseName" column="source_course_name"/>
+        <result property="sourceUnitId" column="source_unit_id"/>
+        <result property="sourceUnitName" column="source_unit_name"/>
+        <result property="sourcePointId" column="source_point_id"/>
+        <result property="sourcePointName" column="source_point_name"/>
+        <result property="targetCourseId" column="target_course_id"/>
+        <result property="targetCourseName" column="target_course_name"/>
+        <result property="targetUnitId" column="target_unit_id"/>
+        <result property="targetUnitName" column="target_unit_name"/>
+        <result property="targetPointId" column="target_point_id"/>
+        <result property="targetPointName" column="target_point_name"/>
+        <result property="start" column="start"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+    <sql id="selectKnowledgeCheckLogVo">
+        select id,
+               source_course_id,
+               source_course_name,
+               source_unit_id,
+               source_unit_name,
+               source_point_id,
+               source_point_name,
+               target_course_id,
+               target_course_name,
+               target_unit_id,
+               target_unit_name,
+               target_point_id,
+               target_point_name,
+               start,
+               remark
+        from t_csys_knowledge_check_log
+    </sql>
+
+
+    <insert id="insertKnowledgeCheckLog" parameterType="com.doinner.csys.domain.KnowledgeCheckLog">
+        insert into t_csys_knowledge_check_log
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="sourceCourseId != null">
+                source_course_id,
+            </if>
+            <if test="sourceCourseName != null">
+                source_course_name,
+            </if>
+            <if test="sourceUnitId != null">
+                source_unit_id,
+            </if>
+            <if test="sourceUnitName != null">
+                source_unit_name,
+            </if>
+            <if test="sourcePointId != null">
+                source_point_id,
+            </if>
+            <if test="sourcePointName != null">
+                source_point_name,
+            </if>
+            <if test="targetCourseId != null">
+                target_course_id,
+            </if>
+            <if test="targetCourseName != null">
+                target_course_name,
+            </if>
+            <if test="targetUnitId != null">
+                target_unit_id,
+            </if>
+            <if test="targetUnitName != null">
+                target_unit_name,
+            </if>
+            <if test="targetPointId != null">
+                target_point_id,
+            </if>
+            <if test="targetPointName != null">
+                target_point_name,
+            </if>
+            <if test="start != null">
+                start,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="sourceCourseId != null">
+                #{sourceCourseId},
+            </if>
+            <if test="sourceCourseName != null">
+                #{sourceCourseName},
+            </if>
+            <if test="sourceUnitId != null">
+                #{sourceUnitId},
+            </if>
+            <if test="sourceUnitName != null">
+                #{sourceUnitName},
+            </if>
+            <if test="sourcePointId != null">
+                #{sourcePointId},
+            </if>
+            <if test="sourcePointName != null">
+                #{sourcePointName},
+            </if>
+            <if test="targetCourseId != null">
+                #{targetCourseId},
+            </if>
+            <if test="targetCourseName != null">
+                #{targetCourseName},
+            </if>
+            <if test="targetUnitId != null">
+                #{targetUnitId},
+            </if>
+            <if test="targetUnitName != null">
+                #{targetUnitName},
+            </if>
+            <if test="targetPointId != null">
+                #{targetPointId},
+            </if>
+            <if test="targetPointName != null">
+                #{targetPointName},
+            </if>
+            <if test="start != null">
+                #{start},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateKnowledgeCheckLog" parameterType="com.doinner.csys.domain.KnowledgeCheckLog">
+        update t_csys_knowledge_check_log
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="sourceCourseId != null">
+                source_course_id = #{sourceCourseId},
+            </if>
+            <if test="sourceCourseName != null">
+                source_course_name = #{sourceCourseName},
+            </if>
+            <if test="sourceUnitId != null">
+                source_unit_id = #{sourceUnitId},
+            </if>
+            <if test="sourceUnitName != null">
+                source_unit_name = #{sourceUnitName},
+            </if>
+            <if test="sourcePointId != null">
+                source_point_id = #{sourcePointId},
+            </if>
+            <if test="sourcePointName != null">
+                source_point_name = #{sourcePointName},
+            </if>
+            <if test="targetCourseId != null">
+                target_course_id = #{targetCourseId},
+            </if>
+            <if test="targetCourseName != null">
+                target_course_name = #{targetCourseName},
+            </if>
+            <if test="targetUnitId != null">
+                target_unit_id = #{targetUnitId},
+            </if>
+            <if test="targetUnitName != null">
+                target_unit_name = #{targetUnitName},
+            </if>
+            <if test="targetPointId != null">
+                target_point_id = #{targetPointId},
+            </if>
+            <if test="targetPointName != null">
+                target_point_name = #{targetPointName},
+            </if>
+            <if test="start != null">
+                start = #{start},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+
+    <delete id="deleteBySourceDomainId">
+        delete
+        from t_csys_knowledge_check_log
+        where source_course_id = #{sourceDomainId}
+           or target_course_id = #{sourceDomainId}
+    </delete>
+
+
+    <select id="selectKnowledgeCheckLogListByCourses" resultMap="KnowledgeCheckLogResult">
+        select id,
+               source_course_id,
+               source_course_name,
+               source_unit_id,
+               source_unit_name,
+               source_point_id,
+               source_point_name,
+               target_course_id,
+               target_course_name,
+               target_unit_id,
+               target_unit_name,
+               target_point_id,
+               target_point_name,
+               start,
+               remark
+        from t_csys_knowledge_check_log
+        where source_course_id in
+        <foreach collection="ids" separator="," open="(" close=")" item="id">
+            #{id}
+        </foreach>
+        and target_course_id in
+        <foreach collection="ids" separator="," open="(" close=")" item="id">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectBySourceCourseIdList" resultMap="KnowledgeCheckLogResult">
+        SELECT source_course_id, target_course_id
+        FROM t_csys_knowledge_check_log
+        WHERE source_course_id in
+        <foreach collection="sourceDomainIds" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+        and target_course_id in
+        <foreach collection="sourceDomainIds" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+        GROUP BY source_course_id, target_course_id
+    </select>
+    <select id="countTPoint" resultMap="KnowledgeCheckLogResult">
+        SELECT target_course_id, target_unit_id, target_point_id
+        FROM t_csys_knowledge_check_log
+        WHERE start &gt;= 0
+          and target_course_id in
+        <foreach collection="targetCIds" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+        and source_course_id in
+        <foreach collection="targetCIds" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+        GROUP BY target_course_id, target_unit_id, target_point_id
+    </select>
+
+    <select id="countSPoint" resultMap="KnowledgeCheckLogResult">
+        SELECT source_course_id, source_unit_id, source_point_id
+        FROM t_csys_knowledge_check_log
+        where start &gt;= 0
+          and source_course_id in
+        <foreach collection="sourceCIds" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+        and target_course_id in
+        <foreach collection="sourceCIds" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+        GROUP BY source_course_id, source_unit_id, source_point_id
+    </select>
+
+    <select id="selectKnowledgeCheckLogListAll" resultMap="KnowledgeCheckLogResult">
+        select *
+        from t_csys_knowledge_check_log
+        where start &gt;= 0
+    </select>
+
+    <delete id="deleteByCourseId">
+        delete from t_csys_knowledge_check_log
+        where source_course_id in
+        <foreach collection="courseIds" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+        and target_course_id in
+        <foreach collection="courseIds" open="(" close=")" separator="," item="id">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

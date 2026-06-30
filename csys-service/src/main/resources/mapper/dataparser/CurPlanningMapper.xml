@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurPlanningMapper">
+
+    <resultMap type="CurPlanning" id="CurPlanningResult">
+        <result property="id"    column="ID"    />
+        <result property="name"    column="NAME"    />
+        <result property="targetId"    column="TARGET_ID"    />
+        <result property="hours"    column="HOURS"    />
+        <result property="relationships"    column="RELATIONSHIPS"    />
+        <result property="courseSelection"    column="COURSE_SELECTION"    />
+        <result property="pfrcIds"    column="PFRC_IDS"    />
+        <result property="sfrcIds"    column="SFRC_IDS"    />
+        <result property="prcIds"    column="PRC_IDS"    />
+        <result property="pfecIds"    column="PFEC_IDS"    />
+        <result property="sfpecIds"    column="SFPEC_IDS"    />
+        <result property="college"    column="COLLEGE"    />
+    </resultMap>
+
+    <sql id="selectCurPlanningVo">
+        select ID, NAME, TARGET_ID, HOURS, RELATIONSHIPS, COURSE_SELECTION, PFRC_IDS, SFRC_IDS, PRC_IDS, PFEC_IDS, SFPEC_IDS,COLLEGE from cur_planning
+    </sql>
+
+    <select id="selectCurPlanningList" parameterType="CurPlanning" resultMap="CurPlanningResult">
+        <include refid="selectCurPlanningVo"/>
+        <where>
+            <if test="name != null  and name != ''"> and NAME like concat('%', #{name}, '%')</if>
+            <if test="targetId != null  and targetId != ''"> and TARGET_ID = #{targetId}</if>
+            <if test="hours != null  and hours != ''"> and HOURS = #{hours}</if>
+            <if test="relationships != null  and relationships != ''"> and RELATIONSHIPS = #{relationships}</if>
+            <if test="courseSelection != null  and courseSelection != ''"> and COURSE_SELECTION = #{courseSelection}</if>
+            <if test="pfrcIds != null  and pfrcIds != ''"> and PFRC_IDS = #{pfrcIds}</if>
+            <if test="sfrcIds != null  and sfrcIds != ''"> and SFRC_IDS = #{sfrcIds}</if>
+            <if test="prcIds != null  and prcIds != ''"> and PRC_IDS = #{prcIds}</if>
+            <if test="pfecIds != null  and pfecIds != ''"> and PFEC_IDS = #{pfecIds}</if>
+            <if test="sfpecIds != null  and sfpecIds != ''"> and SFPEC_IDS = #{sfpecIds}</if>
+            <if test="college != null  and college != ''"> and COLLEGE = #{college}</if>
+        </where>
+    </select>
+
+    <select id="selectCurPlanningById" parameterType="Long" resultMap="CurPlanningResult">
+        <include refid="selectCurPlanningVo"/>
+        where ID = #{id}
+    </select>
+
+    <insert id="insertCurPlanning" parameterType="CurPlanning" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_planning
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null">NAME,</if>
+            <if test="targetId != null">TARGET_ID,</if>
+            <if test="hours != null">HOURS,</if>
+            <if test="relationships != null">RELATIONSHIPS,</if>
+            <if test="courseSelection != null">COURSE_SELECTION,</if>
+            <if test="pfrcIds != null">PFRC_IDS,</if>
+            <if test="sfrcIds != null">SFRC_IDS,</if>
+            <if test="prcIds != null">PRC_IDS,</if>
+            <if test="pfecIds != null">PFEC_IDS,</if>
+            <if test="sfpecIds != null">SFPEC_IDS,</if>
+            <if test="college != null">COLLEGE,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null">#{name},</if>
+            <if test="targetId != null">#{targetId},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="relationships != null">#{relationships},</if>
+            <if test="courseSelection != null">#{courseSelection},</if>
+            <if test="pfrcIds != null">#{pfrcIds},</if>
+            <if test="sfrcIds != null">#{sfrcIds},</if>
+            <if test="prcIds != null">#{prcIds},</if>
+            <if test="pfecIds != null">#{pfecIds},</if>
+            <if test="sfpecIds != null">#{sfpecIds},</if>
+            <if test="college != null">#{college},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCurPlanning" parameterType="CurPlanning">
+        update cur_planning
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null">NAME = #{name},</if>
+            <if test="targetId != null">TARGET_ID = #{targetId},</if>
+            <if test="hours != null">HOURS = #{hours},</if>
+            <if test="relationships != null">RELATIONSHIPS = #{relationships},</if>
+            <if test="courseSelection != null">COURSE_SELECTION = #{courseSelection},</if>
+            <if test="pfrcIds != null">PFRC_IDS = #{pfrcIds},</if>
+            <if test="sfrcIds != null">SFRC_IDS = #{sfrcIds},</if>
+            <if test="prcIds != null">PRC_IDS = #{prcIds},</if>
+            <if test="pfecIds != null">PFEC_IDS = #{pfecIds},</if>
+            <if test="sfpecIds != null">SFPEC_IDS = #{sfpecIds},</if>
+            <if test="college != null">COLLEGE = #{college},</if>
+        </trim>
+        where ID = #{id}
+    </update>
+
+    <update id="resetTargetId" parameterType="String">
+        update cur_planning SET TARGET_ID = null
+        where TARGET_ID in
+        <foreach item="id" collection="infoIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <delete id="deleteCurPlanningById" parameterType="Long">
+        delete from cur_planning where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurPlanningByIds" parameterType="String">
+        delete from cur_planning where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectCurPlanningByTargetIds"  parameterType="String" resultMap="CurPlanningResult">
+        <include refid="selectCurPlanningVo"/>
+        where TARGET_ID in
+        <foreach item="id" collection="infoIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

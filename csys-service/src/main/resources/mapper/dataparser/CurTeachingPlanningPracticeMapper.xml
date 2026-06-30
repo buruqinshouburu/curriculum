@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agileai.dataparser.mapper.CurTeachingPlanningPracticeMapper">
+
+    <resultMap type="CurTeachingPlanningPractice" id="CurTeachingPlanningPracticeResult">
+        <result property="id"    column="ID"    />
+        <result property="mainId"    column="MAIN_ID"    />
+        <result property="object"    column="OBJECT"    />
+        <result property="teachCollege"    column="TEACH_COLLEGE"    />
+        <result property="address"    column="ADDRESS"    />
+        <result property="backGround"    column="BACK_GROUND"    />
+        <result property="praKnowledgeTarget"    column="PRA_KNOWLEDGE_TARGET"    />
+        <result property="praAbilityTarget"    column="PRA_ABILITY_TARGET"    />
+        <result property="praIdeoPoliTarget"    column="PRA_IDEO_POLI_TARGET"    />
+        <result property="content"    column="CONTENT"    />
+        <result property="require"    column="REQUIRE_MAIN"    />
+        <result property="unitDesc"    column="UNIT_DESC"    />
+        <result property="contentRequire"    column="CONTENT_REQUIRE"    />
+        <result property="praType"    column="PRA_TYPE"    />
+        <result property="timePlan"    column="TIME_PLAN"    />
+        <result property="addressPlan"    column="ADDRESS_PLAN"    />
+        <result property="check"    column="CHECKED"    />
+        <result property="judge"    column="JUDGE"    />
+        <result property="requireOf"    column="REQUIRE_OF"    />
+    </resultMap>
+
+    <sql id="selectCurTeachingPlanningPracticeVo">
+        select ID, MAIN_ID, OBJECT, TEACH_COLLEGE,ADDRESS, BACK_GROUND, PRA_KNOWLEDGE_TARGET, PRA_ABILITY_TARGET, PRA_IDEO_POLI_TARGET, CONTENT, REQUIRE_MAIN, UNIT_DESC, CONTENT_REQUIRE,
+         PRA_TYPE, TIME_PLAN, ADDRESS_PLAN, CHECKED, JUDGE, REQUIRE_OF from cur_teaching_plannning_practice
+    </sql>
+
+    <select id="selectCurTeachingPlanningPracticeList" parameterType="CurTeachingPlanningPractice" resultMap="CurTeachingPlanningPracticeResult">
+        <include refid="selectCurTeachingPlanningPracticeVo"/>
+        <where>
+            <if test="content != null  and content != ''"> and CONTENT = #{content}</if>
+        </where>
+    </select>
+
+    <select id="selectCurTeachingPlanningPracticeById" parameterType="Long" resultMap="CurTeachingPlanningPracticeResult">
+        <include refid="selectCurTeachingPlanningPracticeVo"/>
+        where ID = #{id}
+    </select>
+
+    <select id="selectCurTeachingPlanningPracticeByMainId" parameterType="Long" resultMap="CurTeachingPlanningPracticeResult">
+        <include refid="selectCurTeachingPlanningPracticeVo"/>
+        where MAIN_ID = #{mainId}
+    </select>
+
+    <select id="selectCurTeachingPlanningPracticeByMainIds" parameterType="Long" resultMap="CurTeachingPlanningPracticeResult">
+        <include refid="selectCurTeachingPlanningPracticeVo"/>
+        where MAIN_ID in
+        <foreach item="id" collection="mainIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertCurTeachingPlanningPractice" parameterType="CurTeachingPlanningPractice" useGeneratedKeys="true" keyProperty="id">
+        insert into cur_teaching_plannning_practice
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">ID,</if>
+            <if test="mainId != null">MAIN_ID,</if>
+            <if test="object != null">OBJECT,</if>
+            <if test="teachCollege != null">TEACH_COLLEGE,</if>
+            <if test="address != null">ADDRESS,</if>
+            <if test="backGround != null">BACK_GROUND,</if>
+            <if test="praKnowledgeTarget != null">PRA_KNOWLEDGE_TARGET,</if>
+            <if test="praAbilityTarget != null">PRA_ABILITY_TARGET,</if>
+            <if test="praIdeoPoliTarget != null">PRA_IDEO_POLI_TARGET,</if>
+            <if test="content != null">CONTENT,</if>
+            <if test="require != null">REQUIRE_MAIN,</if>
+            <if test="unitDesc != null">UNIT_DESC,</if>
+            <if test="contentRequire != null">CONTENT_REQUIRE,</if>
+            <if test="praType != null">PRA_TYPE,</if>
+            <if test="timePlan != null">TIME_PLAN,</if>
+            <if test="addressPlan != null">ADDRESS_PLAN,</if>
+            <if test="check != null">CHECKED,</if>
+            <if test="judge != null">JUDGE,</if>
+            <if test="requireOf != null">REQUIRE_OF,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="mainId != null">#{mainId},</if>
+            <if test="object != null">#{object},</if>
+            <if test="teachCollege != null">#{teachCollege},</if>
+            <if test="address != null">#{address},</if>
+            <if test="backGround != null">#{backGround},</if>
+            <if test="praKnowledgeTarget != null">#{praKnowledgeTarget},</if>
+            <if test="praAbilityTarget != null">#{praAbilityTarget},</if>
+            <if test="praIdeoPoliTarget != null">#{praIdeoPoliTarget},</if>
+            <if test="content != null">#{content},</if>
+            <if test="require != null">#{require},</if>
+            <if test="unitDesc != null">#{unitDesc},</if>
+            <if test="contentRequire != null">#{contentRequire},</if>
+            <if test="praType != null">#{praType},</if>
+            <if test="timePlan != null">#{timePlan},</if>
+            <if test="addressPlan != null">#{addressPlan},</if>
+            <if test="check != null">#{check},</if>
+            <if test="judge != null">#{judge},</if>
+            <if test="requireOf != null">#{requireOf},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCurTeachingPlanningPracticeList" parameterType="CurTeachingPlanningPractice" useGeneratedKeys="true" keyProperty="id">
+
+        insert into cur_teaching_plannning_practice
+        (MAIN_ID,OBJECT,TEACH_COLLEGE,ADDRESS,BACK_GROUND,PRA_KNOWLEDGE_TARGET,PRA_ABILITY_TARGET,PRA_IDEO_POLI_TARGET,CONTENT,REQUIRE_MAIN,UNIT_DESC,
+        CONTENT_REQUIRE,PRA_TYPE,TIME_PLAN,ADDRESS_PLAN,CHECKED,JUDGE,REQUIRE_OF)
+        values
+        <foreach collection="list" separator="," item="item" index="index">
+        (#{item.mainId},#{item.object},#{item.eachCollege},#{item.address},#{item.backGround},#{item.praKnowledgeTarget},#{item.praAbilityTarget},
+        #{item.praIdeoPoliTarget},#{item.content},#{item.require},#{item.unitDesc},#{item.contentRequire},#{item.praType},#{item.timePlan},
+            #{item.addressPlan},#{item.check},#{item.judge},#{item.requireOf})
+        </foreach>
+    </insert>
+
+    <update id="updateCurTeachingPlanningPractice" parameterType="CurTeachingPlanningPractice">
+        update cur_teaching_plannning_practice
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="mainId != null">MAIN_ID = #{mainId},</if>
+            <if test="mainId == null">MAIN_ID = null,</if>
+            <if test="object != null">OBJECT = #{object},</if>
+            <if test="object == null">OBJECT = null,</if>
+            <if test="teachCollege != null">TEACH_COLLEGE = #{teachCollege},</if>
+            <if test="teachCollege == null">TEACH_COLLEGE = null,</if>
+            <if test="address != null">ADDRESS = #{address},</if>
+            <if test="address == null">ADDRESS = null,</if>
+            <if test="backGround != null">BACK_GROUND = #{backGround},</if>
+            <if test="backGround == null">BACK_GROUND = null,</if>
+            <if test="praKnowledgeTarget != null">PRA_KNOWLEDGE_TARGET = #{praKnowledgeTarget},</if>
+            <if test="praKnowledgeTarget == null">PRA_KNOWLEDGE_TARGET = null,</if>
+            <if test="praAbilityTarget != null">PRA_ABILITY_TARGET = #{praAbilityTarget},</if>
+            <if test="praAbilityTarget == null">PRA_ABILITY_TARGET = null,</if>
+            <if test="praIdeoPoliTarget != null">PRA_IDEO_POLI_TARGET = #{praIdeoPoliTarget},</if>
+            <if test="praIdeoPoliTarget == null">PRA_IDEO_POLI_TARGET = null,</if>
+            <if test="content != null">CONTENT = #{content},</if>
+            <if test="content == null">CONTENT = null,</if>
+            <if test="require != null">REQUIRE_MAIN = #{require},</if>
+            <if test="require == null">REQUIRE_MAIN = null,</if>
+            <if test="unitDesc != null">UNIT_DESC = #{unitDesc},</if>
+            <if test="unitDesc == null">UNIT_DESC = null,</if>
+            <if test="contentRequire != null">CONTENT_REQUIRE = #{contentRequire},</if>
+            <if test="contentRequire == null">CONTENT_REQUIRE = null,</if>
+            <if test="praType != null">PRA_TYPE = #{praType},</if>
+            <if test="praType == null">PRA_TYPE = null,</if>
+            <if test="timePlan != null">TIME_PLAN = #{timePlan},</if>
+            <if test="timePlan == null">TIME_PLAN = null,</if>
+            <if test="addressPlan != null">ADDRESS_PLAN = #{addressPlan},</if>
+            <if test="addressPlan == null">ADDRESS_PLAN = null,</if>
+            <if test="check != null">CHECKED = #{check},</if>
+            <if test="check == null">CHECKED = null,</if>
+            <if test="judge != null">JUDGE = #{judge},</if>
+            <if test="judge == null">JUDGE = null,</if>
+            <if test="requireOf != null">REQUIRE_OF = #{requireOf},</if>
+            <if test="requireOf == null">REQUIRE_OF = null,</if>
+        </trim>
+        where ID = #{id}
+    </update>
+
+    <update id="updateCurTeachingPlanningPracticeList" parameterType="CurTeachingPlanningPractice">
+        <foreach collection="list" separator=";" item="item" index="index">
+        update cur_teaching_plannning_practice
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="item.mainId != null">MAIN_ID = #{item.mainId},</if>
+            <if test="item.mainId == null">MAIN_ID = null,</if>
+            <if test="item.object != null">OBJECT = #{item.object},</if>
+            <if test="item.object == null">OBJECT = null,</if>
+            <if test="item.teachCollege != null">TEACH_COLLEGE = #{item.teachCollege},</if>
+            <if test="item.teachCollege == null">TEACH_COLLEGE = null,</if>
+            <if test="item.address != null">ADDRESS = #{item.address},</if>
+            <if test="item.address == null">ADDRESS = null,</if>
+            <if test="item.backGround != null">BACK_GROUND = #{item.backGround},</if>
+            <if test="item.backGround == null">BACK_GROUND = null,</if>
+            <if test="item.praKnowledgeTarget != null">PRA_KNOWLEDGE_TARGET = #{item.praKnowledgeTarget},</if>
+            <if test="item.praKnowledgeTarget == null">PRA_KNOWLEDGE_TARGET = null,</if>
+            <if test="item.praAbilityTarget != null">PRA_ABILITY_TARGET = #{item.praAbilityTarget},</if>
+            <if test="item.praAbilityTarget == null">PRA_ABILITY_TARGET = null,</if>
+            <if test="item.praIdeoPoliTarget != null">PRA_IDEO_POLI_TARGET = #{item.praIdeoPoliTarget},</if>
+            <if test="item.praIdeoPoliTarget == null">PRA_IDEO_POLI_TARGET = null,</if>
+            <if test="item.content != null">CONTENT = #{item.content},</if>
+            <if test="item.content == null">CONTENT = null,</if>
+            <if test="item.require != null">REQUIRE_MAIN = #{item.require},</if>
+            <if test="item.require == null">REQUIRE_MAIN = null,</if>
+            <if test="item.unitDesc != null">UNIT_DESC = #{item.unitDesc},</if>
+            <if test="item.unitDesc == null">UNIT_DESC = null,</if>
+            <if test="item.contentRequire != null">CONTENT_REQUIRE = #{item.contentRequire},</if>
+            <if test="item.contentRequire == null">CONTENT_REQUIRE = null,</if>
+            <if test="item.praType != null">PRA_TYPE = #{item.praType},</if>
+            <if test="item.praType == null">PRA_TYPE = null,</if>
+            <if test="item.timePlan != null">TIME_PLAN = #{item.timePlan},</if>
+            <if test="item.timePlan == null">TIME_PLAN = null,</if>
+            <if test="item.addressPlan != null">ADDRESS_PLAN = #{item.addressPlan},</if>
+            <if test="item.addressPlan == null">ADDRESS_PLAN = null,</if>
+            <if test="item.check != null">CHECKED = #{item.check},</if>
+            <if test="item.check == null">CHECKED = null,</if>
+            <if test="item.judge != null">JUDGE = #{item.judge},</if>
+            <if test="item.judge == null">JUDGE = null,</if>
+            <if test="item.requireOf != null">REQUIRE_OF = #{item.requireOf},</if>
+            <if test="item.requireOf == null">REQUIRE_OF = null,</if>
+        </trim>
+        where ID = #{item.id}
+        </foreach>
+    </update>
+
+    <delete id="deleteCurTeachingPlanningPracticeById" parameterType="Long">
+        delete from cur_teaching_plannning_practice where ID = #{id}
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningPracticeByIds" parameterType="Long">
+        delete from cur_teaching_plannning_practice where ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteCurTeachingPlanningPracticeByMainIds" parameterType="Long">
+        delete from cur_teaching_plannning_practice where MAIN_ID in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

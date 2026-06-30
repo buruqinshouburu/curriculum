@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseRefKeUnitMapper">
+    <resultMap type="com.doinner.csys.domain.CourseRefKeUnit" id="CourseRefKeUnitResult">
+        <result property="courseId" column="course_id"/>
+        <result property="unitId" column="unit_id"/>
+    </resultMap>
+
+    <sql id="selectCourseRefKeUnitVo">
+        select course_id, unit_id
+        from t_csys_course_ref_ke_unit
+    </sql>
+
+    <select id="selectCourseRefKeUnitList" parameterType="com.doinner.csys.domain.CourseRefKeUnit"
+            resultMap="CourseRefKeUnitResult">
+        <include refid="selectCourseRefKeUnitVo"/>
+        <where>
+        </where>
+    </select>
+
+    <select id="selectCourseRefKeUnitByCourseIds" resultMap="CourseRefKeUnitResult">
+        <include refid="selectCourseRefKeUnitVo"/>
+        where course_id IN
+        <foreach collection="courseIds" item="courseId" separator="," open="(" close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <select id="selectCourseRefKeUnitByCourseId" parameterType="Long" resultMap="CourseRefKeUnitResult">
+        <include refid="selectCourseRefKeUnitVo"/>
+        where course_id = #{courseId}
+    </select>
+
+    <insert id="insertCourseRefKeUnit" parameterType="com.doinner.csys.domain.CourseRefKeUnit">
+        insert into t_csys_course_ref_ke_unit
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">
+                course_id,
+            </if>
+            <if test="unitId != null">
+                unit_id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">
+                #{courseId},
+            </if>
+            <if test="unitId != null">
+                #{unitId},
+            </if>
+        </trim>
+    </insert>
+
+    <insert id="insertCourseRefKeUnits" parameterType="com.doinner.csys.domain.CourseRefKeUnit">
+        insert into t_csys_course_ref_ke_unit (course_id, unit_id) values
+        <foreach collection="courseRefUnitList" item="courseRefUnit" separator=",">
+            (#{courseRefUnit.courseId},
+             #{courseRefUnit.unitId})
+        </foreach>
+    </insert>
+
+    <update id="updateCourseRefKeUnit" parameterType="com.doinner.csys.domain.CourseRefKeUnit">
+        update t_csys_course_ref_ke_unit
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="unitId != null">
+                unit_id = #{unitId},
+            </if>
+        </trim>
+        where course_id = #{courseId}
+    </update>
+
+    <delete id="deleteCourseRefKeUnitByCourseId" parameterType="Long">
+        delete
+        from t_csys_course_ref_ke_unit
+        where course_id = #{courseId}
+    </delete>
+
+    <delete id="deleteCourseRefKeUnitByCourseIds" parameterType="java.util.List">
+        delete
+        from t_csys_course_ref_ke_unit where course_id in
+        <foreach item="courseId" collection="array" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteCourseRefKeUnitByCourseIdAndUnitIds" parameterType="Long">
+        delete
+        from t_csys_course_ref_ke_unit where course_id = #{courseId}
+                                         and unit_id IN
+        <foreach collection="unitIds" item="unitId" separator="," open="(" close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+
+    <delete id="deleteCourseRefKeUnitByCourseIdAndUnitId" parameterType="Long">
+        delete
+        from t_csys_course_ref_ke_unit
+        where course_id = #{courseId}
+          and unit_id = #{unitId}
+    </delete>
+
+    <select id="totalUnitByCourseId" resultType="java.lang.Long">
+        SELECT unit_id
+        FROM t_csys_course_ref_ke_unit cru
+                 left join t_csys_knowledge_unit ku
+                           on cru.unit_id = ku.id
+        where    ku.sysflag = 0
+        and  course_id = #{courseId}
+
+    </select>
+</mapper>

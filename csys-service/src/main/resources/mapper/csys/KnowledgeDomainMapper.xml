@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeDomainMapper">
+
+    <resultMap type="com.doinner.csys.domain.KnowledgeDomain" id="KnowledgeDomainResult">
+        <result property="id"    column="id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="name"    column="name"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+        <result property="unitIds"    column="unit_ids"    />
+    </resultMap>
+
+    <sql id="selectKnowledgeDomainVo">
+        select id, course_id, name, create_time, creator, last_modified_time, last_modifier, remark, sysflag, unit_ids from t_csys_knowledge_domain
+    </sql>
+
+    <select id="selectKnowledgeDomainList" parameterType="com.doinner.csys.domain.KnowledgeDomain" resultMap="KnowledgeDomainResult">
+        <include refid="selectKnowledgeDomainVo"/>
+        <where>
+            <if test="courseId != null "> and course_id = #{courseId}</if>
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="unitIds != null  and unitIds != ''"> and unit_ids = #{unitIds}</if>
+        </where>
+    </select>
+
+    <select id="selectKnowledgeDomainById" parameterType="Long" resultMap="KnowledgeDomainResult">
+        <include refid="selectKnowledgeDomainVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertKnowledgeDomain" parameterType="com.doinner.csys.domain.KnowledgeDomain" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_knowledge_domain
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">course_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+            <if test="unitIds != null">unit_ids,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">#{courseId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+            <if test="unitIds != null">#{unitIds},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertKnowledgeDomains" parameterType="com.doinner.csys.domain.KnowledgeDomain" useGeneratedKeys="true" keyProperty="knowledgeDomains.id">
+        insert into t_csys_knowledge_domain (id,course_id,name,unit_ids,creator,last_modifier,remark)values
+        <foreach item="knowledgeDomain" collection="knowledgeDomains" separator=",">
+            (
+                #{knowledgeDomain.id},
+                #{knowledgeDomain.courseId},
+                #{knowledgeDomain.name},
+                #{knowledgeDomain.unitIds},
+                #{knowledgeDomain.creator},
+                #{knowledgeDomain.lastModifier},
+                #{knowledgeDomain.remark}
+            )
+        </foreach>
+
+    </insert>
+
+    <update id="updateKnowledgeDomain" parameterType="com.doinner.csys.domain.KnowledgeDomain">
+        update t_csys_knowledge_domain
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+            <if test="unitIds != null">unit_ids = #{unitIds},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+
+    <delete id="deleteKnowledgeDomainById" parameterType="Long">
+        delete from t_csys_knowledge_domain where id = #{id}
+    </delete>
+
+    <delete id="deleteKnowledgeDomainByCourseId" parameterType="Long">
+        delete from t_csys_knowledge_domain where course_id = #{courseId}
+    </delete>
+
+    <delete id="deleteKnowledgeDomainByIds" parameterType="String">
+        delete from t_csys_knowledge_domain where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

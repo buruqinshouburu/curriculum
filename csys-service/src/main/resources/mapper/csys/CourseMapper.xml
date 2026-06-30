@@ -1,0 +1,2602 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseMapper">
+    <resultMap type="com.doinner.csys.domain.Course" id="CourseResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="type" column="type"/>
+        <result property="authors" column="authors"/>
+        <result property="authorIds" column="author_ids"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="teachCollegeId" column="teach_college_id"/>
+        <result property="enName" column="en_name"/>
+        <result property="beforeCourseId" column="before_course_id"/>
+        <result property="afterCourseId" column="after_course_id"/>
+        <result property="hours" column="hours"/>
+        <result property="theoryHours" column="theory_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="weekHours" column="week_hours"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="examineHours" column="examine_hours"/>
+        <result property="otherHours" column="other_hours"/>
+        <result property="hoursUnit" column="hours_unit"/>
+        <result property="credit" column="credit"/>
+        <result property="courseProp" column="course_prop"/>
+        <result property="courseType" column="course_type"/>
+        <result property="courseAttr" column="course_attr"/>
+        <result property="location" column="location"/>
+        <result property="openTerm" column="open_term"/>
+        <result property="summary" column="summary"/>
+        <result property="fileId" column="file_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="status" column="status"/>
+        <result property="analysisStatus" column="analysis_status"/>
+        <result property="deptBy" column="dept_by"/>
+        <result property="courseModule" column="course_Module"/>
+        <result property="courseModuleChildren" column="course_Module_Children"/>
+        <result property="semesterSchedule" column="semester_Schedule"/>
+        <result property="springAutumn" column="spring_Autumn"/>
+        <result property="openYear" column="open_Year"/>
+        <result property="majorId" column="major_Id"/>
+        <result property="subMajorId" column="sub_Major_Id"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="exaMethod" column="exa_Method"/>
+        <result property="programLevel" column="program_Level"/>
+        <result property="timeWeek" column="time_Week"/>
+        <result property="unit" column="unit"/>
+        <result property="sourceId" column="source_Id"/>
+        <result property="templateType" column="template_Type"/>
+        <result property="version" column="version"/>
+        <result property="bindStatus" column="bind_Status"/>
+        <result property="maxQuoteCount" column="max_quote_count"/>
+        <result property="enableFlag" column="enable_flag"/>
+        <result property="educationLevel" column="education_level"/>
+        <result property="hasWork" column="has_work"/>
+        <result property="collegeName" column="collegeName"/>
+        <result property="categoryName" column="categoryName"/>
+        <result property="majorName" column="majorName"/>
+        <result property="subMajorName" column="subMajorName"/>
+        <result property="courseModuleName" column="courseModuleName"/>
+        <result property="courseModuleChildrenName" column="courseModuleChildrenName"/>
+    </resultMap>
+    <resultMap type="com.doinner.csys.domain.vo.CourseVo" id="CourseVoResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="type" column="type"/>
+        <result property="authors" column="authors"/>
+        <result property="authorIds" column="author_ids"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="teachCollegeId" column="teach_college_id"/>
+        <result property="enName" column="en_name"/>
+        <result property="beforeCourseId" column="before_course_id"/>
+        <result property="afterCourseId" column="after_course_id"/>
+        <result property="hours" column="hours"/>
+        <result property="theoryHours" column="theory_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="weekHours" column="week_hours"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="examineHours" column="examine_hours"/>
+        <result property="otherHours" column="other_hours"/>
+        <result property="hoursUnit" column="hours_unit"/>
+        <result property="credit" column="credit"/>
+        <result property="courseProp" column="course_prop"/>
+        <result property="courseType" column="course_type"/>
+        <result property="courseAttr" column="course_attr"/>
+        <result property="location" column="location"/>
+        <result property="openTerm" column="open_term"/>
+        <result property="summary" column="summary"/>
+        <result property="fileId" column="file_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="status" column="status"/>
+        <result property="analysisStatus" column="analysis_status"/>
+        <result property="courseModule" column="course_Module"/>
+        <result property="courseModuleChildren" column="course_Module_Children"/>
+        <result property="semesterSchedule" column="semester_Schedule"/>
+        <result property="springAutumn" column="spring_Autumn"/>
+        <result property="openYear" column="open_Year"/>
+        <result property="majorId" column="major_Id"/>
+        <result property="subMajorId" column="sub_Major_Id"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="exaMethod" column="exa_Method"/>
+        <result property="programLevel" column="program_Level"/>
+        <result property="graduationId" column="graduation_id"/>
+        <result property="timeWeek" column="time_Week"/>
+        <result property="unit" column="unit"/>
+        <result property="sourceId" column="source_Id"/>
+        <result property="templateType" column="template_Type"/>
+        <result property="version" column="version"/>
+        <result property="bindStatus" column="bind_Status"/>
+        <result property="enableFlag" column="enable_flag"/>
+        <result property="educationLevel" column="education_level"/>
+        <result property="hasWork" column="has_Work"/>
+        <collection property="knowledgeUnitVoList" javaType="java.util.List" resultMap="KnowledgeUnitVoResult"/>
+    </resultMap>
+    <resultMap type="com.doinner.csys.domain.vo.KnowledgeUnitVo" id="KnowledgeUnitVoResult">
+        <result property="id" column="ku_id"/>
+        <result property="name" column="ku_name"/>
+        <result property="initLevel" column="ku_init_level"/>
+        <result property="requireLevel" column="ku_require_level"/>
+        <result property="learnTarget" column="ku_learn_target"/>
+        <result property="realizeLink" column="ku_realize_link"/>
+        <result property="createTime" column="ku_create_time"/>
+        <result property="creator" column="ku_creator"/>
+        <result property="lastModifiedTime" column="ku_last_modified_time"/>
+        <result property="lastModifier" column="ku_last_modifier"/>
+        <result property="remark" column="ku_remark"/>
+        <result property="sysflag" column="ku_sysflag"/>
+        <collection property="knowledgePointVoList" javaType="java.util.List" resultMap="KnowledgePointVoResult"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.KnowledgePointVo" id="KnowledgePointVoResult">
+        <result property="id" column="kp_id"/>
+        <result property="name" column="kp_name"/>
+        <result property="createTime" column="kp_create_time"/>
+        <result property="creator" column="kp_creator"/>
+        <result property="lastModifiedTime" column="kp_last_modified_time"/>
+        <result property="lastModifier" column="kp_last_modifier"/>
+        <result property="remark" column="kp_remark"/>
+        <result property="sysflag" column="kp_sysflag"/>
+    </resultMap>
+
+
+    <sql id="selectCourseVo">
+        select id,
+               name,
+               code,
+               type,
+               authors,
+               author_ids,
+               college_id,
+               teach_college_id,
+               en_name,
+               before_course_id,
+               after_course_id,
+               hours,
+               theory_hours,
+               practice_hours,
+               week_hours,
+               teach_hours,
+               examine_hours,
+               other_hours,
+               hours_unit,
+               credit,
+               course_prop,
+               course_type,
+               course_attr,
+               location,
+               open_term,
+               summary,
+               file_id,
+               file_name,
+               create_time,
+               creator,
+               last_modified_time,
+               last_modifier,
+               remark,
+               sysflag,
+               status,
+               analysis_status,
+               dept_by,
+               course_Module,
+               course_Module_Children,
+               semester_Schedule,
+               spring_Autumn,
+               open_Year,
+               major_Id,
+               sub_Major_Id,
+               category_Id,
+               exa_Method,
+               program_Level,
+               time_Week,
+               unit,
+               source_id,
+               template_Type,
+                version,
+               bind_Status,
+            max_quote_count,
+            enable_flag,education_level,
+            build_status,
+               has_Work,
+               academic_terms_number
+        from t_csys_course
+    </sql>
+
+    <select id="selectCourseBeforeAndAfterList" parameterType="String" resultMap="CourseResult">
+        <include refid="selectCourseVo"/>
+        where before_course_id like concat('%', #{beforeCourseId}, '%')
+        or after_course_id like concat('%', #{afterCourseId}, '%')
+    </select>
+
+    <select id="selectCourseList" parameterType="com.doinner.csys.domain.vo.CourseVo" resultMap="CourseResult">
+        select c.id,
+               c.name,
+               c.code,
+               c.type,
+               c.authors,
+               c.author_ids,
+               c.college_id,
+               c.teach_college_id,
+               c.en_name,
+               c.before_course_id,
+               c.after_course_id,
+               c.hours,
+               c.theory_hours,
+               c.practice_hours,
+               c.week_hours,
+               c.teach_hours,
+               c.examine_hours,
+               c.other_hours,
+               c.hours_unit,
+               c.credit,
+               c.course_prop,
+               c.course_type,
+               c.course_attr,
+               c.location,
+               c.open_term,
+               c.summary,
+               c.file_id,
+               c.file_name,
+               c.create_time,
+               c.creator,
+               c.last_modified_time,
+               c.last_modifier,
+               c.remark,
+               c.sysflag,
+               c.status,
+               c.analysis_status,
+               c.dept_by,
+               c.course_Module,
+               c.course_Module_Children,
+               c.semester_Schedule,
+               c.spring_Autumn,
+               c.open_Year,
+               c.major_Id,
+               c.sub_Major_Id,
+               c.category_Id,
+               c.exa_Method,
+               c.program_Level,
+               c.time_Week,
+               c.unit,
+               c.source_id,
+               c.template_Type,
+               c.version,
+               c.bind_Status,
+               c.max_quote_count,
+               c.enable_flag,
+               c.education_level,
+               c.build_status,
+               c.has_Work,
+               c.academic_terms_number
+        from t_csys_course c
+        <where>
+            c.sysflag = 0
+            <if test="id != null">
+                and c.id = #{id}
+            </if>
+            <if test="name != null  and name != ''">
+                and c.name like concat('%', #{name}, '%')
+            </if>
+            <if test="code != null  and code != ''">
+                and c.code like concat('%', #{code}, '%')
+            </if>
+            <if test="authors != null  and authors != ''">
+                and c.authors = #{authors}
+            </if>
+            <if test="authorIds != null  and authorIds != ''">
+                and c.author_ids = #{authorIds}
+            </if>
+            <if test="collegeId != null">
+                and c.college_id = #{collegeId}
+            </if>
+            <if test="teachCollegeId != null">
+                and c.teach_college_id = #{teachCollegeId}
+            </if>
+            <if test="enName != null  and enName != ''">
+                and c.en_name like concat('%', #{enName}, '%')
+            </if>
+            <if test="beforeCourseId != null  and beforeCourseId != ''">
+                and c.before_course_id = #{beforeCourseId}
+            </if>
+            <if test="afterCourseId != null  and afterCourseId != ''">
+                and c.after_course_id = #{afterCourseId}
+            </if>
+            <if test="hours != null">
+                and c.hours = #{hours}
+            </if>
+            <if test="theoryHours != null">
+                and c.theory_hours = #{theoryHours}
+            </if>
+            <if test="practiceHours != null">
+                and c.practice_hours = #{practiceHours}
+            </if>
+            <if test="weekHours != null">
+                and c.week_hours = #{weekHours}
+            </if>
+            <if test="teachHours != null">
+                and c.teach_hours = #{teachHours}
+            </if>
+            <if test="examineHours != null">
+                and c.examine_hours = #{examineHours}
+            </if>
+            <if test="otherHours != null">
+                and c.other_hours = #{otherHours}
+            </if>
+            <if test="hoursUnit != null  and hoursUnit != ''">
+                and c.hours_unit = #{hoursUnit}
+            </if>
+            <if test="credit != null">
+                and c.credit = #{credit}
+            </if>
+            <if test="courseProp != null">
+                and c.course_prop = #{courseProp}
+            </if>
+            <if test="courseType != null">
+                and c.course_type = #{courseType}
+            </if>
+            <if test="courseAttr != null">
+                and c.course_attr = #{courseAttr}
+            </if>
+            <if test="location != null  and location != ''">
+                and c.location = #{location}
+            </if>
+            <if test="openTerm != null  and openTerm != ''">
+                and c.open_term = #{openTerm}
+            </if>
+            <if test="summary != null  and summary != ''">
+                and c.summary = #{summary}
+            </if>
+            <if test="fileId != null">
+                and c.file_id = #{fileId}
+            </if>
+            <if test="fileName != null  and fileName != ''">
+                and c.file_name like concat('%', #{fileName}, '%')
+            </if>
+            <if test="creator != null  and creator != ''">
+                and c.creator = #{creator}
+            </if>
+            <if test="status != null">
+                and c.status = #{status}
+            </if>
+            <if test="deptBy != null">
+                and c.dept_by = #{deptBy}
+            </if>
+            <if test="courseModule != null">
+                and c.course_Module = #{courseModule}
+            </if>
+            <if test="courseModuleChildren != null">
+                and c.course_Module_Children = #{courseModuleChildren}
+            </if>
+            <if test="semesterSchedule != null">
+                and c.semester_Schedule = #{semesterSchedule}
+            </if>
+            <if test="openYear != null">
+                and c.open_Year = #{openYear}
+            </if>
+            <if test="springAutumn != null">
+                and c.spring_Autumn = #{springAutumn}
+            </if>
+            <if test="majorId != null">
+                and c.major_Id = #{majorId}
+            </if>
+            <if test="subMajorId != null">
+                and c.sub_Major_Id = #{subMajorId}
+            </if>
+            <if test="categoryId != null">
+                and c.category_Id = #{categoryId}
+            </if>
+            <if test="exaMethod != null">
+                and c.exa_Method = #{exaMethod}
+            </if>
+            <if test="programLevel != null">
+                and c.program_Level = #{programLevel}
+            </if>
+            <if test="timeWeek != null">
+                and c.time_Week = #{timeWeek}
+            </if>
+            <if test="unit != null and unit != ''">
+                and c.unit = #{unit}
+            </if>
+            <if test="sourceId != null">
+                and c.source_Id = #{sourceId}
+            </if>
+            <if test="templateType != null">
+                and c.template_Type = #{templateType}
+            </if>
+            <if test="version != null">
+                and c.version = #{version}
+            </if>
+            <if test="bindStatus != null">
+                and ifnull(c.bind_Status,2)= #{bindStatus}
+            </if>
+            <if test="enableFlag != null">
+                and c.enable_flag=#{enableFlag}
+            </if>
+            <if test="educationLevel != null">
+                and c.education_level=#{educationLevel}
+            </if>
+            <if test="buildStatus != null">
+                and c.build_status=#{buildStatus}
+            </if>
+            <if test="hasWork != null">
+                and c.has_Work=#{hasWork}
+            </if>
+            <choose>
+                <when test="type != null and type != '' and type !='-1'">
+                    and c.type = #{type}
+                </when>
+                <when test="type  == '-1'">
+                    and (1=1)
+                </when>
+                <otherwise>
+                    and c.type in (1,3)
+                </otherwise>
+            </choose>
+        </where>
+        <choose>
+            <when test="database_prop != null and database_prop != ''">
+                order by ${database_prop} ${order}
+            </when>
+            <otherwise>
+                order by c.id desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectCourseById" parameterType="Long" resultMap="CourseVoResult">
+        <include refid="selectCourseVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectCourseByKnowledgeUnitId" parameterType="Long" resultMap="CourseVoResult">
+        <include refid="selectCourseVo"/>
+        LEFT JOIN t_csys_course_ref_ke_unit ON t_csys_course.id = t_csys_course_ref_ke_unit.course_id
+        AND t_csys_course.sysflag = 0
+        where t_csys_course_ref_ke_unit.unit_id = #{id}
+    </select>
+
+    <select id="selectCodeByCodes" parameterType="String" resultType="String">
+        select code from t_csys_course
+        where sysflag = '0' and code IN
+        <foreach collection="codeList" item="code" open="(" close=")" separator=",">
+            #{code}
+        </foreach>
+    </select>
+
+    <select id="selectCoursesByIds" parameterType="Long" resultMap="CourseResult">
+        select c.id,
+        c.name,
+        c.code,
+        c.type,
+        c.authors,
+        c.author_ids,
+        c.college_id,
+        c.teach_college_id,
+        c.en_name,
+        c.before_course_id,
+        c.after_course_id,
+        c.hours,
+        c.theory_hours,
+        c.practice_hours,
+        c.week_hours,
+        c.teach_hours,
+        c.examine_hours,
+        c.other_hours,
+        c.hours_unit,
+        c.credit,
+        c.course_prop,
+        c.course_type,
+        c.course_attr,
+        c.location,
+        c.open_term,
+        c.summary,
+        c.file_id,
+        c.file_name,
+        c.create_time,
+        c.creator,
+        c.last_modified_time,
+        c.last_modifier,
+        c.remark,
+        c.sysflag,
+        c.status,
+        c.analysis_status,
+        c.dept_by,
+        c.course_Module,
+        c.course_Module_Children,
+        c.semester_Schedule,
+        c.spring_Autumn,
+        c.open_Year,
+        c.major_Id,
+        c.sub_Major_Id,
+        c.category_Id,
+        c.exa_Method,
+        c.program_Level,
+        c.time_Week,
+        c.unit,
+        c.source_id,
+        c.template_Type,
+        c.version,
+        c.bind_Status,
+        c.max_quote_count,
+        c.enable_flag,education_level,
+        c.build_status,
+        c.has_Work,
+        c.academic_terms_number,
+        dept.dept_name as collegeName
+        from t_csys_course c
+        left join sys_dept dept on dept.dept_id= c.college_id
+        where c.sysflag = 0
+        <if test="ids != null and ids.size() > 0">
+            and c.id in
+            <foreach item="id" collection="ids" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectCoursesByIdsWithSort" resultMap="CourseResult">
+        select c.id,
+        c.name,
+        c.code,
+        c.type,
+        c.authors,
+        c.author_ids,
+        c.college_id,
+        c.teach_college_id,
+        c.en_name,
+        c.before_course_id,
+        c.after_course_id,
+        c.hours,
+        c.theory_hours,
+        c.practice_hours,
+        c.week_hours,
+        c.teach_hours,
+        c.examine_hours,
+        c.other_hours,
+        c.hours_unit,
+        c.credit,
+        c.course_prop,
+        c.course_type,
+        c.course_attr,
+        c.location,
+        c.open_term,
+        c.summary,
+        c.file_id,
+        c.file_name,
+        c.create_time,
+        c.creator,
+        c.last_modified_time,
+        c.last_modifier,
+        c.remark,
+        c.sysflag,
+        c.status,
+        c.analysis_status,
+        c.dept_by,
+        c.course_Module,
+        c.course_Module_Children,
+        c.semester_Schedule,
+        c.spring_Autumn,
+        c.open_Year,
+        c.major_Id,
+        c.sub_Major_Id,
+        c.category_Id,
+        c.exa_Method,
+        c.program_Level,
+        c.time_Week,
+        c.unit,
+        c.source_id,
+        c.template_Type,
+        c.version,
+        c.bind_Status,
+        c.max_quote_count,
+        c.enable_flag,
+        c.education_level,
+        c.build_status,
+        c.has_Work,
+        c.academic_terms_number,
+        dept.dept_name as collegeName
+        from t_csys_course c
+        left join sys_dept dept on dept.dept_id = c.college_id
+        where c.sysflag = 0
+        <if test="ids != null and ids.size() > 0">
+            and c.id in
+            <foreach item="id" collection="ids" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        <choose>
+            <when test="database_prop != null and database_prop != ''">
+                order by ${database_prop} ${order}
+            </when>
+            <otherwise>
+                order by c.id desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <insert id="insertCourse" parameterType="com.doinner.csys.domain.vo.CourseVo" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_course
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                id,
+            </if>
+            <if test="name != null and name != ''">
+                name,
+            </if>
+            <if test="code != null and code != ''">
+                code,
+            </if>
+            <if test="type != null">
+                type,
+            </if>
+            <if test="authors != null">
+                authors,
+            </if>
+            <if test="authorIds != null">
+                author_ids,
+            </if>
+            <if test="collegeId != null">
+                college_id,
+            </if>
+            <if test="teachCollegeId != null">
+                teach_college_id,
+            </if>
+            <if test="enName != null">
+                en_name,
+            </if>
+            <if test="beforeCourseId != null">
+                before_course_id,
+            </if>
+            <if test="afterCourseId != null">
+                after_course_id,
+            </if>
+            <if test="hours != null">
+                hours,
+            </if>
+            <if test="theoryHours != null">
+                theory_hours,
+            </if>
+            <if test="practiceHours != null">
+                practice_hours,
+            </if>
+            <if test="weekHours != null">
+                week_hours,
+            </if>
+            <if test="teachHours != null">
+                teach_hours,
+            </if>
+            <if test="examineHours != null">
+                examine_hours,
+            </if>
+            <if test="otherHours != null">
+                other_hours,
+            </if>
+            <if test="hoursUnit != null">
+                hours_unit,
+            </if>
+            <if test="credit != null">
+                credit,
+            </if>
+            <if test="courseProp != null">
+                course_prop,
+            </if>
+            <if test="courseType != null">
+                course_type,
+            </if>
+            <if test="courseAttr != null">
+                course_attr,
+            </if>
+            <if test="location != null">
+                location,
+            </if>
+            <if test="openTerm != null">
+                open_term,
+            </if>
+            <if test="summary != null">
+                summary,
+            </if>
+            <if test="fileId != null">
+                file_id,
+            </if>
+            <if test="fileName != null">
+                file_name,
+            </if>
+            <if test="creator != null">
+                creator,
+            </if>
+            <if test="lastModifier != null">
+                last_modifier,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag,
+            </if>
+            <if test="status != null">
+                status,
+            </if>
+            <if test="analysisStatus != null">
+                analysis_status,
+            </if>
+            <if test="deptBy != null">
+                dept_by,
+            </if>
+            <if test="deptBy != null">
+                dept_by,
+            </if>
+            <if test="courseModule != null">
+                course_Module,
+            </if>
+            <if test="courseModuleChildren != null">
+                course_Module_Children,
+            </if>
+            <if test="semesterSchedule != null">
+                semester_Schedule,
+            </if>
+            <if test="springAutumn != null">
+                spring_Autumn,
+            </if>
+            <if test="openYear != null">
+                open_Year,
+            </if>
+            <if test="majorId != null">
+                major_Id,
+            </if>
+            <if test="subMajorId != null">
+                sub_Major_Id,
+            </if>
+            <if test="categoryId != null">
+                category_Id,
+            </if>
+            <if test="exaMethod != null">
+                exa_Method,
+            </if>
+            <if test="programLevel != null">
+                program_Level,
+            </if>
+            <if test="timeWeek != null">
+                time_Week,
+            </if>
+            <if test="unit != null">
+                unit,
+            </if>
+            <if test="sourceId != null">
+                source_Id,
+            </if>
+            <if test="templateType != null">
+                template_Type,
+            </if>
+            <if test="version != null">
+                version,
+            </if>
+            <if test="bindStatus != null">
+                bind_Status,
+            </if>
+            <if test="maxQuoteCount != null">
+                max_quote_count,
+            </if>
+            <if test="enableFlag != null">
+                enable_flag,
+            </if>
+            <if test="educationLevel != null">
+                education_level,
+            </if>
+            <if test="hasWork != null">
+                has_Work,
+            </if>
+            <if test="academicTermsNumber != null">
+                academic_terms_number,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">
+                #{id},
+            </if>
+            <if test="name != null and name != ''">
+                #{name},
+            </if>
+            <if test="code != null and code != ''">
+                #{code},
+            </if>
+            <if test="type != null">
+                #{type},
+            </if>
+            <if test="authors != null">
+                #{authors},
+            </if>
+            <if test="authorIds != null">
+                #{authorIds},
+            </if>
+            <if test="collegeId != null">
+                #{collegeId},
+            </if>
+            <if test="teachCollegeId != null">
+                #{teachCollegeId},
+            </if>
+            <if test="enName != null">
+                #{enName},
+            </if>
+            <if test="beforeCourseId != null">
+                #{beforeCourseId},
+            </if>
+            <if test="afterCourseId != null">
+                #{afterCourseId},
+            </if>
+            <if test="hours != null">
+                #{hours},
+            </if>
+            <if test="theoryHours != null">
+                #{theoryHours},
+            </if>
+            <if test="practiceHours != null">
+                #{practiceHours},
+            </if>
+            <if test="weekHours != null">
+                #{weekHours},
+            </if>
+            <if test="teachHours != null">
+                #{teachHours},
+            </if>
+            <if test="examineHours != null">
+                #{examineHours},
+            </if>
+            <if test="otherHours != null">
+                #{otherHours},
+            </if>
+            <if test="hoursUnit != null">
+                #{hoursUnit},
+            </if>
+            <if test="credit != null">
+                #{credit},
+            </if>
+            <if test="courseProp != null">
+                #{courseProp},
+            </if>
+            <if test="courseType != null">
+                #{courseType},
+            </if>
+            <if test="courseAttr != null">
+                #{courseAttr},
+            </if>
+            <if test="location != null">
+                #{location},
+            </if>
+            <if test="openTerm != null">
+                #{openTerm},
+            </if>
+            <if test="summary != null">
+                #{summary},
+            </if>
+            <if test="fileId != null">
+                #{fileId},
+            </if>
+            <if test="fileName != null">
+                #{fileName},
+            </if>
+            <if test="creator != null">
+                #{creator},
+            </if>
+            <if test="lastModifier != null">
+                #{lastModifier},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                #{sysflag},
+            </if>
+            <if test="status != null">
+                #{status},
+            </if>
+            <if test="analysisStatus != null">
+                #{analysisStatus},
+            </if>
+            <if test="deptBy != null">
+                #{deptBy},
+            </if>
+            <if test="courseModule != null">
+                #{courseModule},
+            </if>
+            <if test="courseModuleChildren != null">
+                #{courseModuleChildren},
+            </if>
+            <if test="semesterSchedule != null">
+                #{semesterSchedule},
+            </if>
+            <if test="springAutumn != null">
+                #{springAutumn},
+            </if>
+            <if test="openYear != null">
+                #{openYear},
+            </if>
+            <if test="majorId != null">
+                #{majorId},
+            </if>
+            <if test="subMajorId != null">
+                #{subMajorId},
+            </if>
+            <if test="categoryId != null">
+                #{categoryId},
+            </if>
+            <if test="exaMethod != null">
+                #{exaMethod},
+            </if>
+            <if test="programLevel != null">
+                #{programLevel},
+            </if>
+            <if test="timeWeek != null">
+                #{timeWeek},
+            </if>
+            <if test="unit != null">
+                #{unit},
+            </if>
+            <if test="sourceId != null">
+                #{sourceId},
+            </if>
+            <if test="templateType != null">
+                #{templateType},
+            </if>
+            <if test="version != null">
+                #{version},
+            </if>
+            <if test="bindStatus != null">
+                #{bindStatus},
+            </if>
+            <if test="maxQuoteCount != null">
+                #{maxQuoteCount},
+            </if>
+            <if test="enableFlag != null">
+                #{enableFlag},
+            </if>
+            <if test="educationLevel != null">
+               #{educationLevel},
+            </if>
+            <if test="hasWork != null">
+                #{hasWork}
+            </if>
+            <if test="academicTermsNumber != null">
+                #{academicTermsNumber},
+            </if>
+        </trim>
+    </insert>
+
+    <select id="selectCourseListByNameIn" resultMap="CourseResult">
+        select * from t_csys_course where name in
+        (
+         <foreach collection="courseNames" item="courseName" separator=",">
+            #{courseName}
+        </foreach>
+        )
+    </select>
+
+    <insert id="insertCourses" useGeneratedKeys="true" keyProperty="courseList.id">
+        insert into t_csys_course (name, code, type, college_id) VALUES
+        <foreach collection="courseList" item="course" separator=",">
+            (#{course.name},
+             #{course.code},
+             #{course.type},
+             #{course.collegeId})
+        </foreach>
+    </insert>
+
+    <update id="updateCourse" parameterType="com.doinner.csys.domain.Course">
+        update t_csys_course
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="code != null and code != ''">
+                code = #{code},
+            </if>
+            <if test="type != null">
+                type = #{type},
+            </if>
+            <if test="authors != null">
+                authors = #{authors},
+            </if>
+            <if test="authorIds != null">
+                author_ids = #{authorIds},
+            </if>
+            <if test="collegeId != null">
+                college_id = #{collegeId},
+            </if>
+            <if test="teachCollegeId != null">
+                teach_college_id = #{teachCollegeId},
+            </if>
+            <if test="enName != null">
+                en_name = #{enName},
+            </if>
+            <if test="beforeCourseId != null">
+                before_course_id = #{beforeCourseId},
+            </if>
+            <if test="afterCourseId != null">
+                after_course_id = #{afterCourseId},
+            </if>
+            <if test="hours != null">
+                hours = #{hours},
+            </if>
+            <if test="theoryHours != null">
+                theory_hours = #{theoryHours},
+            </if>
+            <if test="practiceHours != null">
+                practice_hours = #{practiceHours},
+            </if>
+            <if test="weekHours != null">
+                week_hours = #{weekHours},
+            </if>
+            <if test="teachHours != null">
+                teach_hours = #{teachHours},
+            </if>
+            <if test="examineHours != null">
+                examine_hours = #{examineHours},
+            </if>
+            <if test="otherHours != null">
+                other_hours = #{otherHours},
+            </if>
+            <if test="hoursUnit != null">
+                hours_unit = #{hoursUnit},
+            </if>
+            <if test="credit != null">
+                credit = #{credit},
+            </if>
+            <if test="courseProp != null">
+                course_prop = #{courseProp},
+            </if>
+            <if test="courseType != null">
+                course_type = #{courseType},
+            </if>
+            <if test="courseAttr != null">
+                course_attr = #{courseAttr},
+            </if>
+            <if test="location != null">
+                location = #{location},
+            </if>
+            <if test="openTerm != null">
+                open_term = #{openTerm},
+            </if>
+            <if test="summary != null">
+                summary = #{summary},
+            </if>
+            <if test="fileId != null">
+                file_id = #{fileId},
+            </if>
+            <if test="fileName != null">
+                file_name = #{fileName},
+            </if>
+            <if test="creator != null">
+                creator = #{creator},
+            </if>
+            <if test="lastModifier != null">
+                last_modifier = #{lastModifier},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="sysflag != null and sysflag != ''">
+                sysflag = #{sysflag},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="analysisStatus != null">
+                analysis_status = #{analysisStatus},
+            </if>
+            <if test="deptBy != null">
+                dept_by = #{deptBy},
+            </if>
+            <if test="courseModule != null">
+                course_Module = #{courseModule},
+            </if>
+            course_Module_Children = #{courseModuleChildren},
+            <if test="semesterSchedule != null">
+                semester_Schedule = #{semesterSchedule},
+            </if>
+            <if test="springAutumn != null">
+                spring_Autumn = #{springAutumn},
+            </if>
+            <if test="openYear != null">
+                open_Year = #{openYear},
+            </if>
+            <if test="majorId != null">
+                major_Id = #{majorId},
+            </if>
+            <if test="subMajorId != null">
+                sub_Major_Id = #{subMajorId},
+            </if>
+            <if test="categoryId != null">
+                category_Id = #{categoryId},
+            </if>
+            <if test="programLevel != null">
+                program_Level = #{programLevel},
+            </if>
+            <if test="timeWeek != null">
+                time_Week = #{timeWeek},
+            </if>
+            <if test="unit != null">
+                unit = #{unit},
+            </if>
+            <if test="exaMethod != null">
+                exa_Method = #{exaMethod},
+            </if>
+            <if test="bindStatus != null">
+                bind_Status = #{bindStatus},
+            </if>
+            <if test="maxQuoteCount != null">
+                max_quote_count = #{maxQuoteCount},
+            </if>
+            <if test="enableFlag != null">
+                enable_flag = #{enableFlag},
+            </if>
+            <if test="educationLevel != null">
+                education_level = #{educationLevel},
+            </if>
+            <if test="hasWork != null">
+                has_Work = #{hasWork},
+            </if>
+            <if test="academicTermsNumber != null">
+                academic_terms_number = #{academicTermsNumber},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <!--
+        选择性更新调用课程(课程调用场景): 除排课/分类相关字段外, 其余字段按 <if> 非空更新。
+        排除字段(由其它流程管理, 此处不更新):
+          修读要求 course_attr、课程模块 course_Module、专业方向 sub_Major_Id、
+          考核方式 exa_Method、学年安排 semester_Schedule、学期安排 spring_Autumn、id
+        传入 CourseVo(继承 Course, 含排课等字段但本语句不使用)。
+    -->
+    <update id="updateInvokeCourse" parameterType="com.doinner.csys.domain.vo.CourseVo">
+        update t_csys_course
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="code != null and code != ''">
+                code = #{code},
+            </if>
+            <if test="type != null">
+                type = #{type},
+            </if>
+            <if test="authors != null">
+                authors = #{authors},
+            </if>
+            <if test="authorIds != null">
+                author_ids = #{authorIds},
+            </if>
+            <if test="collegeId != null">
+                college_id = #{collegeId},
+            </if>
+            <if test="teachCollegeId != null">
+                teach_college_id = #{teachCollegeId},
+            </if>
+            <if test="enName != null">
+                en_name = #{enName},
+            </if>
+            <if test="beforeCourseId != null">
+                before_course_id = #{beforeCourseId},
+            </if>
+            <if test="afterCourseId != null">
+                after_course_id = #{afterCourseId},
+            </if>
+            <if test="hours != null">
+                hours = #{hours},
+            </if>
+            <if test="theoryHours != null">
+                theory_hours = #{theoryHours},
+            </if>
+            <if test="practiceHours != null">
+                practice_hours = #{practiceHours},
+            </if>
+            <if test="weekHours != null">
+                week_hours = #{weekHours},
+            </if>
+            <if test="teachHours != null">
+                teach_hours = #{teachHours},
+            </if>
+            <if test="examineHours != null">
+                examine_hours = #{examineHours},
+            </if>
+            <if test="otherHours != null">
+                other_hours = #{otherHours},
+            </if>
+            <if test="hoursUnit != null">
+                hours_unit = #{hoursUnit},
+            </if>
+            <if test="credit != null">
+                credit = #{credit},
+            </if>
+            <if test="courseProp != null">
+                course_prop = #{courseProp},
+            </if>
+            <if test="courseType != null">
+                course_type = #{courseType},
+            </if>
+            <if test="location != null">
+                location = #{location},
+            </if>
+            <if test="openTerm != null">
+                open_term = #{openTerm},
+            </if>
+            <if test="summary != null">
+                summary = #{summary},
+            </if>
+            <if test="fileId != null">
+                file_id = #{fileId},
+            </if>
+            <if test="fileName != null">
+                file_name = #{fileName},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+            <if test="deptBy != null">
+                dept_by = #{deptBy},
+            </if>
+            <if test="openYear != null">
+                open_Year = #{openYear},
+            </if>
+            <if test="majorId != null">
+                major_Id = #{majorId},
+            </if>
+            <if test="categoryId != null">
+                category_Id = #{categoryId},
+            </if>
+            <if test="programLevel != null">
+                program_Level = #{programLevel},
+            </if>
+            <if test="timeWeek != null">
+                time_Week = #{timeWeek},
+            </if>
+            <if test="unit != null">
+                unit = #{unit},
+            </if>
+            <if test="maxQuoteCount != null">
+                max_quote_count = #{maxQuoteCount},
+            </if>
+            <if test="enableFlag != null">
+                enable_flag = #{enableFlag},
+            </if>
+            <if test="educationLevel != null">
+                education_level = #{educationLevel},
+            </if>
+            <if test="hasWork != null">
+                has_Work = #{hasWork},
+            </if>
+            <if test="academicTermsNumber != null">
+                academic_terms_number = #{academicTermsNumber},
+            </if>
+        </trim>
+        where source_id = #{id}
+    </update>
+
+    <delete id="deleteCourseById" parameterType="Long">
+        update t_csys_course
+        set sysflag = 2
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteCourseByIds" parameterType="java.util.List">
+        update t_csys_course
+        set sysflag = 2 where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <resultMap type="com.doinner.csys.domain.vo.CourseVo" id="CourseAndRelevanceResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="type" column="type"/>
+        <result property="authors" column="authors"/>
+        <result property="authorIds" column="author_ids"/>
+        <result property="collegeId" column="college_id"/>
+        <result property="teachCollegeId" column="teach_college_id"/>
+        <result property="enName" column="en_name"/>
+        <result property="beforeCourseId" column="before_course_id"/>
+        <result property="afterCourseId" column="after_course_id"/>
+        <result property="hours" column="hours"/>
+        <result property="theoryHours" column="theory_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="weekHours" column="week_hours"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="examineHours" column="examine_hours"/>
+        <result property="otherHours" column="other_hours"/>
+        <result property="hoursUnit" column="hours_unit"/>
+        <result property="credit" column="credit"/>
+        <result property="courseProp" column="course_prop"/>
+        <result property="courseType" column="course_type"/>
+        <result property="courseAttr" column="course_attr"/>
+        <result property="location" column="location"/>
+        <result property="openTerm" column="open_term"/>
+        <result property="summary" column="summary"/>
+        <result property="fileId" column="file_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="createTime" column="create_time"/>
+        <result property="creator" column="creator"/>
+        <result property="lastModifiedTime" column="last_modified_time"/>
+        <result property="lastModifier" column="last_modifier"/>
+        <result property="remark" column="remark"/>
+        <result property="sysflag" column="sysflag"/>
+        <result property="status" column="status"/>
+        <result property="courseModule" column="course_Module"/>
+        <result property="courseModuleChildren" column="course_Module_Children"/>
+        <result property="semesterSchedule" column="semester_Schedule"/>
+        <result property="springAutumn" column="spring_Autumn"/>
+        <result property="analysisStatus" column="analysis_status"/>
+        <result property="openYear" column="open_Year"/>
+        <result property="majorId" column="major_Id"/>
+        <result property="subMajorId" column="sub_Major_Id"/>
+        <result property="categoryId" column="category_Id"/>
+        <result property="exaMethod" column="exa_Method"/>
+        <result property="programLevel" column="program_Level"/>
+        <result property="timeWeek" column="time_Week"/>
+        <result property="unit" column="unit"/>
+        <result property="templateType" column="template_Type"/>
+        <result property="version" column="version"/>
+        <result property="bindStatus" column="bind_Status"/>
+        <result property="maxQuoteCount" column="max_quote_count"/>
+        <result property="enableFlag" column="enable_flag"/>
+        <result property="educationLevel" column="education_level"/>
+        <result property="hasWork" column="has_Work"/>
+        <result property="academicTermsNumber" column="academicTermsNumber"/>
+        <association property="courseTeachingTheoryPlanVo" column="ttp_course_id"
+                     javaType="com.doinner.csys.domain.vo.CourseTeachingTheoryPlanVo">
+            <result property="id" column="ttp_id"/>
+            <result property="courseId" column="ttp_course_id"/>
+            <result property="natureLevel" column="ttp_nature_level"/>
+            <result property="knowLevel" column="ttp_know_level"/>
+            <result property="abilityLevel" column="ttp_ability_level"/>
+            <result property="politicsLevel" column="ttp_politics_level"/>
+            <result property="teachingMethod" column="ttp_teaching_method"/>
+            <result property="contentJson" column="ttp_content_json"/>
+            <result property="chapterId" column="ttp_chapter_id"/>
+            <result property="exaMethod" column="ttp_exa_method"/>
+            <result property="orgMethod" column="ttp_org_method"/>
+            <result property="performance" column="ttp_performance"/>
+            <result property="standard" column="ttp_standard"/>
+            <result property="standardJson" column="ttp_standard_json"/>
+            <result property="referenceId" column="ttp_reference_id"/>
+            <result property="createTime" column="ttp_create_time"/>
+            <result property="creator" column="ttp_creator"/>
+            <result property="lastModifiedTime" column="ttp_last_modified_time"/>
+            <result property="lastModifier" column="ttp_last_modifier"/>
+            <result property="remark" column="ttp_remark"/>
+            <result property="sysflag" column="ttp_sysflag"/>
+        </association>
+        <association property="courseTeachingPracticePlanVo" column="tpp_course_id"
+                     javaType="com.doinner.csys.domain.vo.CourseTeachingPracticePlanVo">
+            <result property="id" column="tpp_id"/>
+            <result property="courseId" column="tpp_course_id"/>
+            <result property="suit" column="tpp_suit"/>
+            <result property="taskDescribe" column="tpp_task_describe"/>
+            <result property="knowLevel" column="tpp_know_level"/>
+            <result property="abilityLevel" column="tpp_ability_level"/>
+            <result property="politicsLevel" column="tpp_politics_level"/>
+            <result property="content" column="tpp_content"/>
+            <result property="overview" column="tpp_overview"/>
+            <result property="practiceMethod" column="tpp_practice_method"/>
+            <result property="exaMethod" column="tpp_exa_method"/>
+            <result property="orgMethod" column="tpp_org_method"/>
+            <result property="performance" column="tpp_performance"/>
+            <result property="standard" column="tpp_standard"/>
+            <result property="standardJson" column="tpp_standard_json"/>
+            <result property="ask" column="tpp_ask"/>
+            <result property="arrange" column="tpp_arrange"/>
+            <result property="createTime" column="tpp_create_time"/>
+            <result property="creator" column="tpp_creator"/>
+            <result property="lastModifiedTime" column="tpp_last_modified_time"/>
+            <result property="lastModifier" column="tpp_last_modifier"/>
+            <result property="remark" column="tpp_remark"/>
+            <result property="sysflag" column="tpp_sysflag"/>
+        </association>
+        <collection property="courseChapterVoList" javaType="java.util.List" resultMap="CourseChapterVoResult"/>
+        <collection property="courseTextbookVoList" javaType="java.util.List" resultMap="CourseTextbookVoResult"/>
+        <collection property="knowledgeUnitVoList" javaType="java.util.List" resultMap="KnowledgeUnitVoResult"/>
+        <collection property="knowledgeDomainVoList" javaType="java.util.List" resultMap="KnowledgeDomainVoResult"/>
+
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.KnowledgeDomainVo" id="KnowledgeDomainVoResult">
+        <result property="id"    column="kd_id"    />
+        <result property="courseId"    column="kd_course_id"    />
+        <result property="name"    column="kd_name"    />
+        <result property="createTime"    column="kd_create_time"    />
+        <result property="creator"    column="kd_creator"    />
+        <result property="lastModifiedTime"    column="kd_last_modified_time"    />
+        <result property="lastModifier"    column="kd_last_modifier"    />
+        <result property="remark"    column="kd_remark"    />
+        <result property="sysflag"    column="kd_sysflag"    />
+        <result property="unitIds"    column="kd_unit_ids"    />
+        <collection property="knowledgeUnitVoList" javaType="java.util.List" resultMap="KnowledgeUnitVoResult"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.CourseChapterVo" id="CourseChapterVoResult">
+        <result property="id" column="cc_id"/>
+        <result property="courseId" column="cc_course_id"/>
+        <result property="name" column="cc_name"/>
+        <result property="content" column="cc_content"/>
+        <result property="hours" column="cc_hours"/>
+        <result property="type" column="cc_type"/>
+        <result property="createTime" column="cc_create_time"/>
+        <result property="creator" column="cc_creator"/>
+        <result property="lastModifiedTime" column="cc_last_modified_time"/>
+        <result property="lastModifier" column="cc_last_modifier"/>
+        <result property="remark" column="cc_remark"/>
+        <result property="sysflag" column="cc_sysflag"/>
+    </resultMap>
+    <resultMap type="com.doinner.csys.domain.vo.CourseTextbookVo" id="CourseTextbookVoResult">
+        <result property="id" column="ct_id"/>
+        <result property="courseId" column="ct_course_id"/>
+        <result property="name" column="ct_name"/>
+        <result property="type" column="ct_type"/>
+        <result property="author" column="ct_author"/>
+        <result property="pressName" column="ct_press_name"/>
+        <result property="pressVersion" column="ct_press_version"/>
+        <result property="pressTime" column="ct_press_time"/>
+        <result property="createTime" column="ct_create_time"/>
+        <result property="creator" column="ct_creator"/>
+        <result property="lastModifiedTime" column="ct_last_modified_time"/>
+        <result property="lastModifier" column="ct_last_modifier"/>
+        <result property="remark" column="ct_remark"/>
+        <result property="sysflag" column="ct_sysflag"/>
+    </resultMap>
+
+
+    <select id="selectCourseAndRelevanceById" parameterType="Long" resultMap="CourseAndRelevanceResult">
+        <include refid="selectCourseAndRelevanceVo"/>
+        where tc.id = #{id}
+        order by ct.id asc, ku.id asc,kp.id asc
+    </select>
+
+    <select id="selectCourseAndRelevanceByIds" parameterType="Long" resultMap="CourseAndRelevanceResult">
+        SELECT tc.id,
+        tc.name,
+        tc.code,
+        tc.type,
+        tc.authors,
+        tc.author_ids,
+        tc.college_id,
+        tc.teach_college_id,
+        tc.en_name,
+        tc.before_course_id,
+        tc.after_course_id,
+        tc.hours,
+        tc.theory_hours,
+        tc.practice_hours,
+        tc.week_hours,
+        tc.teach_hours,
+        tc.examine_hours,
+        tc.other_hours,
+        tc.hours_unit,
+        tc.credit,
+        tc.course_prop,
+        tc.course_type,
+        tc.course_attr,
+        tc.location,
+        tc.open_term,
+        tc.summary,
+        tc.file_id,
+        tc.file_name,
+        tc.create_time,
+        tc.creator,
+        tc.last_modified_time,
+        tc.last_modifier,
+        tc.remark,
+        tc.sysflag,
+        tc.status,
+        tc.analysis_status,
+        tc.dept_by,
+        tc.course_Module course_Module,
+        tc.course_Module_Children course_Module_Children,
+        tc.semester_Schedule semester_Schedule,
+        tc.spring_Autumn spring_Autumn,
+        tc.open_Year open_Year,
+        tc.major_Id major_Id,
+        tc.sub_Major_Id sub_Major_Id,
+        tc.category_Id category_Id,
+        tc.exa_Method exa_Method,
+        tc.program_Level program_Level,
+        tc.time_Week time_Week,
+        tc.unit unit,
+        tc.source_id source_id,
+        tc.template_Type template_Type,
+        tc.version version,
+        ku.id ku_id,
+        ku.name ku_name,
+        ku.init_level ku_init_level,
+        ku.require_level ku_require_level,
+        ku.learn_target ku_learn_target,
+        ku.realize_link ku_realize_link,
+        ku.create_time ku_create_time,
+        ku.creator ku_creator,
+        ku.last_modified_time ku_last_modified_time,
+        ku.last_modifier ku_last_modifier,
+        ku.remark ku_remark,
+        ku.sysflag ku_sysflag,
+        kp.id kp_id,
+        kp.name kp_name,
+        kp.create_time kp_create_time,
+        kp.creator kp_creator,
+        kp.last_modified_time kp_last_modified_time,
+        kp.last_modifier kp_last_modifier,
+        kp.remark kp_remark,
+        kp.sysflag kp_sysflag
+        FROM t_csys_course tc
+        left join t_csys_course_target c_target on c_target.course_id=tc.id
+        left join t_csys_course_domain_ref_source_unit rsu on rsu.course_target_id=c_target.course_target_id
+        left join t_csys_source_unit ku on ku.id=rsu.unit_id
+        left join t_csys_course_unit_ref_source_point unitRefPoint on ku.id = unitRefPoint.unit_id
+        left join t_csys_source_point kp on unitRefPoint.point_id = kp.id
+        where tc.id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectCourseAndRelevanceList" parameterType="com.doinner.csys.domain.Course" resultMap="CourseAndRelevanceResult">
+        <include refid="selectCourseAndRelevanceVo"/>
+        <where>
+            tc.sysflag = 0
+            <if test="id != null">
+                and tc.id = #{id}
+            </if>
+            <if test="name != null  and name != ''">
+                and tc.name like concat('%', #{name}, '%')
+            </if>
+            <if test="code != null  and code != ''">
+                and tc.code = #{code}
+            </if>
+            <choose>
+                <when test="type != null and type != ''">
+                    and tc.type = #{type}
+                </when>
+                <otherwise>
+                    and tc.type in (1,3)
+                </otherwise>
+            </choose>
+            <if test="authors != null  and authors != ''">
+                and tc.authors = #{authors}
+            </if>
+            <if test="authorIds != null  and authorIds != ''">
+                and tc.author_ids = #{authorIds}
+            </if>
+            <if test="collegeId != null">
+                and tc.college_id = #{collegeId}
+            </if>
+            <if test="teachCollegeId != null">
+                and tc.teach_college_id = #{teachCollegeId}
+            </if>
+            <if test="enName != null  and enName != ''">
+                and tc.en_name like concat('%', #{enName}, '%')
+            </if>
+            <if test="beforeCourseId != null  and beforeCourseId != ''">
+                and tc.before_course_id = #{beforeCourseId}
+            </if>
+            <if test="afterCourseId != null  and afterCourseId != ''">
+                and tc.after_course_id = #{afterCourseId}
+            </if>
+            <if test="hours != null">
+                and tc.hours = #{hours}
+            </if>
+            <if test="theoryHours != null">
+                and tc.theory_hours = #{theoryHours}
+            </if>
+            <if test="practiceHours != null">
+                and tc.practice_hours = #{practiceHours}
+            </if>
+            <if test="weekHours != null">
+                and tc.week_hours = #{weekHours}
+            </if>
+            <if test="teachHours != null">
+                and tc.teach_hours = #{teachHours}
+            </if>
+            <if test="examineHours != null">
+                and tc.examine_hours = #{examineHours}
+            </if>
+            <if test="otherHours != null">
+                and tc.other_hours = #{otherHours}
+            </if>
+            <if test="hoursUnit != null  and hoursUnit != ''">
+                and tc.hours_unit = #{hoursUnit}
+            </if>
+            <if test="credit != null">
+                and tc.credit = #{credit}
+            </if>
+            <if test="courseProp != null">
+                and tc.course_prop = #{courseProp}
+            </if>
+            <if test="courseType != null">
+                and tc.course_type = #{courseType}
+            </if>
+            <if test="courseAttr != null">
+                and tc.course_attr = #{courseAttr}
+            </if>
+            <if test="location != null  and location != ''">
+                and tc.location = #{location}
+            </if>
+            <if test="openTerm != null  and openTerm != ''">
+                and tc.open_term = #{openTerm}
+            </if>
+            <if test="summary != null  and summary != ''">
+                and tc.summary = #{summary}
+            </if>
+            <if test="fileId != null">
+                and tc.file_id = #{fileId}
+            </if>
+            <if test="fileName != null  and fileName != ''">
+                and tc.file_name like concat('%', #{fileName}, '%')
+            </if>
+            <if test="creator != null  and creator != ''">
+                and tc.creator = #{creator}
+            </if>
+            <if test="status != null">
+                and tc.status = #{status}
+            </if>
+            <if test="deptBy != null">
+                and tc.dept_by = #{deptBy}
+            </if>
+            <if test="courseModule != null">
+                and tc.course_Module = #{courseModule}
+            </if>
+            <if test="courseModuleChildren != null">
+                and tc.course_Module_Children = #{courseModuleChildren}
+            </if>
+            <if test="semesterSchedule != null">
+                and tc.semester_Schedule = #{semesterSchedule}
+            </if>
+            <if test="springAutumn != null">
+                and tc.spring_Autumn = #{springAutumn}
+            </if>
+            <if test="openYear != null">
+                and tc.open_Year = #{openYear}
+            </if>
+            <if test="majorId != null">
+                and tc.major_Id = #{majorId}
+            </if>
+            <if test="subMajorId != null">
+                and tc.sub_Major_Id = #{subMajorId}
+            </if>
+            <if test="categoryId != null">
+                and tc.category_Id = #{categoryId}
+            </if>
+            <if test="templateType != null">
+                and tc.template_Type = #{templateType}
+            </if>
+        </where>
+        order by tc.id desc
+    </select>
+
+    <sql id="selectCourseAndRelevanceVo">
+        SELECT tc.id,
+               tc.name,
+               tc.code,
+               tc.type,
+               tc.authors,
+               tc.author_ids,
+               tc.college_id,
+               tc.teach_college_id,
+               tc.en_name,
+               tc.before_course_id,
+               tc.after_course_id,
+               tc.hours,
+               tc.theory_hours,
+               tc.practice_hours,
+               tc.week_hours,
+               tc.teach_hours,
+               tc.examine_hours,
+               tc.other_hours,
+               tc.hours_unit,
+               tc.credit,
+               tc.course_prop,
+               tc.course_type,
+               tc.course_attr,
+               tc.location,
+               tc.open_term,
+               tc.summary,
+               tc.file_id,
+               tc.file_name,
+               tc.create_time,
+               tc.creator,
+               tc.last_modified_time,
+               tc.last_modifier,
+               tc.remark,
+               tc.sysflag,
+               tc.status,
+               tc.analysis_status,
+               tc.dept_by,
+               tc.course_Module          course_Module,
+               tc.course_Module_Children course_Module_Children,
+               tc.semester_Schedule      semester_Schedule,
+               tc.spring_Autumn          spring_Autumn,
+               tc.open_Year              open_Year,
+               tc.major_Id               major_Id,
+               tc.sub_Major_Id           sub_Major_Id,
+               tc.category_Id            category_Id,
+               tc.exa_Method             exa_Method,
+               tc.program_Level          program_Level,
+               tc.time_Week              time_Week,
+               tc.unit                   unit,
+               tc.source_id              source_id,
+               tc.template_Type          template_Type,
+               tc.version                version,
+               tc.bind_Status            bind_Status,
+               tc.max_quote_count,
+               tc.education_Level,
+               tc.academic_terms_number as academicTermsNumber,
+               tpp.id                    tpp_id,
+               tpp.course_id             tpp_course_id,
+               tpp.suit                  tpp_suit,
+               tpp.task_describe         tpp_task_describe,
+               tpp.know_level            tpp_know_level,
+               tpp.ability_level         tpp_ability_level,
+               tpp.politics_level        tpp_politics_level,
+               tpp.content               tpp_content,
+               tpp.overview              tpp_overview,
+               tpp.practice_method       tpp_practice_method,
+               tpp.exa_method            tpp_exa_method,
+               tpp.org_method            tpp_org_method,
+               tpp.performance           tpp_performance,
+               tpp.standard              tpp_standard,
+               tpp.standard_json         tpp_standard_json,
+               tpp.ask                   tpp_ask,
+               tpp.arrange               tpp_arrange,
+               tpp.create_time           tpp_create_time,
+               tpp.creator               tpp_creator,
+               tpp.last_modified_time    tpp_last_modified_time,
+               tpp.last_modifier         tpp_last_modifier,
+               tpp.remark                tpp_remark,
+               tpp.sysflag               tpp_sysflag,
+               ttp.id                    ttp_id,
+               ttp.course_id             ttp_course_id,
+               ttp.nature_level          ttp_nature_level,
+               ttp.know_level            ttp_know_level,
+               ttp.ability_level         ttp_ability_level,
+               ttp.politics_level        ttp_politics_level,
+               ttp.teaching_method       ttp_teaching_method,
+               ttp.content_json          ttp_content_json,
+               ttp.chapter_id            ttp_chapter_id,
+               ttp.exa_method            ttp_exa_method,
+               ttp.org_method            ttp_org_method,
+               ttp.performance           ttp_performance,
+               ttp.standard              ttp_standard,
+               ttp.standard_json         ttp_standard_json,
+               ttp.reference_id          ttp_reference_id,
+               ttp.create_time           ttp_create_time,
+               ttp.creator               ttp_creator,
+               ttp.last_modified_time    ttp_last_modified_time,
+               ttp.last_modifier         ttp_last_modifier,
+               ttp.remark                ttp_remark,
+               ttp.sysflag               ttp_sysflag,
+               cc.id                     cc_id,
+               cc.course_id              cc_course_id,
+               cc.name                   cc_name,
+               cc.content                cc_content,
+               cc.hours                  cc_hours,
+               cc.type                   cc_type,
+               cc.create_time            cc_create_time,
+               cc.creator                cc_creator,
+               cc.last_modified_time     cc_last_modified_time,
+               cc.last_modifier          cc_last_modifier,
+               cc.remark                 cc_remark,
+               cc.sysflag                cc_sysflag,
+               ct.id                     ct_id,
+               ct.course_id              ct_course_id,
+               ct.name                   ct_name,
+               ct.type                   ct_type,
+               ct.author                 ct_author,
+               ct.press_name             ct_press_name,
+               ct.press_version          ct_press_version,
+               ct.press_time             ct_press_time,
+               ct.create_time            ct_create_time,
+               ct.creator                ct_creator,
+               ct.last_modified_time     ct_last_modified_time,
+               ct.last_modifier          ct_last_modifier,
+               ct.remark                 ct_remark,
+               ct.sysflag                ct_sysflag,
+               ku.id                     ku_id,
+               ku.name                   ku_name,
+               ku.init_level             ku_init_level,
+               ku.require_level          ku_require_level,
+               ku.learn_target           ku_learn_target,
+               ku.realize_link           ku_realize_link,
+               ku.create_time            ku_create_time,
+               ku.creator                ku_creator,
+               ku.last_modified_time     ku_last_modified_time,
+               ku.last_modifier          ku_last_modifier,
+               ku.remark                 ku_remark,
+               ku.sysflag                ku_sysflag,
+               kp.id                     kp_id,
+               kp.name                   kp_name,
+               kp.create_time            kp_create_time,
+               kp.creator                kp_creator,
+               kp.last_modified_time     kp_last_modified_time,
+               kp.last_modifier          kp_last_modifier,
+               kp.remark                 kp_remark,
+               kp.sysflag                kp_sysflag
+        FROM t_csys_course tc
+                 left join t_csys_course_target c_target on c_target.course_id = tc.id
+                 left join t_csys_course_domain_ref_source_unit rsu on rsu.course_target_id = c_target.course_target_id
+                 left join t_csys_source_unit ku on ku.id = rsu.unit_id
+                 left join t_csys_course_unit_ref_source_point unitRefPoint on ku.id = unitRefPoint.unit_id
+                 left join t_csys_source_point kp on unitRefPoint.point_id = kp.id
+                 LEFT JOIN t_csys_course_teaching_practice_plan tpp ON tc.id = tpp.course_id and tpp.sysflag = 0
+                 LEFT JOIN t_csys_course_teaching_theory_plan ttp ON tc.id = ttp.course_id and ttp.sysflag = 0
+                 LEFT JOIN t_csys_course_chapter cc ON tc.id = cc.course_id and cc.sysflag = 0
+                 LEFT JOIN t_csys_course_textbook ct ON tc.id = ct.course_id and ct.sysflag = 0
+    </sql>
+
+
+    <select id="selectCourseCount" parameterType="Long" resultType="Long">
+        select tsrc.course_id courseId from t_csys_training_scheme ts ,t_csys_training_scheme_ref_course tsrc
+        where ts.id = tsrc.scheme_id and ts.id = #{schemeId}
+    </select>
+
+    <delete id="deleteFile" parameterType="Long">
+        update t_csys_course
+        set file_id = null,file_name = null
+        where id = #{id}
+    </delete>
+
+    <select id="selectUnitCount" parameterType="Long" resultType="Long">
+        select distinct ku.id from t_csys_course_unit_ref_source_point rku,t_csys_knowledge_unit ku where
+        rku.unit_id = ku.id  and ku.sysflag = 0  and  rku.course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <select id="selectPointCount" parameterType="Long" resultType="Long">
+        select kp.id from t_csys_knowledge_unit_ref_point urp ,t_csys_knowledge_point kp
+        where urp.point_id = kp.id and kp.sysflag = 0 and urp.unit_id in
+        <foreach item="pointId" collection="pointIds" open="(" separator="," close=")">
+            #{pointId}
+        </foreach>
+    </select>
+
+    <select id="selectCoursesIdAndNameByIds" parameterType="Long" resultMap="CourseIdAndNameResult">
+        select id,name from t_csys_course where id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+    <resultMap type="com.doinner.csys.domain.vo.CourseIdAndName" id="CourseIdAndNameResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+    </resultMap>
+
+    <update id="updateFileById" parameterType="com.doinner.csys.domain.Course">
+        update t_csys_course
+        set file_id = #{fileId} ,file_name = #{fileName}
+        where id = #{id}
+    </update>
+
+
+    <update id="updateStatusByIds" >
+        update t_csys_course
+        set status = 1 where id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+
+    <select id="courseRanking"  resultMap="TrainingSchemeCourseScheduleRankingVoResult">
+        select tscs.course_id courseId,count(tscs.course_id) selectedNum,ANY_VALUE(cc.name) courseName from t_csys_training_scheme_course_schedule tscs
+        ,t_csys_course cc,t_csys_training_scheme cs where tscs.checked = 1 and tscs.course_id = cc.id and cc.sysflag =0 and tscs.sysflag = 0
+        and tscs.scheme_id = cs.id and cs.sysflag = 0
+        GROUP BY tscs.course_id order by count(tscs.course_id) desc,tscs.course_id desc
+    </select>
+
+    <select id="courseSelectStatistics"  resultMap="TrainingSchemeCourseScheduleRankingVoResult">
+        select tscs.course_id courseId,count(tscs.course_id) selectedNum,ANY_VALUE(cc.name) courseName from t_csys_training_scheme_course_schedule tscs
+        ,t_csys_course cc,t_csys_training_scheme cs where tscs.checked = 1 and tscs.course_id = cc.id and cc.sysflag =0 and tscs.sysflag = 0
+        and tscs.scheme_id = cs.id and cs.sysflag = 0
+        <if test="courseName != null and courseName != ''">
+            and cc.name like concat('%', #{courseName}, '%')
+        </if>
+        <if test="types != null">
+            and tscs.type in
+            <foreach item="type" collection="types" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+        GROUP BY tscs.course_id order by count(tscs.course_id) desc,tscs.course_id desc
+    </select>
+    <resultMap type="com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleRankingVo" id="TrainingSchemeCourseScheduleRankingVoResult">
+        <result property="courseId" column="courseId"/>
+        <result property="selectedNum" column="selectedNum"/>
+        <result property="courseName" column="courseName"/>
+    </resultMap>
+
+    <select id="countCourse" resultType="Long">
+        select count(1) from t_csys_course tc where tc.sysflag = 0
+    </select>
+
+    <select id="countScheme" resultType="Long">
+        select count(1) from t_csys_training_scheme cts where cts.sysflag = 0
+    </select>
+
+    <select id="countCollegeCourse"  resultMap="CurriculumResult">
+        select count(tcc.college_id) courseCount,tcc.college_id collectId,ANY_VALUE(sd.dept_name) collectName
+        from t_csys_course tcc left join
+        sys_dept sd on sd.dept_id = tcc.college_id  group by tcc.college_id  having count(tcc.college_id) >0
+    </select>
+    <resultMap id="CurriculumResult" type="com.doinner.csys.domain.vo.CurriculumVo">
+        <result column="collectName" property="collectName"/>
+        <result column="courseCount" property="courseCount"/>
+        <result column="collectId" property="collectId"/>
+    </resultMap>
+
+
+    <select id="countCollegeScheme" resultMap="CollegeProgramResult">
+        select count(ts.college_id) schemeCount,ts.college_id collectId,ANY_VALUE(sd.dept_name) collectName
+        from t_csys_training_scheme ts left join
+        sys_dept sd on ts.college_id = sd.dept_id group by ts.college_id
+        having count(ts.college_id) >0
+    </select>
+    <resultMap id="CollegeProgramResult" type="com.doinner.csys.domain.vo.CollegeProgramVo">
+        <result column="collectName" property="collectName"/>
+        <result column="schemeCount" property="schemeCount"/>
+        <result column="collectId" property="collectId"/>
+    </resultMap>
+
+
+    <select id="countCategory" resultMap="TypeProgramResult">
+        select ts.category_id categoryId,count(ts.category_id) categoryCount,ANY_VALUE(tsc.name) name
+        from t_csys_training_scheme ts,t_csys_training_scheme_category tsc where ts.sysflag = 0
+				and tsc.id  = ts.category_id
+				group by ts.category_id having count(ts.category_id) >0
+    </select>
+    <resultMap id="TypeProgramResult" type="com.doinner.csys.domain.vo.TypeProgramVo">
+        <result property="categoryId" column="categoryId"/>
+        <result property="categoryCount" column="categoryCount"/>
+    </resultMap>
+
+
+    <select id="countSemesterScheduling" resultMap="CurriculumSelectionResult">
+        select cc.college_id collectId,cs.term term,count(cs.term) countTerm
+        ,(select sd.dept_name from sys_dept sd where sd.dept_id = cc.college_id) collectName
+        from t_csys_course cc left join t_csys_training_scheme_course_schedule cs on
+        cc.id = cs.course_id where cc.sysflag = 0 and cs.sysflag = 0 and cc.college_id is not null
+        group by cc.college_id,cs.term
+    </select>
+    <resultMap id="CurriculumSelectionResult" type="com.doinner.csys.domain.vo.CurriculumSelectionVo">
+        <result property="collectId" column="collectId"/>
+        <result property="term" column="term"/>
+        <result property="countTerm" column="countTerm"/>
+        <result property="collectName" column="collectName"/>
+    </resultMap>
+
+
+    <select id="selectUnitBySchemeId" resultType="Long">
+        select ku.id from t_csys_training_scheme ts inner join
+		t_csys_training_scheme_ref_course tsrc on ts.id = tsrc.scheme_id
+    	and ts.id = #{schemeId}
+		and ts.sysflag = 0
+		inner join t_csys_course_ref_ke_unit crk on tsrc.course_id = crk.course_id
+		inner join t_csys_knowledge_unit ku on crk.unit_id = ku.id and ku.sysflag = 0
+    </select>
+
+
+    <select id="selectCourseByCodeAndNotId" resultType="Long">
+        select count(id) from t_csys_course cc where cc.code = #{code} and cc.id != #{id} and cc.sysflag =0
+
+    </select>
+
+
+
+
+    <select id="courseAndSpecializedStatistics" resultMap="CourseAndSpecializedResult">
+        SELECT
+            sm.college_id collect_id,
+            count( DISTINCT ( sm.id ) ) major_count,
+            sd.dept_name dept_name,
+            count( DISTINCT ( cc.id ) ) AS course_count
+        FROM
+            t_csys_std_major sm
+                INNER JOIN sys_dept sd ON sm.college_id = sd.dept_id
+                AND sm.sysflag = 0 and sm.parent_id = -1
+                LEFT JOIN t_csys_course cc ON cc.college_id = sd.dept_id and cc.sysflag = 0
+        GROUP BY
+            sm.college_id
+    </select>
+    <resultMap id="CourseAndSpecializedResult" type="com.doinner.csys.domain.vo.CourseAndSpecializedVo">
+        <result property="collectId" column="collect_id"/>
+        <result property="majorCount" column="major_count"/>
+        <result property="deptName" column="dept_name"/>
+        <result property="courseCount" column="course_count"/>
+    </resultMap>
+
+    <select id="selectCoursesByCodeLike" parameterType="String" resultMap="CourseResult">
+        <include refid="selectCourseVo"/>
+        where code like concat(#{courseName}, '%') and sysflag = 0
+    </select>
+
+
+    <select id="selectKnowledgeNum" resultType="java.util.Map">
+        select count(distinct ku.id) as unitCount, count(distinct kp.id) as pointCount
+        from t_csys_course_ref_knowledge_unit rku,t_csys_course_knowledge_unit ku ,t_csys_course_knowledge_point kp where
+        rku.course_unit_id = ku.id and ku.id=kp.unit_id  and  rku.course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <select id="selectCourseByGraduationIds" resultMap="CourseVoResult">
+        select c.*,crg.graduation_id
+        from t_csys_course_ref_graduation crg
+                 inner join t_csys_course c on c.id = crg.course_id
+        where c.sysflag = 0
+          and crg.graduation_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectCourseRefGraduation" resultType="com.doinner.csys.domain.vo.ExcelRelationshipVo">
+        select crg.course_id     as verticalNodeId,
+               crg.graduation_id as horizontalNodeId
+        from t_csys_course_ref_graduation crg
+        where crg.course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        and crg.graduation_id in
+        <foreach item="graduationId" collection="graduationIds" open="(" separator="," close=")">
+            #{graduationId}
+        </foreach>
+    </select>
+
+    <select id="selectGenerateCourse"  parameterType="String" resultType="java.lang.Integer">
+        select count(id)
+        from t_csys_course
+        where sysflag = 0
+          and template_type = 1
+          and course_Module = '69a7f32e2dc370362ef3ee6e'
+        <if test="version != null">
+            and version =#{version}
+        </if>
+    </select>
+
+    <select id="selectOverQuoteCourse" resultType="java.lang.Long">
+        select c.id from
+        t_csys_course c inner join
+        view_quote_course qc on c.id=qc.source_id
+        and c.max_quote_count &lt; qc.qoute_count
+        <if test="version != null">
+            and qc.version =#{version}
+        </if>
+        where c.sysflag = 0
+        and c.template_type = 1
+        and c.course_Module = '69a7f32e2dc370362ef3ee6e'
+        <if test="version != null">
+            and c.version =#{version}
+        </if>
+    </select>
+
+    <select id="selectQuoteCourseInfo" resultType="com.doinner.csys.domain.vo.OverQuoteCourseInfo">
+        select sc.name                   as courseName,
+               sc.max_quote_count        as maxQuoteCount,
+               count(c.id)               as quoteCount,
+               group_concat(m.name) as majorNames
+        from t_csys_course c
+                 inner join t_csys_std_major m on m.id = c.major_Id
+                 inner join t_csys_course sc on sc.id = c.source_id
+        where c.sysflag = 0
+          and  c.source_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        group by sc.name, sc.max_quote_count
+    </select>
+
+    <select id="selectQuotedCourse" resultType="Long">
+        SELECT c.source_id
+        FROM t_csys_course c where c.major_Id = #{courseTemplateVo.majorId}
+                               and c.version = #{courseTemplateVo.version}
+                               and sysflag = 0
+                               and c.source_id in
+        <foreach item="id" collection="courseTemplateVo.ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertCourseList" useGeneratedKeys="true" keyProperty="courseList.id">
+        insert into t_csys_course (`name`, code, `type`,
+        authors, author_ids, college_id, teach_college_id,
+        en_name, before_course_id, after_course_id,
+        `hours`, theory_hours, practice_hours,
+        week_hours, teach_hours, examine_hours,
+        other_hours, hours_unit, credit,
+        course_prop, course_type, course_attr,
+        `location`, open_term, summary,
+        file_id, file_name, create_time,
+        creator, last_modified_time, last_modifier,
+        remark, sysflag, dept_by,
+        `status`, analysis_status, course_Module,
+        course_Module_Children, semester_Schedule,
+        spring_Autumn, open_Year, major_Id,
+        category_Id, exa_Method, program_Level,
+        time_Week, unit, sub_Major_Id, source_id,
+        template_type, version, bind_status,
+        max_quote_count,education_level,has_Work,academic_terms_number) VALUES
+        <foreach collection="courseList" item="course" separator=",">
+            (#{course.name}, #{course.code}, #{course.type},
+            #{course.authors}, #{course.authorIds}, #{course.collegeId}, #{course.teachCollegeId},
+            #{course.enName}, #{course.beforeCourseId}, #{course.afterCourseId},
+            #{course.hours}, #{course.theoryHours}, #{course.practiceHours},
+            #{course.weekHours}, #{course.teachHours}, #{course.examineHours},
+            #{course.otherHours}, #{course.hoursUnit}, #{course.credit},
+            #{course.courseProp}, #{course.courseType}, #{course.courseAttr},
+            #{course.location}, #{course.openTerm}, #{course.summary},
+            #{course.fileId}, #{course.fileName}, #{course.createTime},
+            #{course.creator}, #{course.lastModifiedTime}, #{course.lastModifier},
+            #{course.remark}, #{course.sysflag}, #{course.deptBy},
+            #{course.status}, #{course.analysisStatus}, #{course.courseModule},
+            #{course.courseModuleChildren}, #{course.semesterSchedule},
+            #{course.springAutumn}, #{course.openYear}, #{course.majorId},
+            #{course.categoryId}, #{course.exaMethod}, #{course.programLevel},
+            #{course.timeWeek}, #{course.unit}, #{course.subMajorId}, #{course.sourceId},
+            #{course.templateType}, #{course.version}, #{course.bindStatus},
+            #{course.maxQuoteCount},#{course.educationLevel},#{course.hasWork},#{course.academicTermsNumber})
+        </foreach>
+    </insert>
+
+
+
+    <select id="selectByNameCount" parameterType="com.doinner.csys.domain.vo.CourseVo" resultType="Long">
+        select count(1) from t_csys_course
+        <where>
+            sysflag = 0
+            <if test="id != null">
+                and id not in (#{id})
+            </if>
+            <if test="name != null  and name != ''">
+                and name = #{name}
+            </if>
+            <if test="version != null">
+                and version = #{version}
+            </if>
+            and source_id is null
+            and template_type = 1
+            <choose>
+                <when test="type != null and type != '' and type !='-1'">
+                    and type = #{type}
+                </when>
+                <when test="type  == '-1'">
+                    and (1=1)
+                </when>
+                <otherwise>
+                    and type in (1,3)
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+
+    <select id="selectByNamesCount" parameterType="com.doinner.csys.domain.vo.CourseVo" resultType="String">
+        select name from t_csys_course
+        <where>
+            sysflag = 0
+            and name in
+            (
+            <foreach collection="courseNames" item="courseName" separator=",">
+                #{courseName}
+            </foreach>
+            )
+            <if test="version != null">
+                and version = #{version}
+            </if>
+            and source_id is null
+            <choose>
+                <when test="type != null and type != '' and type !='-1'">
+                    and type = #{type}
+                </when>
+                <when test="type  == '-1'">
+                    and (1=1)
+                </when>
+                <otherwise>
+                    and type in (1,3)
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+
+    <!--==================================================================================================================================-->
+
+    <resultMap type="com.doinner.csys.domain.vo.TrainingSchemeCourseVo" id="TrainingSchemeCourseVoResult">
+        <result property="name" column="c_name"/>
+        <collection property="courseKnowledgeUnitVoList" ofType="com.doinner.csys.domain.vo.CourseKnowledgeUnitVo" javaType="java.util.List" resultMap="courseKnowledgeUnitResult"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.TrainingSchemeCourseVo" id="TrainingSchemeCourseGraduationVoResult">
+        <result property="name" column="c_name"/>
+        <collection property="graduationVoList" ofType="com.doinner.csys.domain.vo.StandardGraduationVo" javaType="java.util.List" resultMap="graduationResult"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.CourseKnowledgeUnitVo" id="courseKnowledgeUnitResult">
+        <result property="id" column="ku_id"/>
+        <result property="name" column="ku_name"/>
+        <collection property="knowledgePoints" javaType="java.util.List" resultMap="CourseKnowledgePointResult"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.CourseKnowledgePointVo" id="CourseKnowledgePointResult">
+        <result property="id" column="kp_id"/>
+        <result property="name" column="kp_name"/>
+    </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.vo.StandardGraduationVo" id="graduationResult">
+        <result property="id" column="g_id"/>
+        <result property="name" column="g_name"/>
+    </resultMap>
+
+    <select id="selectCourseKnowledgeByCourseIds" resultMap="TrainingSchemeCourseVoResult">
+        select c.id as c_id, c.name as c_name, ku.id as ku_id, ku.name as ku_name, kp.id as kp_id, kp.name as kp_name
+        from t_csys_course c
+                 left join t_csys_course_ref_knowledge_unit crk on crk.course_id = c.id
+                 left join t_csys_course_knowledge_unit ku on crk.course_unit_id = ku.id
+                 left join t_csys_course_knowledge_point kp on kp.unit_id = ku.id
+        where c.id in
+        <foreach item="id" collection="courseIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and c.type in (1,3)
+        order by ku.sort, kp.sort
+    </select>
+
+    <select id="selectCourseBySourceId" resultMap="CourseResult">
+        select * from t_csys_course where source_id=#{id} and sysflag=0;
+    </select>
+
+    <delete id="removeCourseByIds">
+        delete from t_csys_course where id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="updateEnableFlag">
+        update t_csys_course set enable_flag=#{enableFlag} where id=#{id}
+    </update>
+
+    <update id="updateBindStatusById">
+        update t_csys_course set bind_status=#{bind_status} where id=#{id}
+    </update>
+
+    <select id="selectCourseKnowledgeList" resultType="com.doinner.csys.domain.vo.CourseKnowledgeViewVo">
+        select ifnull(c.course_Module_Children, c.course_Module) as courseModelId,
+               c.name                                            as courseName,
+               c.id                                              as courseId,
+               count(distinct ku.id)                             as unitCount,
+               count(distinct kp.id)                             as pointCount
+        from t_csys_training_scheme_ref_course trc
+                 inner join t_csys_course c on trc.course_id = c.id
+                 inner join t_csys_course_ref_knowledge_unit crk on crk.course_id = c.id
+                 left join t_csys_course_knowledge_unit ku on ku.id = crk.course_unit_id
+                 left join t_csys_course_knowledge_point kp on kp.unit_id = ku.id
+        where trc.scheme_id = #{trainingSchemeId}
+        group by c.course_Module_Children,c.course_Module,c.name,c.id
+        order by c.id
+    </select>
+
+
+
+
+
+    <select id="selectSchemeCourseList" parameterType="com.doinner.csys.domain.vo.CourseVo" resultMap="CourseResult">
+        select c.id,
+        c.name,
+        c.code,
+        c.type,
+        c.authors,
+        c.author_ids,
+        c.college_id,
+        c.teach_college_id,
+        c.en_name,
+        c.before_course_id,
+        c.after_course_id,
+        c.hours,
+        c.theory_hours,
+        c.practice_hours,
+        c.week_hours,
+        c.teach_hours,
+        c.examine_hours,
+        c.other_hours,
+        c.hours_unit,
+        c.credit,
+        c.course_prop,
+        c.course_type,
+        c.course_attr,
+        c.location,
+        c.open_term,
+        c.summary,
+        c.file_id,
+        c.file_name,
+        c.create_time,
+        c.creator,
+        c.last_modified_time,
+        c.last_modifier,
+        c.remark,
+        c.sysflag,
+        c.status,
+        c.analysis_status,
+        c.dept_by,
+        c.course_Module,
+        c.course_Module_Children,
+        c.semester_Schedule,
+        c.spring_Autumn,
+        c.open_Year,
+        c.major_Id,
+        c.sub_Major_Id,
+        c.category_Id,
+        c.exa_Method,
+        c.program_Level,
+        c.time_Week,
+        c.unit,
+        c.source_id,
+        c.template_Type,
+        c.version,
+        c.bind_Status,
+        c.max_quote_count,
+        c.enable_flag,c.education_level,c.has_Work
+        from t_csys_course c
+        inner join t_csys_training_scheme_ref_course schemeRefCourse on c.id = schemeRefCourse.course_id
+        <where>
+            c.sysflag = 0
+            <if test="id != null">
+                and c.id = #{id}
+            </if>
+            <if test="schemeId != null">
+                and schemeRefCourse.scheme_id = #{schemeId}
+            </if>
+            <if test="name != null  and name != ''">
+                and c.name like concat('%', #{name}, '%')
+            </if>
+            <if test="code != null  and code != ''">
+                and c.code like concat('%', #{code}, '%')
+            </if>
+            <if test="authors != null  and authors != ''">
+                and c.authors = #{authors}
+            </if>
+            <if test="authorIds != null  and authorIds != ''">
+                and c.author_ids = #{authorIds}
+            </if>
+            <if test="collegeId != null">
+                and c.college_id = #{collegeId}
+            </if>
+            <if test="teachCollegeId != null">
+                and c.teach_college_id = #{teachCollegeId}
+            </if>
+            <if test="enName != null  and enName != ''">
+                and c.en_name like concat('%', #{enName}, '%')
+            </if>
+            <if test="beforeCourseId != null  and beforeCourseId != ''">
+                and c.before_course_id = #{beforeCourseId}
+            </if>
+            <if test="afterCourseId != null  and afterCourseId != ''">
+                and c.after_course_id = #{afterCourseId}
+            </if>
+            <if test="hours != null">
+                and c.hours = #{hours}
+            </if>
+            <if test="theoryHours != null">
+                and c.theory_hours = #{theoryHours}
+            </if>
+            <if test="practiceHours != null">
+                and c.practice_hours = #{practiceHours}
+            </if>
+            <if test="weekHours != null">
+                and c.week_hours = #{weekHours}
+            </if>
+            <if test="teachHours != null">
+                and c.teach_hours = #{teachHours}
+            </if>
+            <if test="examineHours != null">
+                and c.examine_hours = #{examineHours}
+            </if>
+            <if test="otherHours != null">
+                and c.other_hours = #{otherHours}
+            </if>
+            <if test="hoursUnit != null  and hoursUnit != ''">
+                and c.hours_unit = #{hoursUnit}
+            </if>
+            <if test="credit != null">
+                and c.credit = #{credit}
+            </if>
+            <if test="courseProp != null">
+                and c.course_prop = #{courseProp}
+            </if>
+            <if test="courseType != null">
+                and c.course_type = #{courseType}
+            </if>
+            <if test="courseAttr != null">
+                and c.course_attr = #{courseAttr}
+            </if>
+            <if test="location != null  and location != ''">
+                and c.location = #{location}
+            </if>
+            <if test="openTerm != null  and openTerm != ''">
+                and c.open_term = #{openTerm}
+            </if>
+            <if test="summary != null  and summary != ''">
+                and c.summary = #{summary}
+            </if>
+            <if test="fileId != null">
+                and c.file_id = #{fileId}
+            </if>
+            <if test="fileName != null  and fileName != ''">
+                and c.file_name like concat('%', #{fileName}, '%')
+            </if>
+            <if test="creator != null  and creator != ''">
+                and c.creator = #{creator}
+            </if>
+            <if test="status != null">
+                and c.status = #{status}
+            </if>
+            <if test="deptBy != null">
+                and c.dept_by = #{deptBy}
+            </if>
+            <if test="courseModule != null">
+                and c.course_Module = #{courseModule}
+            </if>
+            <if test="courseModuleChildren != null">
+                and c.course_Module_Children = #{courseModuleChildren}
+            </if>
+            <if test="semesterSchedule != null">
+                and c.semester_Schedule = #{semesterSchedule}
+            </if>
+            <if test="openYear != null">
+                and c.open_Year = #{openYear}
+            </if>
+            <if test="springAutumn != null">
+                and c.spring_Autumn = #{springAutumn}
+            </if>
+            <if test="majorId != null">
+                and c.major_Id = #{majorId}
+            </if>
+            <if test="subMajorId != null">
+                and c.sub_Major_Id = #{subMajorId}
+            </if>
+            <if test="categoryId != null">
+                and c.category_Id = #{categoryId}
+            </if>
+            <if test="exaMethod != null">
+                and c.exa_Method = #{exaMethod}
+            </if>
+            <if test="programLevel != null">
+                and c.program_Level = #{programLevel}
+            </if>
+            <if test="timeWeek != null">
+                and c.time_Week = #{timeWeek}
+            </if>
+            <if test="unit != null and unit != ''">
+                and c.unit = #{unit}
+            </if>
+            <if test="sourceId != null">
+                and c.source_Id = #{sourceId}
+            </if>
+            <if test="templateType != null">
+                and c.template_Type = #{templateType}
+            </if>
+            <if test="version != null">
+                and c.version = #{version}
+            </if>
+            <if test="bindStatus != null">
+                and ifnull(c.bind_Status,2)= #{bindStatus}
+            </if>
+            <if test="enableFlag != null">
+                and c.enable_flag=#{enableFlag}
+            </if>
+            <if test="educationLevel != null">
+                and c.education_level=#{educationLevel}
+            </if>
+            <if test="hasWork != null">
+                and c.has_Work=#{hasWork}
+            </if>
+            <choose>
+                <when test="type != null and type != '' and type !='-1'">
+                    and c.type = #{type}
+                </when>
+                <when test="type  == '-1'">
+                    and (1=1)
+                </when>
+                <otherwise>
+                    and c.type in (1,3)
+                </otherwise>
+            </choose>
+        </where>
+        <choose>
+            <when test="database_prop != null and database_prop != ''">
+                order by ${database_prop} ${order}
+            </when>
+            <otherwise>
+                order by c.id desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectCourseGraduationByCourseIds" resultMap="TrainingSchemeCourseGraduationVoResult">
+        select c.id as c_id, c.name as c_name, g.id as g_id, g.name as g_name
+        from t_csys_course c
+                 left join t_csys_course_ref_graduation crg on crg.course_id = c.id
+                 left join t_csys_std_graduation g on g.id = crg.graduation_id
+        where c.id in
+        <foreach item="id" collection="courseIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <choose>
+            <when test="type != null and type != ''">
+                and c.type = #{type}
+            </when>
+            <otherwise>
+                and c.type in (1,3)
+            </otherwise>
+        </choose>
+        order by g.id
+    </select>
+
+    <update id="updateBuildStatus">
+        update t_csys_course set build_status=#{status} where id=#{id}
+    </update>
+
+    <select id="selectCourseSourceHoursByTargetCourseIds" resultType="java.util.HashMap">
+        select s_course.practice_hours ,s_course.teach_hours, s_course.academic_terms_number,t_course.id
+        from
+        t_csys_course t_course
+        inner join t_csys_course s_course
+        on s_course.id=t_course.source_id
+        where t_course.id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectCourseAcademicStatus" resultType="java.util.HashMap">
+        select case
+        when sum(status) > 0 then
+        0
+        else
+        1
+        end as status,
+        scheme_id
+        from (select trc.scheme_id,
+        case
+        when IFNULL(academic_terms_number, 1) = scheduleNum.s_num then
+        0
+        else
+        1
+        end as status
+        from t_csys_course c
+        inner join t_csys_training_scheme_ref_course trc
+        on trc.course_id = c.id
+        inner join (select cs.course_id, count(cs.id) as s_num
+        from t_csys_training_scheme_course_schedule cs
+        group by cs.course_id) scheduleNum
+        on scheduleNum.course_id = c.id
+        where trc.scheme_id in
+        <foreach item="id" collection="schemeIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and c.semester_Schedule = '7') tab
+        group by scheme_id
+    </select>
+</mapper>

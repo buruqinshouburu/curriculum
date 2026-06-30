@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.KnowledgeUnitRefPointMapper">
+
+    <resultMap type="com.doinner.csys.domain.KnowledgeUnitRefPoint" id="KnowledgeUnitRefPointResult">
+        <result property="unitId"    column="unit_id"    />
+        <result property="pointId"    column="point_id"    />
+    </resultMap>
+
+    <sql id="selectKnowledgeUnitRefPointVo">
+        select unit_id, point_id from t_csys_knowledge_unit_ref_point
+    </sql>
+
+    <select id="selectKnowledgeUnitRefPointList" parameterType="com.doinner.csys.domain.KnowledgeUnitRefPoint" resultMap="KnowledgeUnitRefPointResult">
+        <include refid="selectKnowledgeUnitRefPointVo"/>
+        <where>
+            <if test="unitId != null "> and unit_id = #{unitId}</if>
+            <if test="pointId != null "> and point_id = #{pointId}</if>
+        </where>
+    </select>
+
+    <select id="selectKnowledgeUnitRefPointByUnitId" parameterType="Long" resultMap="KnowledgeUnitRefPointResult">
+        <include refid="selectKnowledgeUnitRefPointVo"/>
+        where unit_id = #{unitId}
+    </select>
+
+    <select id="selectKnowledgeUnitRefPointByUnitIds" parameterType="Long" resultMap="KnowledgeUnitRefPointResult">
+        <include refid="selectKnowledgeUnitRefPointVo"/>
+        where unit_id in
+        <foreach item="unitId" collection="unitIds" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </select>
+
+    <insert id="insertKnowledgeUnitRefPoint" parameterType="com.doinner.csys.domain.KnowledgeUnitRefPoint">
+        insert into t_csys_knowledge_unit_ref_point
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="unitId != null">unit_id,</if>
+            <if test="pointId != null">point_id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="unitId != null">#{unitId},</if>
+            <if test="pointId != null">#{pointId},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertKnowledgeUnitRefPoints" parameterType="com.doinner.csys.domain.KnowledgeUnitRefPoint">
+        insert into t_csys_knowledge_unit_ref_point (unit_id, point_id) values
+            <foreach collection="knowledgeUnitRefPointList" item="knowledgeUnitRefPoint" separator=",">
+                (#{knowledgeUnitRefPoint.unitId},#{knowledgeUnitRefPoint.pointId})
+            </foreach>
+    </insert>
+
+    <update id="updateKnowledgeUnitRefPoint" parameterType="com.doinner.csys.domain.KnowledgeUnitRefPoint">
+        update t_csys_knowledge_unit_ref_point
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="pointId != null">point_id = #{pointId},</if>
+        </trim>
+        where unit_id = #{unitId}
+    </update>
+
+    <delete id="deleteKnowledgeUnitRefPointByUnitId" parameterType="Long">
+        delete from t_csys_knowledge_unit_ref_point where unit_id = #{unitId}
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefPointByUnitIds" parameterType="String">
+        delete from t_csys_knowledge_unit_ref_point where unit_id in
+        <foreach item="unitId" collection="array" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefPointByUnitIdAndPointId" parameterType="Long">
+        delete from t_csys_knowledge_unit_ref_point where unit_id = #{unitId} and point_id = #{pointId}
+    </delete>
+
+    <delete id="deleteKnowledgeUnitRefPointByPointIds" parameterType="Long">
+        delete from t_csys_knowledge_unit_ref_point where  point_id in
+        <foreach item="pointId" collection="pointIds" open="(" separator="," close=")">
+            #{pointId}
+        </foreach>
+    </delete>
+</mapper>

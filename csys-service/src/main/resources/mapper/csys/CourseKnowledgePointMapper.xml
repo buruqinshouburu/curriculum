@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseKnowledgePointMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.entity.csys.po.CourseKnowledgePoint">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="unit_id" property="unitId" jdbcType="BIGINT"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifier" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, name, sort, unit_id, creator, create_time, last_modifier, last_modified_time
+    </sql>
+
+    <!-- 批量插入 -->
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_course_knowledge_point (
+            name, sort, unit_id, creator, create_time, last_modifier, last_modified_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.name}, #{item.sort}, #{item.unitId}, #{item.creator},
+                #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据知识单元ID查询 -->
+    <select id="selectByUnitId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_course_knowledge_point
+        WHERE unit_id = #{unitId}
+        ORDER BY sort ASC
+    </select>
+
+    <!-- 根据知识单元ID列表查询 -->
+    <select id="selectByUnitIds" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_course_knowledge_point
+        WHERE unit_id IN
+        <foreach collection="unitIds" item="unitId" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+        ORDER BY unit_id ASC, sort ASC
+    </select>
+
+    <!-- 根据知识单元ID批量删除 -->
+    <delete id="deleteByUnitIds">
+        DELETE FROM t_csys_course_knowledge_point
+        WHERE unit_id IN
+        <foreach collection="unitIds" item="unitId" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <select id="selectByIds" resultMap="BaseResultMap">
+        select * FROM t_csys_course_knowledge_point
+        WHERE unit_id IN
+        <foreach collection="unitIds" item="unitId" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+        order by unit_id,sort
+    </select>
+</mapper>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.SchemeRefMajorMapper">
+
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_scheme_ref_major (scheme_id, major_id ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.schemeId}, #{item.majorId}
+            )
+        </foreach>
+    </insert>
+
+    <delete id="deleteBySchemeId">
+        delete from t_csys_scheme_ref_major where scheme_id=#{schemeId}
+    </delete>
+</mapper>

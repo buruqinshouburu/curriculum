@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseTargetMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseTarget" id="CourseTargetResult">
+        <result property="courseTargetId"    column="course_target_id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="name"    column="name"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <sql id="selectCourseTargetVo">
+        select course_target_id, course_id, name, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_course_target
+    </sql>
+
+    <select id="selectCourseTargetById" parameterType="com.doinner.csys.domain.CourseTarget" resultMap="CourseTargetResult">
+        <include refid="selectCourseTargetVo"/>
+
+        where sysflag = 0 and course_target_id = #{courseTargetId}
+    </select>
+
+    <select id="selectCourseTargetByCourseId" parameterType="com.doinner.csys.domain.CourseTarget" resultMap="CourseTargetResult">
+        <include refid="selectCourseTargetVo"/>
+
+        where sysflag = 0 and course_Id = #{courseId}
+
+    </select>
+
+
+    <insert id="insertCourseTarget" parameterType="com.doinner.csys.domain.CourseTarget"
+            useGeneratedKeys="true" keyProperty="courseTargetId">
+        insert into t_csys_course_target
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">course_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">#{courseId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+         </trim>
+    </insert>
+
+    <update id="updateCourseTarget" parameterType="com.doinner.csys.domain.CourseTarget">
+        update t_csys_course_target
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where course_target_id = #{courseTargetId}
+    </update>
+
+    <delete id="deleteCourseTargetByCourseId" parameterType="Long">
+        update t_csys_course_target set sysflag = 1 where course_id = #{courseId}
+    </delete>
+
+    <delete id="deleteCourseTargetById" parameterType="Long">
+        update t_csys_course_target set sysflag = 1 where course_target_id = #{courseTargetId}
+    </delete>
+
+    <delete id="deleteCourseTargetByIds" parameterType="Long">
+        update t_csys_course_target set sysflag = 1 where course_target_id in
+        <foreach collection="courseTargetIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectCourseTargetByCourseIds" resultMap="CourseTargetResult">
+        <include refid="selectCourseTargetVo"/>
+        where sysflag = 0
+        and course_id in
+        <foreach collection="baseCourseIds" separator="," open="(" close=")" item="id" index="index">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectTargetNotInGraduationByTargetIds" resultMap="CourseTargetResult">
+        select ct.* from t_csys_course_target ct
+        left join t_csys_course_ref_graduation crg on ct.course_target_id=crg.course_target_id
+        where ct.course_target_id in
+        <foreach collection="targetIds" separator="," open="(" close=")" item="id" index="index">
+            #{id}
+        </foreach>
+        and crg.graduation_id is null
+    </select>
+
+    <select id="selectTargetNotInKnowLedgeByTargetIds" resultMap="CourseTargetResult">
+        select ct.* from t_csys_course_target ct
+        left join t_csys_course_ref_source_domain crs on ct.course_target_id=crs.course_target_id
+        where ct.course_target_id in
+        <foreach collection="targetIds" separator="," open="(" close=")" item="id" index="index">
+            #{id}
+        </foreach>
+        and crs.domain_id is null
+    </select>
+
+    <select id="selectBoundGraduationByCourseId" resultType="int">
+        select count(distinct crg.graduation_id) from t_csys_course_target ct
+        left join t_csys_course_ref_graduation crg on ct.course_target_id=crg.course_target_id
+        where ct.course_id in
+        <foreach collection="courseIds" separator="," open="(" close=")" item="id" index="index">
+            #{id}
+        </foreach>
+    </select>
+
+    <delete id="deleteCourseTargetByCourseIds">
+        update t_csys_course_target set sysflag = 1 where course_id in
+        <foreach collection="courseIds" separator="," item="id" open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <insert id="insertCourseTargets" useGeneratedKeys="true" keyProperty="targetList.courseTargetId">
+        insert into t_csys_course_target (course_id, `name`, create_time,
+        creator, last_modified_time, last_modifier,
+        remark, sysflag)
+        values
+        <foreach collection="targetList" item="target" separator=",">
+            (#{target.courseId,jdbcType=BIGINT}, #{target.name,jdbcType=VARCHAR}, #{target.createTime,jdbcType=TIMESTAMP},
+            #{target.creator,jdbcType=VARCHAR}, #{target.lastModifiedTime,jdbcType=TIMESTAMP},
+             #{target.lastModifier,jdbcType=VARCHAR},
+            #{target.remark,jdbcType=VARCHAR}, #{target.sysflag,jdbcType=TINYINT})
+        </foreach>
+
+    </insert>
+</mapper>

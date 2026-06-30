@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgrammeInstanceExtractMapper">
+
+    <resultMap type="TeachingProgrammeInstanceExtract" id="TeachingProgrammeInstanceExtractResult">
+            <result property="id" column="id"/>
+            <result property="instanceId" column="instance_Id"/>
+            <result property="instanceName" column="instance_name"/>
+            <result property="instanceVersion" column="instance_version"/>
+            <result property="learnInstitution" column="learn_Institution"/>
+            <result property="degree" column="degree"/>
+            <result property="categoryId" column="category_Id"/>
+            <result property="categoryName" column="category_name"/>
+            <result property="totalHour" column="total_Hour"/>
+            <result property="totalCredit" column="total_Credit"/>
+            <result property="floatRate" column="float_Rate"/>
+            <result property="politicalHour" column="political_Hour"/>
+            <result property="militaryHour" column="military_Hour"/>
+            <result property="scienceHour" column="science_Hour"/>
+            <result property="basicsHour" column="basics_Hour"/>
+            <result property="status" column="status"/>
+            <result property="createTime" column="create_time"/>
+            <result property="creator" column="creator"/>
+            <result property="lastModifiedTime" column="last_modified_time"/>
+            <result property="lastModifier" column="last_modifier"/>
+            <result property="remark" column="remark"/>
+            <result property="sysflag" column="sysflag"/>
+
+        <collection property="majorVos" javaType="java.util.List" resultMap="MajorResult"/>
+
+    </resultMap>
+
+    <resultMap type="MajorVo" id="MajorResult">
+        <result property="majorId" column="major_id"/>
+        <result property="majorName" column="major_name"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgrammeInstanceExtractVo">
+        select id, instance_Id, learn_Institution, degree, total_Hour, total_Credit, float_Rate, political_Hour, military_Hour, science_Hour, basics_Hour, status, create_time, creator, last_modified_time, last_modifier, remark, sysflag,category_Id
+        from t_csys_teaching_programme_instance_extract
+    </sql>
+
+    <select id="selectTeachingProgrammeInstanceExtractList" parameterType="TeachingProgrammeInstanceExtract" resultMap="TeachingProgrammeInstanceExtractResult">
+        select extract.id, extract.instance_Id, extract.learn_Institution, extract.degree, extract.total_Hour, extract.total_Credit,
+        extract.float_Rate, extract.political_Hour, extract.military_Hour, extract.science_Hour, extract.basics_Hour, extract.status,
+        extract.create_time, extract.creator, extract.last_modified_time, extract.last_modifier, extract.remark, extract.sysflag,extract.category_Id,
+        instance.name instance_name,instance.version instance_version,
+        (select category.name from t_csys_training_scheme_category category where extract.category_id = category.id) category_name,
+        major.id major_id ,major.name major_name
+        from t_csys_teaching_programme_instance_extract  extract
+        left join t_csys_teaching_programme_instance instance
+        on extract.instance_Id = instance.id
+        left join t_csys_teaching_programme_instance_ex_ref_major exMajor
+        on extract.id = exMajor.extract_id
+        left join t_csys_std_major major
+        on major.id = exMajor.major_id
+        <where>
+                        <if test="instanceId != null ">
+                            and extract.instance_Id = #{instanceId}
+                        </if>
+                        <if test="learnInstitution != null  and learnInstitution != ''">
+                            and extract.learn_Institution = #{learnInstitution}
+                        </if>
+                        <if test="degree != null  and degree != ''">
+                            and extract.degree = #{degree}
+                        </if>
+                        <if test="totalHour != null  and totalHour != ''">
+                            and extract.total_Hour = #{totalHour}
+                        </if>
+                        <if test="totalCredit != null  and totalCredit != ''">
+                            and extract.total_Credit = #{totalCredit}
+                        </if>
+                        <if test="floatRate != null  and floatRate != ''">
+                            and extract.float_Rate = #{floatRate}
+                        </if>
+                        <if test="politicalHour != null  and politicalHour != ''">
+                            and extract.political_Hour = #{politicalHour}
+                        </if>
+                        <if test="militaryHour != null  and militaryHour != ''">
+                            and extract.military_Hour = #{militaryHour}
+                        </if>
+                        <if test="scienceHour != null  and scienceHour != ''">
+                            and extract.science_Hour = #{scienceHour}
+                        </if>
+                        <if test="basicsHour != null  and basicsHour != ''">
+                            and extract.basics_Hour = #{basicsHour}
+                        </if>
+                        <if test="status != null ">
+                            and extract.status = #{status}
+                        </if>
+                        <if test="creator != null  and creator != ''">
+                            and extract.creator = #{creator}
+                        </if>
+                        <if test="lastModifiedTime != null ">
+                            and extract.last_modified_time = #{lastModifiedTime}
+                        </if>
+                        <if test="lastModifier != null  and lastModifier != ''">
+                            and extract.last_modifier = #{lastModifier}
+                        </if>
+                        <if test="sysflag != null ">
+                            and extract.sysflag = #{sysflag}
+                        </if>
+            <if test="instanceVersion != null ">
+                and instance.version = #{instanceVersion}
+            </if>
+            <if test="collegeId != null ">
+                and instance.college_Id = #{collegeId}
+            </if>
+            <if test="categoryId != null ">
+                and extract.category_Id = #{categoryId}
+            </if>
+            <if test="majorIds != null and majorIds.size > 0 ">
+                and exMajor.major_Id in
+                <foreach collection="majorIds" separator="," item="majorId" index="index" open="(" close=")">
+                    #{majorId}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <select id="selectTeachingProgrammeInstanceExtractById" parameterType="Long"
+            resultMap="TeachingProgrammeInstanceExtractResult">
+            <include refid="selectTeachingProgrammeInstanceExtractVo"/>
+            where id = #{id}
+    </select>
+
+    <select id="selectTeachingProgrammeInstanceExtractByInstanceId" parameterType="Long"
+            resultMap="TeachingProgrammeInstanceExtractResult">
+        <include refid="selectTeachingProgrammeInstanceExtractVo"/>
+        where instance_id = #{instanceId}
+    </select>
+
+    <insert id="insertTeachingProgrammeInstanceExtract" parameterType="TeachingProgrammeInstanceExtract" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_teaching_programme_instance_extract
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="id != null">id,
+                    </if>
+                    <if test="instanceId != null">instance_Id,
+                    </if>
+                    <if test="learnInstitution != null">learn_Institution,
+                    </if>
+                    <if test="degree != null">degree,
+                    </if>
+                    <if test="totalHour != null">total_Hour,
+                    </if>
+                    <if test="totalCredit != null">total_Credit,
+                    </if>
+                    <if test="floatRate != null">float_Rate,
+                    </if>
+                    <if test="politicalHour != null">political_Hour,
+                    </if>
+                    <if test="militaryHour != null">military_Hour,
+                    </if>
+                    <if test="scienceHour != null">science_Hour,
+                    </if>
+                    <if test="basicsHour != null">basics_Hour,
+                    </if>
+                    <if test="status != null">status,
+                    </if>
+                    <if test="createTime != null">create_time,
+                    </if>
+                    <if test="creator != null">creator,
+                    </if>
+                    <if test="lastModifiedTime != null">last_modified_time,
+                    </if>
+                    <if test="lastModifier != null">last_modifier,
+                    </if>
+                    <if test="remark != null">remark,
+                    </if>
+                    <if test="sysflag != null">sysflag,
+                    </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="id != null">#{id},
+                    </if>
+                    <if test="instanceId != null">#{instanceId},
+                    </if>
+                    <if test="learnInstitution != null">#{learnInstitution},
+                    </if>
+                    <if test="degree != null">#{degree},
+                    </if>
+                    <if test="totalHour != null">#{totalHour},
+                    </if>
+                    <if test="totalCredit != null">#{totalCredit},
+                    </if>
+                    <if test="floatRate != null">#{floatRate},
+                    </if>
+                    <if test="politicalHour != null">#{politicalHour},
+                    </if>
+                    <if test="militaryHour != null">#{militaryHour},
+                    </if>
+                    <if test="scienceHour != null">#{scienceHour},
+                    </if>
+                    <if test="basicsHour != null">#{basicsHour},
+                    </if>
+                    <if test="status != null">#{status},
+                    </if>
+                    <if test="createTime != null">#{createTime},
+                    </if>
+                    <if test="creator != null">#{creator},
+                    </if>
+                    <if test="lastModifiedTime != null">#{lastModifiedTime},
+                    </if>
+                    <if test="lastModifier != null">#{lastModifier},
+                    </if>
+                    <if test="remark != null">#{remark},
+                    </if>
+                    <if test="sysflag != null">#{sysflag},
+                    </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgrammeInstanceExtract" parameterType="TeachingProgrammeInstanceExtract">
+        update t_csys_teaching_programme_instance_extract
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="instanceId != null">instance_Id =
+                        #{instanceId},
+                    </if>
+                    <if test="learnInstitution != null">learn_Institution =
+                        #{learnInstitution},
+                    </if>
+                    <if test="degree != null">degree =
+                        #{degree},
+                    </if>
+                    <if test="totalHour != null">total_Hour =
+                        #{totalHour},
+                    </if>
+                    <if test="totalCredit != null">total_Credit =
+                        #{totalCredit},
+                    </if>
+                    <if test="floatRate != null">float_Rate =
+                        #{floatRate},
+                    </if>
+                    <if test="politicalHour != null">political_Hour =
+                        #{politicalHour},
+                    </if>
+                    <if test="militaryHour != null">military_Hour =
+                        #{militaryHour},
+                    </if>
+                    <if test="scienceHour != null">science_Hour =
+                        #{scienceHour},
+                    </if>
+                    <if test="basicsHour != null">basics_Hour =
+                        #{basicsHour},
+                    </if>
+                    <if test="status != null">status =
+                        #{status},
+                    </if>
+                    <if test="createTime != null">create_time =
+                        #{createTime},
+                    </if>
+                    <if test="creator != null">creator =
+                        #{creator},
+                    </if>
+                    <if test="lastModifiedTime != null">last_modified_time =
+                        #{lastModifiedTime},
+                    </if>
+                    <if test="lastModifier != null">last_modifier =
+                        #{lastModifier},
+                    </if>
+                    <if test="remark != null">remark =
+                        #{remark},
+                    </if>
+                    <if test="sysflag != null">sysflag =
+                        #{sysflag},
+                    </if>
+            category_Id = #{categoryId},
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTeachingProgrammeInstanceExtractById" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_instance_extract where id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeInstanceExtractByIds" parameterType="String">
+        delete from t_csys_teaching_programme_instance_extract where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

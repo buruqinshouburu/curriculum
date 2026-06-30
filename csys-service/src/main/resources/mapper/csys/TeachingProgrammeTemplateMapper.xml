@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgrammeTemplateMapper">
+
+    <resultMap type="TeachingProgrammeTemplate" id="TeachingProgrammeTemplateResult">
+            <result property="id" column="id"/>
+            <result property="attributeName" column="attribute_Name"/>
+            <result property="parentId" column="parent_id"/>
+            <result property="outlineId" column="outline_id"/>
+            <result property="level" column="level"/>
+            <result property="leaf" column="leaf"/>
+            <result property="createTime" column="create_time"/>
+            <result property="creator" column="creator"/>
+            <result property="lastModifiedTime" column="last_modified_time"/>
+            <result property="lastModifier" column="last_modifier"/>
+            <result property="remark" column="remark"/>
+            <result property="sysflag" column="sysflag"/>
+            <result property="sort" column="sort"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgrammeTemplateVo">
+        select id, attribute_Name, parent_id,outline_id, level, leaf, create_time, creator, last_modified_time, last_modifier, remark, sysflag,sort
+        from t_csys_teaching_programme_template
+    </sql>
+
+    <select id="selectTeachingProgrammeTemplateList" parameterType="TeachingProgrammeTemplate" resultMap="TeachingProgrammeTemplateResult">
+        <include refid="selectTeachingProgrammeTemplateVo"/>
+        <where>
+                        <if test="attributeName != null  and attributeName != ''">
+                            and attribute_Name like concat('%', #{attributeName}, '%')
+                        </if>
+                        <if test="parentId != null ">
+                            and parent_id = #{parentId}
+                        </if>
+                        <if test="outlineId != null ">
+                            and outline_id = #{outlineId}
+                        </if>
+                        <if test="level != null ">
+                            and level = #{level}
+                        </if>
+                        <if test="leaf != null ">
+                            and leaf = #{leaf}
+                        </if>
+                        <if test="creator != null  and creator != ''">
+                            and creator = #{creator}
+                        </if>
+                        <if test="lastModifiedTime != null ">
+                            and last_modified_time = #{lastModifiedTime}
+                        </if>
+                        <if test="lastModifier != null  and lastModifier != ''">
+                            and last_modifier = #{lastModifier}
+                        </if>
+                        <if test="sysflag != null ">
+                            and sysflag = #{sysflag}
+                        </if>
+        </where>
+    </select>
+
+    <select id="selectTeachingProgrammeTemplateById" parameterType="Long"
+            resultMap="TeachingProgrammeTemplateResult">
+            <include refid="selectTeachingProgrammeTemplateVo"/>
+            where id = #{id}
+    </select>
+
+    <insert id="insertTeachingProgrammeTemplate" parameterType="TeachingProgrammeTemplate" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_teaching_programme_template
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="attributeName != null">attribute_Name,
+                    </if>
+                    <if test="parentId != null">parent_id,
+                    </if>
+                    <if test="outlineId != null">outline_id,
+                    </if>
+                    <if test="level != null">level,
+                    </if>
+                    <if test="leaf != null">leaf,
+                    </if>
+                    <if test="createTime != null">create_time,
+                    </if>
+                    <if test="creator != null">creator,
+                    </if>
+                    <if test="lastModifiedTime != null">last_modified_time,
+                    </if>
+                    <if test="lastModifier != null">last_modifier,
+                    </if>
+                    <if test="remark != null">remark,
+                    </if>
+                    <if test="sysflag != null">sysflag,
+                    </if>
+            <if test="sort != null">sort,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="attributeName != null">#{attributeName},
+                    </if>
+                    <if test="parentId != null">#{parentId},
+                    </if>
+                    <if test="outlineId != null">#{outlineId},
+                    </if>
+                    <if test="level != null">#{level},
+                    </if>
+                    <if test="leaf != null">#{leaf},
+                    </if>
+                    <if test="createTime != null">#{createTime},
+                    </if>
+                    <if test="creator != null">#{creator},
+                    </if>
+                    <if test="lastModifiedTime != null">#{lastModifiedTime},
+                    </if>
+                    <if test="lastModifier != null">#{lastModifier},
+                    </if>
+                    <if test="remark != null">#{remark},
+                    </if>
+                    <if test="sysflag != null">#{sysflag},
+                    </if>
+            <if test="sort != null">#{sort},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgrammeTemplate" parameterType="TeachingProgrammeTemplate">
+        update t_csys_teaching_programme_template
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="attributeName != null">attribute_Name =
+                        #{attributeName},
+                    </if>
+                    <if test="parentId != null">parent_id =
+                        #{parentId},
+                    </if>
+                    <if test="outlineId != null">outline_Id =
+                     #{outlineId},
+                    </if>
+                    <if test="level != null">level =
+                        #{level},
+                    </if>
+                    <if test="leaf != null">leaf =
+                        #{leaf},
+                    </if>
+                    <if test="lastModifiedTime != null">last_modified_time =
+                        #{lastModifiedTime},
+                    </if>
+                    <if test="lastModifier != null">last_modifier =
+                        #{lastModifier},
+                    </if>
+                    <if test="remark != null">remark =
+                        #{remark},
+                    </if>
+                    <if test="sysflag != null">sysflag =
+                        #{sysflag},
+                    </if>
+            <if test="sort != null">sort =
+                #{sort},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTeachingProgrammeTemplateById" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_template where id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeTemplateByIds" parameterType="Long">
+        delete from t_csys_teaching_programme_template where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteTeachingProgrammeAttributeByOutlineId" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_template where outline_id = #{id}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeAttributeByOutlineIds" parameterType="Long">
+        delete from t_csys_teaching_programme_template where outline_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

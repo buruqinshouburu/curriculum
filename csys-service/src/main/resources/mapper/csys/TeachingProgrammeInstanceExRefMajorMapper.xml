@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingProgrammeInstanceExRefMajorMapper">
+
+    <resultMap type="TeachingProgrammeInstanceExRefMajor" id="TeachingProgrammeInstanceExRefMajorResult">
+            <result property="extractId" column="extract_id"/>
+            <result property="majorId" column="major_id"/>
+    </resultMap>
+
+    <sql id="selectTeachingProgrammeInstanceExRefMajorVo">
+        select extract_id, major_id
+        from t_csys_teaching_programme_instance_ex_ref_major
+    </sql>
+
+    <select id="selectTeachingProgrammeInstanceExRefMajorList" parameterType="TeachingProgrammeInstanceExRefMajor" resultMap="TeachingProgrammeInstanceExRefMajorResult">
+        <include refid="selectTeachingProgrammeInstanceExRefMajorVo"/>
+        <where>
+                        <if test="extractId != null ">
+                            and extract_id = #{extractId}
+                        </if>
+                        <if test="majorId != null ">
+                            and major_id = #{majorId}
+                        </if>
+        </where>
+    </select>
+
+    <select id="selectTeachingProgrammeInstanceExRefMajorByExtractId" parameterType="Long"
+            resultMap="TeachingProgrammeInstanceExRefMajorResult">
+            <include refid="selectTeachingProgrammeInstanceExRefMajorVo"/>
+            where extract_id = #{extractId}
+    </select>
+
+    <insert id="insertTeachingProgrammeInstanceExRefMajor" parameterType="TeachingProgrammeInstanceExRefMajor">
+        insert into t_csys_teaching_programme_instance_ex_ref_major
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="extractId != null">extract_id,
+                    </if>
+                    <if test="majorId != null">major_id,
+                    </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="extractId != null">#{extractId},
+                    </if>
+                    <if test="majorId != null">#{majorId},
+                    </if>
+        </trim>
+    </insert>
+
+    <update id="updateTeachingProgrammeInstanceExRefMajor" parameterType="TeachingProgrammeInstanceExRefMajor">
+        update t_csys_teaching_programme_instance_ex_ref_major
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="majorId != null">major_id =
+                        #{majorId},
+                    </if>
+        </trim>
+        where extract_id = #{extractId}
+    </update>
+
+    <delete id="deleteTeachingProgrammeInstanceExRefMajorByExtractId" parameterType="Long">
+        delete
+        from t_csys_teaching_programme_instance_ex_ref_major where extract_id = #{extractId}
+    </delete>
+
+    <delete id="deleteTeachingProgrammeInstanceExRefMajorByExtractIds" parameterType="String">
+        delete from t_csys_teaching_programme_instance_ex_ref_major where extract_id in
+        <foreach item="extractId" collection="array" open="(" separator="," close=")">
+            #{extractId}
+        </foreach>
+    </delete>
+</mapper>

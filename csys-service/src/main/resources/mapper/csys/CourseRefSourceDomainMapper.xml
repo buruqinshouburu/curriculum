@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseRefSourceDomainMapper">
+
+    <resultMap type="CourseRefSourceDomain" id="CourseRefSourceDomainResult">
+            <result property="courseId" column="course_id"/>
+            <result property="domainId" column="domain_id"/>
+            <result property="collegeId" column="college_Id"/>
+            <result property="categoryId" column="category_Id"/>
+            <result property="majorId" column="major_Id"/>
+            <result property="courseTargetId" column="course_target_Id"/>
+    </resultMap>
+
+    <sql id="selectCourseRefSourceDomainVo">
+        select course_id, domain_id,college_Id,category_Id,major_Id,course_target_Id
+        from t_csys_course_ref_source_domain
+    </sql>
+
+    <select id="selectCourseRefSourceDomainList" parameterType="CourseRefSourceDomain" resultMap="CourseRefSourceDomainResult">
+        <include refid="selectCourseRefSourceDomainVo"/>
+        <where>
+                        <if test="courseId != null ">
+                            and course_id = #{courseId}
+                        </if>
+                        <if test="domainId != null ">
+                            and domain_id = #{domainId}
+                        </if>
+            <if test="collegeId != null ">
+                and college_Id = #{collegeId}
+            </if>
+            <if test="categoryId != null ">
+                and category_Id = #{categoryId}
+            </if>
+            <if test="majorId != null ">
+                and major_Id = #{majorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectCourseRefSourceDomainByCourseId" parameterType="Long"
+            resultMap="CourseRefSourceDomainResult">
+            <include refid="selectCourseRefSourceDomainVo"/>
+            where course_id = #{courseId}
+    </select>
+
+    <select id="selectCourseRefSourceDomainByDomainId" parameterType="Long"
+            resultMap="CourseRefSourceDomainResult">
+        <include refid="selectCourseRefSourceDomainVo"/>
+        where domain_id = #{domainId}
+    </select>
+
+    <insert id="insertCourseRefSourceDomain" parameterType="CourseRefSourceDomain">
+        insert into t_csys_course_ref_source_domain
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">course_id,
+                    </if>
+                    <if test="domainId != null">domain_id,
+                    </if>
+            <if test="collegeId != null">college_Id,
+            </if>
+            <if test="categoryId != null">category_Id,
+            </if>
+            <if test="majorId != null">major_Id,
+            </if>
+
+            <if test="courseTargetId != null">course_target_Id,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="courseId != null">#{courseId},
+                    </if>
+                    <if test="domainId != null">#{domainId},
+                    </if>
+            <if test="collegeId != null">#{collegeId},
+            </if>
+            <if test="categoryId != null">#{categoryId},
+            </if>
+            <if test="majorId != null">#{majorId},
+            </if>
+            <if test="courseTargetId != null">#{courseTargetId},
+            </if>
+
+        </trim>
+    </insert>
+
+    <update id="updateCourseRefSourceDomain" parameterType="CourseRefSourceDomain">
+        update t_csys_course_ref_source_domain
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="domainId != null">domain_id =
+                        #{domainId},
+                    </if>
+        </trim>
+        where course_id = #{courseId}
+    </update>
+
+    <delete id="deleteCourseRefSourceDomainByCourseId" parameterType="Long">
+        delete
+        from t_csys_course_ref_source_domain where course_id = #{courseId}
+        <if test="courseTargetId != null ">
+            and course_Target_Id = #{courseTargetId}
+        </if>
+        <if test="collegeId != null ">
+            and college_Id = #{collegeId}
+        </if>
+        <if test="categoryId != null ">
+            and category_Id = #{categoryId}
+        </if>
+        <if test="majorId != null ">
+            and major_Id = #{majorId}
+        </if>
+
+    </delete>
+
+    <delete id="deleteCourseRefSourceDomainByCourseIds" parameterType="String">
+        delete from t_csys_course_ref_source_domain where course_id in
+        <foreach item="courseId" collection="array" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </delete>
+
+    <select id="selectCourseTargetRefSourceDomainByCourseIds" resultType="com.doinner.csys.domain.CourseRefSourceDomain">
+        <include refid="selectCourseRefSourceDomainVo"/>
+        where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
+    <insert id="insertCourseUnitRefSourceDomainList">
+        insert into t_csys_course_ref_source_domain (course_id, domain_id, course_target_id,
+        college_Id, category_Id, major_Id
+        )
+        values
+        <foreach collection="courseTargetRefDomainList" item="ref" separator=",">
+            (#{ref.courseId,jdbcType=BIGINT}, #{ref.domainId,jdbcType=BIGINT}, #{ref.courseTargetId,jdbcType=BIGINT},
+            #{ref.collegeId,jdbcType=BIGINT}, #{ref.categoryId,jdbcType=BIGINT}, #{ref.majorId,jdbcType=BIGINT}
+            )
+        </foreach>
+    </insert>
+</mapper>

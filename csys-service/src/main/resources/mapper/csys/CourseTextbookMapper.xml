@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseTextbookMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseTextbook" id="CourseTextbookResult">
+        <result property="id"    column="id"    />
+        <result property="courseId"    column="course_id"    />
+        <result property="name"    column="name"    />
+        <result property="type"    column="type"    />
+        <result property="author"    column="author"    />
+        <result property="pressName"    column="press_name"    />
+        <result property="pressVersion"    column="press_version"    />
+        <result property="pressTime"    column="press_time"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="creator"    column="creator"    />
+        <result property="lastModifiedTime"    column="last_modified_time"    />
+        <result property="lastModifier"    column="last_modifier"    />
+        <result property="remark"    column="remark"    />
+        <result property="sysflag"    column="sysflag"    />
+    </resultMap>
+
+    <sql id="selectCourseTextbookVo">
+        select id, course_id, name, type, author, press_name, press_version, press_time, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_course_textbook
+    </sql>
+
+    <select id="selectCourseTextbookList" parameterType="com.doinner.csys.domain.CourseTextbook" resultMap="CourseTextbookResult">
+        <include refid="selectCourseTextbookVo"/>
+        <where>
+            sysflag = "0"
+            <if test="courseId != null "> and course_id = #{courseId}</if>
+            <if test="name != null  and name != ''"> and name like concat('%', #{name}, '%')</if>
+            <if test="type != null "> and type = #{type}</if>
+            <if test="author != null  and author != ''"> and author = #{author}</if>
+            <if test="pressName != null  and pressName != ''"> and press_name like concat('%', #{pressName}, '%')</if>
+            <if test="pressVersion != null  and pressVersion != ''"> and press_version = #{pressVersion}</if>
+            <if test="pressTime != null  and pressTime != ''"> and press_time = #{pressTime}</if>
+        </where>
+        order by id asc
+    </select>
+
+    <select id="selectCourseTextbookById" parameterType="Long" resultMap="CourseTextbookResult">
+        <include refid="selectCourseTextbookVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertCourseTextbook" parameterType="com.doinner.csys.domain.CourseTextbook" useGeneratedKeys="true" keyProperty="id">
+        insert into t_csys_course_textbook
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">course_id,</if>
+            <if test="name != null and name != ''">name,</if>
+            <if test="type != null">type,</if>
+            <if test="author != null">author,</if>
+            <if test="pressName != null">press_name,</if>
+            <if test="pressVersion != null">press_version,</if>
+            <if test="pressTime != null">press_time,</if>
+            <if test="creator != null">creator,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null and sysflag != ''">sysflag,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="courseId != null">#{courseId},</if>
+            <if test="name != null and name != ''">#{name},</if>
+            <if test="type != null">#{type},</if>
+            <if test="author != null">#{author},</if>
+            <if test="pressName != null">#{pressName},</if>
+            <if test="pressVersion != null">#{pressVersion},</if>
+            <if test="pressTime != null">#{pressTime},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
+         </trim>
+    </insert>
+
+    <insert id="insertCourseTextbooks" parameterType="com.doinner.csys.domain.CourseTextbook" useGeneratedKeys="true" keyProperty="courseTextbookList.id">
+        insert into t_csys_course_textbook (course_id,name,type,author,press_name,press_version,press_time,creator,last_modifier,remark) values
+        <foreach collection="courseTextbookList" item="courseTextbook" separator=",">
+            (
+                #{courseTextbook.courseId},
+                #{courseTextbook.name},
+                #{courseTextbook.type},
+                #{courseTextbook.author},
+                #{courseTextbook.pressName},
+                #{courseTextbook.pressVersion},
+                #{courseTextbook.pressTime},
+                #{courseTextbook.creator},
+                #{courseTextbook.lastModifier},
+                #{courseTextbook.remark}
+            )
+        </foreach>
+
+    </insert>
+
+    <update id="updateCourseTextbook" parameterType="com.doinner.csys.domain.CourseTextbook">
+        update t_csys_course_textbook
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="courseId != null">course_id = #{courseId},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="author != null">author = #{author},</if>
+            <if test="pressName != null">press_name = #{pressName},</if>
+            <if test="pressVersion != null">press_version = #{pressVersion},</if>
+            <if test="pressTime != null">press_time = #{pressTime},</if>
+            <if test="creator != null">creator = #{creator},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null and sysflag != ''">sysflag = #{sysflag},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCourseTextbookById" parameterType="Long">
+        update t_csys_course_textbook set sysflag = "2" where id = #{id}
+    </delete>
+
+    <delete id="deleteCourseTextbookByCourseId" parameterType="Long">
+        update t_csys_course_textbook set sysflag = "2" where course_id = #{courseId}
+    </delete>
+
+    <delete id="deleteCourseTextbookByIds" parameterType="java.util.List">
+        update t_csys_course_textbook set sysflag = "2" where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

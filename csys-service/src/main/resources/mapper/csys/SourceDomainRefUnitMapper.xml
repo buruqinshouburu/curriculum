@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.SourceDomainRefUnitMapper">
+
+    <resultMap type="SourceDomainRefUnit" id="SourceDomainRefUnitResult">
+            <result property="domainId" column="domain_id"/>
+            <result property="unitId" column="unit_id"/>
+    </resultMap>
+
+    <sql id="selectSourceDomainRefUnitVo">
+        select domain_id, unit_id
+        from t_csys_source_domain_ref_unit
+    </sql>
+
+    <select id="selectSourceDomainRefUnitList" parameterType="SourceDomainRefUnit" resultMap="SourceDomainRefUnitResult">
+        <include refid="selectSourceDomainRefUnitVo"/>
+        <where>
+                        <if test="domainId != null ">
+                            and domain_id = #{domainId}
+                        </if>
+                        <if test="unitId != null ">
+                            and unit_id = #{unitId}
+                        </if>
+        </where>
+    </select>
+
+    <select id="selectSourceDomainRefUnitByDomainId" parameterType="Long"
+            resultMap="SourceDomainRefUnitResult">
+            <include refid="selectSourceDomainRefUnitVo"/>
+            where domain_id = #{domainId}
+    </select>
+
+    <insert id="insertSourceDomainRefUnit" parameterType="SourceDomainRefUnit">
+        insert into t_csys_source_domain_ref_unit
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+                    <if test="domainId != null">domain_id,
+                    </if>
+                    <if test="unitId != null">unit_id,
+                    </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+                    <if test="domainId != null">#{domainId},
+                    </if>
+                    <if test="unitId != null">#{unitId},
+                    </if>
+        </trim>
+    </insert>
+
+    <update id="updateSourceDomainRefUnit" parameterType="SourceDomainRefUnit">
+        update t_csys_source_domain_ref_unit
+        <trim prefix="SET" suffixOverrides=",">
+                    <if test="unitId != null">unit_id =
+                        #{unitId},
+                    </if>
+        </trim>
+        where domain_id = #{domainId}
+    </update>
+
+    <delete id="deleteSourceDomainRefUnitByDomainId" parameterType="Long">
+        delete
+        from t_csys_source_domain_ref_unit where domain_id = #{domainId}
+    </delete>
+
+    <delete id="deleteSourceDomainRefUnitByDomainIds" parameterType="Long">
+        delete from t_csys_source_domain_ref_unit where domain_id in
+        <foreach item="domainId" collection="array" open="(" separator="," close=")">
+            #{domainId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteSourceDomainRefUnitByUnitIds" parameterType="Long">
+        delete from t_csys_source_domain_ref_unit where unit_id in
+        <foreach item="unitId" collection="array" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+
+    <select id="totalUnitByDomainId" resultType="java.lang.Long">
+        SELECT unit_id
+        FROM t_csys_source_domain_ref_unit sru
+                 left join t_csys_source_unit su
+                           on sru.unit_id = su.id
+        where    su.sysflag = 0
+          and  sru.domain_id = #{domainId}
+
+    </select>
+</mapper>
