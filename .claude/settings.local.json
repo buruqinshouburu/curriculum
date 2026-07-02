@@ -156,7 +156,24 @@
       "Bash(mkdir -p E:/work/新建文件夹/20260701/更新包_20260701_092133/csys-service/src/main/java/com/doinner/csys/service/impl/)",
       "Bash(cp E:/work/csys/curriculum/csys-service/src/main/java/com/doinner/csys/service/impl/CommonServiceImpl.java E:/work/新建文件夹/20260701/更新包_20260701_092133/csys-service/src/main/java/com/doinner/csys/service/impl/CommonServiceImpl.java)",
       "Bash(claude --version)",
-      "Bash(npm view *)"
+      "Bash(npm view *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(mvn -q exec:java)",
+      "Bash(mkdir -p /e/work/新建文件夹/20260702/更新包_20260702_120507)",
+      "Bash(cp __TRACKED_VAR__/csys-service/src/main/java/com/doinner/csys/entity/csys/model/CellWidth.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys/model/CellWidth.java)",
+      "Bash(cp __TRACKED_VAR__/csys-service/src/main/java/com/doinner/csys/utils/WordUtil.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/utils/WordUtil.java)",
+      "Bash(cp __TRACKED_VAR__/csys-service/src/main/java/com/doinner/csys/entity/csys/TrainingPlanGenerator.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys/TrainingPlanGenerator.java)",
+      "Bash(cp __TRACKED_VAR__/csys-service/src/main/java/com/doinner/csys/entity/csys/FiveYearTrainingPlanGenerator.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys/FiveYearTrainingPlanGenerator.java)",
+      "Read(//e/work/新建文件夹//**)",
+      "Bash(mkdir -p \"/e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys/model\")",
+      "Bash(mkdir -p /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/utils)",
+      "Bash(mkdir -p /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys)",
+      "Bash(cp /e/work/csys/curriculum/csys-service/src/main/java/com/doinner/csys/entity/csys/model/CellWidth.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys/model/CellWidth.java)",
+      "Bash(cp /e/work/csys/curriculum/csys-service/src/main/java/com/doinner/csys/utils/WordUtil.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/utils/WordUtil.java)",
+      "Bash(cp /e/work/csys/curriculum/csys-service/src/main/java/com/doinner/csys/entity/csys/TrainingPlanGenerator.java /e/work/新建文件夹/20260702/更新包_20260702_120507/csys-service/src/main/java/com/doinner/csys/entity/csys/TrainingPlanGenerator.java)",
+      "Skill(update-config)",
+      "Bash(python3 *)",
+      "Bash(mvn -q compile exec:java -e)"
     ]
   }
 }

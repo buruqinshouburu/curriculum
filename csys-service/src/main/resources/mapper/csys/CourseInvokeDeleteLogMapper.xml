@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseInvokeDeleteLogMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseInvokeDeleteLog" id="CourseInvokeDeleteLogResult">
+        <result property="id" column="id"/>
+        <result property="deleteBatchId" column="delete_batch_id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="courseName" column="course_name"/>
+        <result property="courseCode" column="course_code"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="schemeId" column="scheme_id"/>
+        <result property="templateType" column="template_type"/>
+        <result property="majorId" column="major_id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="version" column="version"/>
+        <result property="operator" column="operator"/>
+        <result property="operationTime" column="operation_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <insert id="insertBatch">
+        insert into t_csys_course_invoke_delete_log
+        (delete_batch_id, course_id, course_name, course_code, source_id, scheme_id,
+         template_type, major_id, category_id, version, operator, operation_time, remark)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.deleteBatchId}, #{item.courseId}, #{item.courseName}, #{item.courseCode}, #{item.sourceId}, #{item.schemeId},
+             #{item.templateType}, #{item.majorId}, #{item.categoryId}, #{item.version}, #{item.operator},
+             #{item.operationTime}, #{item.remark})
+        </foreach>
+    </insert>
+
+</mapper>
