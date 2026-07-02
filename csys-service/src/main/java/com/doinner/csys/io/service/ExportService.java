@@ -44,4 +44,12 @@ public interface ExportService {
      * @return 导出数据集合
      */
     List<GraduationExcelVo> buildGraduationExcelVos(List<Long> ids);
+
+    /**
+     * 导出知识单元知识点(课程名称/知识单元/知识点, 课程与单元列做单元格合并)
+     *
+     * @param response  响应
+     * @param courseIds 课程id集合
+     */
+    void exportCourseKnowledge(HttpServletResponse response, List<Long> courseIds);
 }

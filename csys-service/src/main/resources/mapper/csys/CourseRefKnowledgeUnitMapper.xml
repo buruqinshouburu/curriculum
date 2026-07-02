@@ -34,4 +34,24 @@
             ( #{item.courseId},#{item.courseUnitId} )
         </foreach>
     </insert>
+
+    <!-- 按课程id集合查询「课程-知识单元-知识点」扁平行(导出用) -->
+    <select id="selectExportRowsByCourseIds"
+            resultType="com.doinner.csys.domain.vo.CourseKnowledgeExportRow">
+        SELECT c.id   AS courseId,
+               c.name AS courseName,
+               ku.id   AS unitId,
+               ku.name AS unitName,
+               kp.id   AS pointId,
+               kp.name AS pointName
+        FROM t_csys_course c
+        INNER JOIN t_csys_course_ref_knowledge_unit crk ON crk.course_id = c.id
+        INNER JOIN t_csys_course_knowledge_unit ku ON ku.id = crk.course_unit_id
+        LEFT JOIN t_csys_course_knowledge_point kp ON kp.unit_id = ku.id
+        WHERE c.id IN
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        ORDER BY c.id, ku.sort, ku.id, kp.sort, kp.id
+    </select>
 </mapper>

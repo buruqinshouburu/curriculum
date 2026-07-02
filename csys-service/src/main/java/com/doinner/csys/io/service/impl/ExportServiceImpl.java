@@ -85,6 +85,8 @@ public class ExportServiceImpl implements ExportService {
     private StandardMajorMapper standardMajorMapper;
     @Resource
     private TrainingSchemeCategoryMapper trainingSchemeCategoryMapper;
+    @Resource
+    private CourseRefKnowledgeUnitMapper courseRefKnowledgeUnitMapper;
 
     @Override
     public List<CourseExportVo> courseExportConvert(List<Long> courseIds) {
@@ -498,6 +500,79 @@ public class ExportServiceImpl implements ExportService {
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    @Override
+    public void exportCourseKnowledge(HttpServletResponse response, List<Long> courseIds) {
+        List<CourseKnowledgeExportRow> rows = courseRefKnowledgeUnitMapper.selectExportRowsByCourseIds(courseIds);
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet("知识单元知识点");
+            String[] headers = {"课程名称", "知识单元", "知识点"};
+            XSSFCellStyle headStyle = buildHeadStyle(workbook);
+            XSSFCellStyle bodyStyle = buildBodyStyle(workbook);
+
+            // 表头
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headStyle);
+            }
+
+            // 数据行
+            for (int i = 0; i < rows.size(); i++) {
+                CourseKnowledgeExportRow r = rows.get(i);
+                Row row = sheet.createRow(i + 1);
+                setCell(row, 0, r.getCourseName(), bodyStyle);
+                setCell(row, 1, r.getUnitName(), bodyStyle);
+                setCell(row, 2, r.getPointName(), bodyStyle);
+            }
+
+            // 第一列(课程名称) 按 courseId 连续合并
+            List<Long> courseKeys = rows.stream().map(CourseKnowledgeExportRow::getCourseId).collect(Collectors.toList());
+            mergeConsecutiveByKey(sheet, 0, courseKeys);
+            // 第二列(知识单元) 按 unitId 连续合并
+            List<Long> unitKeys = rows.stream().map(CourseKnowledgeExportRow::getUnitId).collect(Collectors.toList());
+            mergeConsecutiveByKey(sheet, 1, unitKeys);
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            sheet.setColumnWidth(0, 30 * 256);
+            sheet.setColumnWidth(1, 30 * 256);
+            sheet.setColumnWidth(2, 50 * 256);
+            //冻结表头
+            sheet.createFreezePane(0, 1);
+
+            workbook.write(response.getOutputStream());
+            response.getOutputStream().flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    /**
+     * 按分组键列表对指定列做连续行合并: 连续相同且非 null 的 key 合并为一个区域。
+     * 行号 +1 偏移表头行(与毕业要求导出一致)。
+     */
+    private void mergeConsecutiveByKey(Sheet sheet, int col, List<Long> keys) {
+        if (CollectionUtils.isEmpty(keys)) {
+            return;
+        }
+        int start = 0;
+        for (int i = 1; i <= keys.size(); i++) {
+            Long cur = i < keys.size() ? keys.get(i) : null;
+            Long seg = keys.get(start);
+            boolean same = cur != null && seg != null && Objects.equals(cur, seg);
+            if (!same) {
+                int end = i - 1;
+                if (end > start && seg != null) {
+                    sheet.addMergedRegion(new CellRangeAddress(start + 1, end + 1, col, col));
+                }
+                start = i;
+            }
         }
     }
 

@@ -10,6 +10,9 @@ public class CourseExcelVo {
     @Excel(name = "*课程名称")
     private String name;
 
+    @Excel(name = "*课程编号")
+    private String code;
+
     /**
      *  培养层次
      */
@@ -219,5 +222,13 @@ public class CourseExcelVo {
 
     public void setEducationLevel(String educationLevel) {
         this.educationLevel = educationLevel;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
 }

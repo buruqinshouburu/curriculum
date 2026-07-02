@@ -71,4 +71,6 @@ public interface StandardCultivationTargetMapper {
     List<StandardCultivationTarget> selectStdCultivationTargetAllByTrainingId(@Param("trainingSchemeId") Long trainingSchemeId);
 
     void deleteStandardCultivationTargetBySchemeId(Long schemeId);
+
+    List<StandardCultivationTarget> selectCultivationTargetBySchemeId(Long schemeId);
 }

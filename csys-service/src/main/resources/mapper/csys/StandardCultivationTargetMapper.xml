@@ -532,4 +532,10 @@
     <delete id="deleteStandardCultivationTargetBySchemeId">
         delete from t_csys_std_cultivation_target where training_scheme_id=#{schemeId}
     </delete>
+
+    <select id="selectCultivationTargetBySchemeId" resultMap="StandardCultivationTargetResult">
+        <include refid="selectStandardCultivationTargetVo"/>
+        WHERE ct.sysflag = 0 and ct.training_scheme_id=#{schemeId}
+        and ct.parent_id=-1
+    </select>
 </mapper>

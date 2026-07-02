@@ -566,6 +566,33 @@ CREATE TABLE `t_csys_training_scheme_week`  (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 29 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '修业时间分配情况' ROW_FORMAT = DYNAMIC;
 
+
+-- ----------------------------
+-- Table structure for t_csys_course_invoke_delete_log
+-- ----------------------------
+DROP TABLE IF EXISTS `t_csys_course_invoke_delete_log`;
+CREATE TABLE `t_csys_course_invoke_delete_log`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `delete_batch_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '删除批次ID，同一次删除操作的多条记录相同',
+  `course_id` bigint NULL DEFAULT NULL COMMENT '被删除的调用课程ID',
+  `course_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '被删除的课程名称',
+  `course_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '被删除的课程编号',
+  `source_id` bigint NULL DEFAULT NULL COMMENT '源课程ID',
+  `scheme_id` bigint NULL DEFAULT NULL COMMENT '所属培养方案ID',
+  `template_type` tinyint NULL DEFAULT NULL COMMENT '模板类型 1-总库课程 2-调用课程',
+  `major_id` bigint NULL DEFAULT NULL COMMENT '专业ID',
+  `category_id` bigint NULL DEFAULT NULL COMMENT '门类ID',
+  `version` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '版本',
+  `operator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '操作人',
+  `operation_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  `remark` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `course_id_index`(`course_id` ASC) USING BTREE,
+  INDEX `delete_batch_id_index`(`delete_batch_id` ASC) USING BTREE,
+  INDEX `source_id_index`(`source_id` ASC) USING BTREE,
+  INDEX `scheme_id_index`(`scheme_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '调用课程删除日志表' ROW_FORMAT = DYNAMIC;
+
 -- ----------------------------
 -- View structure for cc
 -- ----------------------------

@@ -95,5 +95,19 @@ public class ExportController {
         }
     }
 
+    @ApiOperation("知识单元知识点导出")
+    @PostMapping("/course/knowledge/export")
+    public void exportCourseKnowledge(HttpServletResponse response, @RequestBody List<Long> courseIds){
+        try {
+            response.setContentType("application/x-download");
+            String fileName = "知识单元知识点.xlsx";
+            response.setHeader("Content-disposition","attachment;filename*=UTF-8''" + URLEncoder.encode(fileName, "utf-8"));
+            exportService.exportCourseKnowledge(response, courseIds);
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
 
 }

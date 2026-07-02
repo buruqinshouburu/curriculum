@@ -1447,7 +1447,7 @@ public class TrainingServiceImpl implements TrainingService {
         }
         //根据专业查找培养目标
         List<StandardCultivationTarget> standardCultivationTargetList = new ArrayList<>();
-        List<StandardCultivationTarget> standardCultivationTargets = standardCultivationTargetMapper.selectCultivationTargetByMajorId(trainingSchemeVo);
+        List<StandardCultivationTarget> standardCultivationTargets = standardCultivationTargetMapper.selectCultivationTargetBySchemeId(schemeId);
         //取第一个
         if (ObjectUtils.isNotEmpty(standardCultivationTargets)) {
             standardCultivationTargetList.addAll(standardCultivationTargetMapper.selectStdCultivationTargetAll(standardCultivationTargets.get(0).getId()));

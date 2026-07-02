@@ -78,5 +78,13 @@ public interface TrainingSchemeRefCourseMapper {
 
     int deleteTrainingSchemeRefCourseByCourseIds(@Param("ids") List<Long> ids);
 
+    /**
+     * 按课程id集合查询培养方案课程关联，用于根据调用课程反查所属培养方案
+     *
+     * @param ids 课程id集合
+     * @return 培养方案课程关联集合
+     */
+    List<TrainingSchemeRefCourse> selectByCourseIds(@Param("ids") List<Long> ids);
+
     List<TrainingSchemeRefCourse> selectTrainingSchemeRefCourseByTrainingSchemeVoIdAndCourseType(@Param("trainingCourseVo") TrainingCourseVo trainingCourseVo);
 }

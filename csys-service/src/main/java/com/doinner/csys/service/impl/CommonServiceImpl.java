@@ -46,9 +46,14 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -141,13 +146,83 @@ public class CommonServiceImpl implements CommonService {
 
     @Override
     public Page<StandardMajor> treeSubMajorList(StandardMajor standardMajor) {
-        List<StandardMajor> standardMajors = standardMajorMapper.selectStandardMajorAccurate(standardMajor);
-        if (CollectionUtils.isNotEmpty(standardMajors)){
-            List<StandardMajor> treeStandardMajors = TreeBuilderUtils.buildRootTree(standardMajors);
-            Page<StandardMajor> page = PaginationUtils.getPage(treeStandardMajors, standardMajor.getPageNum() == null ? 1 : standardMajor.getPageNum(), standardMajor.getPageSize() == null ? 20 : standardMajor.getPageSize());
-            return page;
+        List<StandardMajor> matched = standardMajorMapper.selectStandardMajorAccurate(standardMajor);
+        if (CollectionUtils.isEmpty(matched)) {
+            return new PageImpl<>(new ArrayList<>(), Pageable.unpaged(), 0);
         }
-        return new PageImpl<>(new ArrayList<>(), Pageable.unpaged(), 0);
+
+        boolean hasSearch = StringUtils.isNotBlank(standardMajor.getName())
+                || StringUtils.isNotBlank(standardMajor.getCode());
+
+        // 取查询条件中的范围过滤（去掉 name/code 搜索词），拉取范围内全部专业，
+        // 用于补齐命中节点的祖先和后代，保证树结构完整。
+        StandardMajor scopeQuery = new StandardMajor();
+        scopeQuery.setCollegeId(standardMajor.getCollegeId());
+        scopeQuery.setParentId(standardMajor.getParentId());
+        scopeQuery.setLevel(standardMajor.getLevel());
+        scopeQuery.setCategoryId(standardMajor.getCategoryId());
+        scopeQuery.setClassId(standardMajor.getClassId());
+        List<StandardMajor> allInScope = standardMajorMapper.selectStandardMajorAccurate(scopeQuery);
+        if (CollectionUtils.isEmpty(allInScope)) {
+            allInScope = matched;
+        }
+
+        Map<Long, StandardMajor> byId = new HashMap<>();
+        Map<Long, List<StandardMajor>> childrenByParent = new HashMap<>();
+        for (StandardMajor m : allInScope) {
+            byId.put(m.getId(), m);
+            childrenByParent.computeIfAbsent(m.getParentId(), k -> new ArrayList<>()).add(m);
+        }
+
+        Set<Long> keepIds = new HashSet<>();
+        if (!hasSearch) {
+            // 无搜索词：整棵树都参与构建
+            keepIds.addAll(byId.keySet());
+        } else {
+            Set<Long> matchedIds = matched.stream()
+                    .map(StandardMajor::getId)
+                    .collect(Collectors.toSet());
+            // 向上补齐祖先，使命中节点能挂到根
+            for (Long id : matchedIds) {
+                Long cur = id;
+                while (cur != null && keepIds.add(cur)) {
+                    StandardMajor curNode = byId.get(cur);
+                    if (curNode == null) {
+                        break;
+                    }
+                    cur = curNode.getParentId();
+                }
+            }
+            // 向下补齐后代，使命中节点能展开子类
+            Deque<Long> stack = new ArrayDeque<>(matchedIds);
+            while (!stack.isEmpty()) {
+                Long cur = stack.pop();
+                List<StandardMajor> children = childrenByParent.get(cur);
+                if (children == null) {
+                    continue;
+                }
+                for (StandardMajor c : children) {
+                    if (keepIds.add(c.getId())) {
+                        stack.push(c.getId());
+                    }
+                }
+            }
+        }
+
+        List<StandardMajor> subset = new ArrayList<>();
+        for (StandardMajor m : allInScope) {
+            if (keepIds.contains(m.getId())) {
+                subset.add(m);
+            }
+        }
+
+        List<StandardMajor> treeStandardMajors = TreeBuilderUtils.buildRootTree(subset);
+        if (treeStandardMajors == null) {
+            treeStandardMajors = new ArrayList<>();
+        }
+        return PaginationUtils.getPage(treeStandardMajors,
+                standardMajor.getPageNum() == null ? 1 : standardMajor.getPageNum(),
+                standardMajor.getPageSize() == null ? 20 : standardMajor.getPageSize());
     }
 
     @Override

@@ -145,7 +145,18 @@
       "Read(//e/work/training-plan-test/**)",
       "Read(//e/work/training-plan-test/src/**)",
       "Bash(mvn -o -q compile exec:java -Dexec.mainClass=\"com.test.TrainingPlanTest\")",
-      "Bash(grep -vE \"^\\\\s*[0-9]+:\\\\s*//\")"
+      "Bash(grep -vE \"^\\\\s*[0-9]+:\\\\s*//\")",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(mkdir -p E:/work/新建文件夹/20260630/更新包_20260630_102333/csys-service-api/src/main/java/com/doinner/csys/domain)",
+      "Bash(mkdir -p E:/work/新建文件夹/20260630/更新包_20260630_102333/csys-service/src/main/java/com/doinner/csys/dao)",
+      "Bash(mkdir -p E:/work/新建文件夹/20260630/更新包_20260630_102333/csys-service/src/main/java/com/doinner/csys/service/impl)",
+      "Bash(mkdir -p E:/work/新建文件夹/20260630/更新包_20260630_102333/csys-service/src/main/resources/mapper/csys)",
+      "Bash(cp __TRACKED_VAR__/csys-service-api/src/main/java/com/doinner/csys/domain/CourseInvokeDeleteLog.java E:/work/新建文件夹/20260630/更新包_20260630_102333/csys-service-api/src/main/java/com/doinner/csys/domain/)",
+      "Bash(mkdir -p E:/work/新建文件夹/20260701/更新包_20260701_092133/csys-service/src/main/java/com/doinner/csys/service/impl/)",
+      "Bash(cp E:/work/csys/curriculum/csys-service/src/main/java/com/doinner/csys/service/impl/CommonServiceImpl.java E:/work/新建文件夹/20260701/更新包_20260701_092133/csys-service/src/main/java/com/doinner/csys/service/impl/CommonServiceImpl.java)",
+      "Bash(claude --version)",
+      "Bash(npm view *)"
     ]
   }
 }

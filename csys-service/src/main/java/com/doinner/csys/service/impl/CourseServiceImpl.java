@@ -5,6 +5,7 @@ import com.doinner.common.core.utils.PageUtils;
 import com.doinner.csys.constant.CourseConstant;
 import com.doinner.csys.dao.*;
 import com.doinner.csys.domain.Course;
+import com.doinner.csys.domain.CourseInvokeDeleteLog;
 import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TrainingSchemeRefCourse;
@@ -17,14 +18,18 @@ import com.doinner.csys.service.TrainingService;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.kg.domain.Dictionary;
 import com.doinner.kg.service.RemoteKgService;
+import com.doinner.common.security.utils.SecurityUtils;
+import com.doinner.system.domain.view.LoginUser;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,6 +57,9 @@ public class CourseServiceImpl implements CourseService {
     private RemoteKgService remoteKgService;
     @Resource
     private StandardGraduationMapper standardGraduationMapper;
+
+    @Resource
+    private CourseInvokeDeleteLogMapper courseInvokeDeleteLogMapper;
 
     @Resource
     private ExportService exportService;
@@ -86,6 +94,8 @@ public class CourseServiceImpl implements CourseService {
         for (Course course : courses) {
             UserUtils.checkDataPermission(course);
         }
+        //记录调用课程删除日志，便于追溯调用课程被删除的问题
+        recordInvokeCourseDeleteLog(courses);
         //删除关联知识单元
         courseRefKnowledgeUnitMapper.deleteByCourseIds(ids);
         //删除课程关联培养方案以及课表
@@ -93,6 +103,67 @@ public class CourseServiceImpl implements CourseService {
         trainingSchemeRefCourseMapper.deleteTrainingSchemeRefCourseByCourseIds(ids);
         //删除课程
         courseMapper.removeCourseByIds(ids);
+    }
+
+    /**
+     * 记录调用课程删除日志。
+     * 同一次删除操作共用一个 deleteBatchId，便于按批次回溯。
+     *
+     * @param courses 本次被删除的调用课程集合
+     */
+    private void recordInvokeCourseDeleteLog(List<Course> courses) {
+        if (CollectionUtils.isEmpty(courses)) {
+            return;
+        }
+        //按课程id反查所属培养方案，建立 courseId -> schemeId 映射
+        List<Long> courseIds = courses.stream().map(Course::getId).collect(Collectors.toList());
+        List<TrainingSchemeRefCourse> refCourses = trainingSchemeRefCourseMapper.selectByCourseIds(courseIds);
+        Map<Long, Long> courseIdToSchemeIdMap = new HashMap<>();
+        if (CollectionUtils.isNotEmpty(refCourses)) {
+            for (TrainingSchemeRefCourse refCourse : refCourses) {
+                courseIdToSchemeIdMap.put(refCourse.getCourseId(), refCourse.getSchemeId());
+            }
+        }
+        String operator = currentOperator();
+        LocalDateTime operationTime = LocalDateTime.now();
+        String deleteBatchId = UUID.randomUUID().toString().replace("-", "");
+        List<CourseInvokeDeleteLog> logs = new ArrayList<>();
+        for (Course course : courses) {
+            CourseInvokeDeleteLog log = new CourseInvokeDeleteLog();
+            log.setDeleteBatchId(deleteBatchId);
+            log.setCourseId(course.getId());
+            log.setCourseName(course.getName());
+            log.setCourseCode(course.getCode());
+            log.setSourceId(course.getSourceId());
+            log.setSchemeId(courseIdToSchemeIdMap.get(course.getId()));
+            log.setTemplateType(course.getTemplateType());
+            log.setMajorId(course.getMajorId());
+            log.setCategoryId(course.getCategoryId());
+            log.setVersion(course.getVersion());
+            log.setOperator(operator);
+            log.setOperationTime(operationTime);
+            log.setRemark("删除调用课程");
+            logs.add(log);
+        }
+        courseInvokeDeleteLogMapper.insertBatch(logs);
+    }
+
+    /**
+     * 获取当前操作人用户名，与 UserUtils 中的取值逻辑保持一致。
+     */
+    private String currentOperator() {
+        try {
+            String userName = SecurityUtils.getUsername();
+            if (StringUtils.isBlank(userName)) {
+                LoginUser loginUser = SecurityUtils.getLoginUser();
+                if (loginUser != null && StringUtils.isNotBlank(loginUser.getUsername())) {
+                    userName = loginUser.getUsername();
+                }
+            }
+            return userName;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

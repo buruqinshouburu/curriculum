@@ -109,6 +109,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </foreach>
     </delete>
 
+    <select id="selectByCourseIds" resultMap="TrainingSchemeRefCourseResult">
+        select scheme_id, course_id, id from t_csys_training_scheme_ref_course
+        where course_id in
+        <foreach item="courseId" collection="ids" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
     <select id="selectTrainingSchemeRefCourseByTrainingSchemeVoIdAndCourseType"
             resultMap="TrainingSchemeRefCourseResult">
         select tsrc.* from t_csys_training_scheme_ref_course tsrc

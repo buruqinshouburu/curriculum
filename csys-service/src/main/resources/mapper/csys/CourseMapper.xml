@@ -969,7 +969,7 @@
                #{educationLevel},
             </if>
             <if test="hasWork != null">
-                #{hasWork}
+                #{hasWork},
             </if>
             <if test="academicTermsNumber != null">
                 #{academicTermsNumber},
@@ -1521,6 +1521,7 @@
         tc.source_id source_id,
         tc.template_Type template_Type,
         tc.version version,
+        tc.has_Work,
         ku.id ku_id,
         ku.name ku_name,
         ku.init_level ku_init_level,
@@ -1742,6 +1743,7 @@
                tc.bind_Status            bind_Status,
                tc.max_quote_count,
                tc.education_Level,
+               tc.has_Work,
                tc.academic_terms_number as academicTermsNumber,
                tpp.id                    tpp_id,
                tpp.course_id             tpp_course_id,
