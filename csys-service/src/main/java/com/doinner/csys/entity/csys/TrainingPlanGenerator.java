@@ -501,8 +501,8 @@ TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 16; // 原始16列，删除第6列和第11列后实际13列
-        CellWidth cellWidth = new CellWidth(17);
+        int totalCols = 17; // 模块3+名称1+学分1+修读1+考核1+学时3+学期8 = 18单位，模块占3列故物理17列(原16+学分1)
+        CellWidth cellWidth = new CellWidth(19);
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -532,7 +532,6 @@ TrainingPlanGenerator {
                 if(DictContent.FOUR_LEVEL_NAME_NULL .equals(fourLevelName)){
                     for (int i = fourMoudleStart; i < fourMoudleEnd; i++) {
                         WordUtil.mergeCellsHorizontal(table, i, 0,  1);
-                        // deleteCol(table,i,15,15);
                     }
                 }else{
                     initCell=2;
@@ -544,7 +543,7 @@ TrainingPlanGenerator {
                     TrainingSchemeCourseModel course = courseModels.get(i);
                     // 设置课程数据行
                     int dataRowIndex = fourMoudleStart + i;
-                    setCourseDataRow(table, dataRowIndex, course,initCell,countModel,cellWidth);
+                    setCourseDataRow(table, dataRowIndex, course,initCell,countModel,cellWidth,2);
                 }
 
                 // 前进到下一个模块的起始行
@@ -558,9 +557,9 @@ TrainingPlanGenerator {
             WordUtil.mergeCellsVertical(table, 0, moduleRowStart,  moduleRowEnd.get() - 1);
 
         });
-        // 设置小计行
+        // 设置小计行（学时三列起始=7，学期起始=10）
         int totalRow = totalRows - 1;
-        setTotalRow(table, totalRow,countModel,4,7,cellWidth);
+        setTotalRow(table, totalRow,countModel,6,9,cellWidth);
         // deleteCol(table,totalRow,15,16);
 
         return table;
@@ -573,7 +572,7 @@ TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 14; //原始15列，删除第6列和第11列后实际13列
+        int totalCols = 15; // 名称1+学分1+修读1+考核1+学时3+学期8 = 15列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -594,12 +593,12 @@ TrainingPlanGenerator {
             TrainingSchemeCourseModel course = courses.get(i);
             // 设置课程数据行
             int dataRowIndex = dataRowStart + i;
-            setCourseDataRow(table, dataRowIndex, course,0,countModel, cellWidth);
+            setCourseDataRow(table, dataRowIndex, course,0,countModel, cellWidth,1);
         }
 
-        // 设置小计行
+        // 设置小计行（学时三列起始=4，学期起始=7）
         int totalRow = totalRows - 1;
-        setTotalRow(table, totalRow,countModel,2,5, cellWidth);
+        setTotalRow(table, totalRow,countModel,4,7, cellWidth);
 
         return table;
     }
@@ -612,7 +611,7 @@ TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows +couseMap.size();
-        int totalCols = 15; // 原始15列，删除第6列和第11列后实际13列
+        int totalCols = 16; // 专业方向1+名称1+学分1+修读1+考核1+学时3+学期8 = 16列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -637,15 +636,14 @@ TrainingPlanGenerator {
                 TrainingSchemeCourseModel course = courseModels.get(i);
                 // 设置课程数据行
                 int dataRowIndex = moduleRowStart + i;
-                setCourseDataRow(table, dataRowIndex, course,1,countModel, cellWidth);
+                setCourseDataRow(table, dataRowIndex, course,1,countModel, cellWidth,1);
             }
             XWPFTableRow row = table.getRow(moduleRowStart);
             XWPFTableCell cell1 = row.getCell(0);
             WordUtil.setCellText(cell1, majorName, false, "1134");
             WordUtil.mergeCellsVertical(table, 0, moduleRowStart,  moduleRowEnd - 1);
-            // 设置小计行
-            setTotalRow(table, moduleRowEnd,countModel,3,6, cellWidth);
-            // deleteCol(table,moduleRowEnd,14,15);
+            // 设置小计行（学时三列起始=5，学期起始=8）
+            setTotalRow(table, moduleRowEnd,countModel,5,8, cellWidth);
             dataRow.set(moduleRowEnd+1);
         });
         return table;
@@ -813,8 +811,10 @@ TrainingPlanGenerator {
      * 填充通识课程表格表头（3行）
      */
     protected void generateCourseHeader(XWPFTable table, CellWidth cellWidth) {
+        // 列布局(18列,塌缩后索引)：模块gs2(0) | 名称gs2(1) | 学分(2) | 修读(3) | 考核(4) | 学时gs3(5) | 学期gs8(6)
+        // poi 水平合并后单元格索引塌缩，后续 getCell 取塌缩后位置(沿用原表头写法)
         // ========== 表头第1行（行号0） ==========
-        // 列0：课程模块，跨行3行
+        // 列0：课程模块，跨行3行(模块表头gs3，沿用原塌缩后索引写法)
         setCellText(table.getRow(0).getCell(0), "课程模块", true, cellWidth.getCellWidth(3));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
         WordUtil.mergeCellsHorizontal(table, 0, 0, 1);
@@ -822,62 +822,58 @@ TrainingPlanGenerator {
         WordUtil.mergeCellsHorizontal(table, 2, 0, 1);
 
         // 列1：课程名称，跨行3行
-        setCellText(table.getRow(0).getCell(1), "课程名称", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(0).getCell(1), "课程名称", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 列2：修读要求，跨行3行
-        setCellText(table.getRow(0).getCell(2), "修读\n要求", true, cellWidth.getCellWidth(1));
+        // 学分，跨3行
+        setCellText(table.getRow(0).getCell(2), "学分", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        // 列3：考核方式，跨行3行
-        setCellText(table.getRow(0).getCell(3), "考核\n方式", true, cellWidth.getCellWidth(1));
+        // 修读要求，跨3行
+        setCellText(table.getRow(0).getCell(3), "修读\n要求", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        // 列4-6：学时安排，跨列3列（小计、讲授、实践）
-        setCellText(table.getRow(0).getCell(4), "学时安排", true, cellWidth.getCellWidth(3));
-        WordUtil.mergeCellsHorizontal(table, 0, 4, 6);
+        // 考核方式，跨3行
+        setCellText(table.getRow(0).getCell(4), "考核\n方式", true, cellWidth.getCellWidth(1));
+        WordUtil.mergeCellsVertical(table, 4, 0, 2);
 
-        // 列7-14：学期安排，跨列8列（4个学年，每个学年2个学期）
-        setCellText(table.getRow(0).getCell(5), "学期安排", true, cellWidth.getCellWidth(8));
-        WordUtil.mergeCellsHorizontal(table, 0, 5, 12);
+        // 学时安排，跨3列（小计、讲授、实践）
+        setCellText(table.getRow(0).getCell(5), "学时安排", true, cellWidth.getCellWidth(3));
+        WordUtil.mergeCellsHorizontal(table, 0, 5, 7);
+
+        // 学期安排，跨8列（4个学年，每个学年2个学期）
+        setCellText(table.getRow(0).getCell(6), "学期安排", true, cellWidth.getCellWidth(8));
+        WordUtil.mergeCellsHorizontal(table, 0, 6, 13);
 
         // ========== 表头第2行（行号1） ==========
-        // 列4-6：学时子项
-        setCellText(table.getRow(1).getCell(4), "小计", true, cellWidth.getCellWidth(1));
-        WordUtil.mergeCellsVertical(table, 4, 1, 2);
-        setCellText(table.getRow(1).getCell(5), "讲授", true, cellWidth.getCellWidth(1));
+        // 学时子项
+        setCellText(table.getRow(1).getCell(5), "小计", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 5, 1, 2);
-        setCellText(table.getRow(1).getCell(6), "实践", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(1).getCell(6), "讲授", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 6, 1, 2);
+        setCellText(table.getRow(1).getCell(7), "实践", true, cellWidth.getCellWidth(1));
+        WordUtil.mergeCellsVertical(table, 7, 1, 2);
 
-        // 列7-8：第一学年，跨列2列
-        setCellText(table.getRow(1).getCell(7), "第一学年", true, cellWidth.getCellWidth(2));
-        WordUtil.mergeCellsHorizontal(table, 1, 7, 8);
-        // 列9-10：第二学年，跨列2列
-        setCellText(table.getRow(1).getCell(8), "第二学年", true, cellWidth.getCellWidth(2));
+        // 第一~第四学年，每学年跨2列（塌缩后依次 8/9/10/11）
+        setCellText(table.getRow(1).getCell(8), "第一学年", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 8, 9);
-        // 列11-12：第三学年，跨列2列
-        setCellText(table.getRow(1).getCell(9), "第三学年", true, cellWidth.getCellWidth(2));
+        setCellText(table.getRow(1).getCell(9), "第二学年", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 9, 10);
-        // 列13-14：第四学年，跨列2列
-        setCellText(table.getRow(1).getCell(10), "第四学年", true, cellWidth.getCellWidth(2));
+        setCellText(table.getRow(1).getCell(10), "第三学年", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 10, 11);
+        setCellText(table.getRow(1).getCell(11), "第四学年", true, cellWidth.getCellWidth(2));
+        WordUtil.mergeCellsHorizontal(table, 1, 11, 12);
 
         // ========== 表头第3行（行号2） ==========
-        // 列7-14：学期子项（秋、春交替）
-        setCellText(table.getRow(2).getCell(7), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(8), "春", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(9), "秋", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(10), "春", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(11), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(12), "春", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(13), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(14), "春", true, cellWidth.getCellWidth(1));
-
-        // 删除第一行第二行多余的列
-        // deleteCol(table,0,6,15); // 删除第6列（索引5）
-        // deleteCol(table,1,11,15);// 删除第11列（索引10）
-        // deleteCol(table,2,15,15);// 删除第11列（索引10）
+        // 学期子项（秋、春交替，塌缩后依次 8~15）
+        setCellText(table.getRow(2).getCell(8), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(9), "春", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(10), "秋", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(11), "春", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(12), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(13), "春", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(14), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(15), "春", true, cellWidth.getCellWidth(1));
     }
 
     /**
@@ -893,57 +889,55 @@ TrainingPlanGenerator {
         setCellText(table.getRow(0).getCell(0), "课程名称", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
 
-        // 列2：修读要求，跨行3行
-        setCellText(table.getRow(0).getCell(1), "修读\n要求", true,  cellWidth.getCellWidth(1));
+        // 学分，跨3行
+        setCellText(table.getRow(0).getCell(1), "学分", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 列3：考核方式，跨行3行
-        setCellText(table.getRow(0).getCell(2), "考核\n方式", true,  cellWidth.getCellWidth(1));
+        // 修读要求，跨行3行
+        setCellText(table.getRow(0).getCell(2), "修读\n要求", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        // 列4-6：学时安排，跨列3列（小计、讲授、实践）
-        setCellText(table.getRow(0).getCell(3), "学时安排", true,  cellWidth.getCellWidth(3));
-        WordUtil.mergeCellsHorizontal(table, 0, 3, 5);
+        // 考核方式，跨行3行
+        setCellText(table.getRow(0).getCell(3), "考核\n方式", true,  cellWidth.getCellWidth(1));
+        WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        // 列7-14：学期安排，跨列8列（4个学年，每个学年2个学期）
-        setCellText(table.getRow(0).getCell(4), "学期安排", true,  cellWidth.getCellWidth(8));
-        WordUtil.mergeCellsHorizontal(table, 0, 4, 11);
+        // 学时安排，跨列3列（小计、讲授、实践）
+        setCellText(table.getRow(0).getCell(4), "学时安排", true,  cellWidth.getCellWidth(3));
+        WordUtil.mergeCellsHorizontal(table, 0, 4, 6);
+
+        // 学期安排，跨列8列（4个学年，每个学年2个学期）塌缩后从5起
+        setCellText(table.getRow(0).getCell(5), "学期安排", true,  cellWidth.getCellWidth(8));
+        WordUtil.mergeCellsHorizontal(table, 0, 5, 12);
 
         // ========== 表头第2行（行号1） ==========
-        // 列4-6：学时子项
-        setCellText(table.getRow(1).getCell(3), "小计", true,  cellWidth.getCellWidth(1));
-        WordUtil.mergeCellsVertical(table, 3, 1, 2);
-        setCellText(table.getRow(1).getCell(4), "讲授", true,  cellWidth.getCellWidth(1));
+        // 学时子项
+        setCellText(table.getRow(1).getCell(4), "小计", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 4, 1, 2);
-        setCellText(table.getRow(1).getCell(5), "实践", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(1).getCell(5), "讲授", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 5, 1, 2);
+        setCellText(table.getRow(1).getCell(6), "实践", true,  cellWidth.getCellWidth(1));
+        WordUtil.mergeCellsVertical(table, 6, 1, 2);
 
-        // 列7-8：第一学年，跨列2列
-        setCellText(table.getRow(1).getCell(6), "第一学年", true,  cellWidth.getCellWidth(2));
-        WordUtil.mergeCellsHorizontal(table, 1, 6, 7);
-        // 列9-10：第二学年，跨列2列
-        setCellText(table.getRow(1).getCell(7), "第二学年", true,  cellWidth.getCellWidth(2));
+        // 第一~第四学年，每学年跨2列（塌缩后依次 7/8/9/10）
+        setCellText(table.getRow(1).getCell(7), "第一学年", true,  cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 7, 8);
-        // 列11-12：第三学年，跨列2列
-        setCellText(table.getRow(1).getCell(8), "第三学年", true,  cellWidth.getCellWidth(2));
+        setCellText(table.getRow(1).getCell(8), "第二学年", true,  cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 8, 9);
-        // 列13-14：第四学年，跨列2列
-        setCellText(table.getRow(1).getCell(9), "第四学年", true,  cellWidth.getCellWidth(2));
+        setCellText(table.getRow(1).getCell(9), "第三学年", true,  cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 9, 10);
+        setCellText(table.getRow(1).getCell(10), "第四学年", true,  cellWidth.getCellWidth(2));
+        WordUtil.mergeCellsHorizontal(table, 1, 10, 11);
 
         // ========== 表头第3行（行号2） ==========
-        // 列7-14：学期子项（秋、春交替）
-        setCellText(table.getRow(2).getCell(6), "秋", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(7), "春", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(8), "秋", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(9), "春", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(10), "秋", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(11), "春", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(12), "秋", true,  cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(13), "春", true,  cellWidth.getCellWidth(1));
-        // 删除第一行第二行多余的列
-        // deleteCol(table,0,5,15); // 删除第6列（索引5）
-        // deleteCol(table,1,10,15);// 删除第11列（索引10）
+        // 学期子项（秋、春交替）
+        setCellText(table.getRow(2).getCell(7), "秋", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(8), "春", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(9), "秋", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(10), "春", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(11), "秋", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(12), "春", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(13), "秋", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(14), "春", true,  cellWidth.getCellWidth(1));
     }
     /**
      * 专业方向课程教学安排
@@ -952,67 +946,61 @@ TrainingPlanGenerator {
      * @param cellWidth
      */
     protected void majorCoursesHeader(XWPFTable table, CellWidth cellWidth) {
+        // 列布局(16列)：专业方向(0) | 名称(1) | 学分(2) | 修读(3) | 考核(4) | 学时(5-7) | 学期(8-15)
         // ========== 表头第1行（行号0） ==========
-        // 列0：课程模块，跨行3行
         setCellText(table.getRow(0).getCell(0), "专业方向", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
 
-        // 列1：课程名称，跨行3行
         setCellText(table.getRow(0).getCell(1), "课程名称", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 列2：修读要求，跨行3行
-        setCellText(table.getRow(0).getCell(2), "修读\n要求", true,  cellWidth.getCellWidth(1));
+        // 学分，跨3行
+        setCellText(table.getRow(0).getCell(2), "学分", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        // 列3：考核方式，跨行3行
-        setCellText(table.getRow(0).getCell(3), "考核\n方式", true,  cellWidth.getCellWidth(1));
+        setCellText(table.getRow(0).getCell(3), "修读\n要求", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        // 列4-6：学时安排，跨列3列（小计、讲授、实践）
-        setCellText(table.getRow(0).getCell(4), "学时安排", true,  cellWidth.getCellWidth(3));
-        WordUtil.mergeCellsHorizontal(table, 0, 4, 6);
+        setCellText(table.getRow(0).getCell(4), "考核\n方式", true,  cellWidth.getCellWidth(1));
+        WordUtil.mergeCellsVertical(table, 4, 0, 2);
 
-        // 列7-14：学期安排，跨列8列（4个学年，每个学年2个学期）
-        setCellText(table.getRow(0).getCell(5), "学期安排", true, cellWidth.getCellWidth(8));
-        WordUtil.mergeCellsHorizontal(table, 0, 5, 12);
+        // 学时安排，跨列3列（小计、讲授、实践）
+        setCellText(table.getRow(0).getCell(5), "学时安排", true,  cellWidth.getCellWidth(3));
+        WordUtil.mergeCellsHorizontal(table, 0, 5, 7);
+
+        // 学期安排，跨列8列（4个学年，每个学年2个学期）塌缩后从6起
+        setCellText(table.getRow(0).getCell(6), "学期安排", true, cellWidth.getCellWidth(8));
+        WordUtil.mergeCellsHorizontal(table, 0, 6, 13);
 
         // ========== 表头第2行（行号1） ==========
-        // 列4-6：学时子项
-        setCellText(table.getRow(1).getCell(4), "小计", true, cellWidth.getCellWidth(1));
-        WordUtil.mergeCellsVertical(table, 4, 1, 2);
-        setCellText(table.getRow(1).getCell(5), "讲授", true, cellWidth.getCellWidth(1));
+        // 学时子项
+        setCellText(table.getRow(1).getCell(5), "小计", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 5, 1, 2);
-        setCellText(table.getRow(1).getCell(6), "实践", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(1).getCell(6), "讲授", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 6, 1, 2);
+        setCellText(table.getRow(1).getCell(7), "实践", true, cellWidth.getCellWidth(1));
+        WordUtil.mergeCellsVertical(table, 7, 1, 2);
 
-        // 列7-8：第一学年，跨列2列
-        setCellText(table.getRow(1).getCell(7), "第一学年", true, cellWidth.getCellWidth(2));
-        WordUtil.mergeCellsHorizontal(table, 1, 7, 8);
-        // 列9-10：第二学年，跨列2列
-        setCellText(table.getRow(1).getCell(8), "第二学年", true, cellWidth.getCellWidth(2));
+        // 第一~第四学年，每学年跨2列（塌缩后依次 8/9/10/11）
+        setCellText(table.getRow(1).getCell(8), "第一学年", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 8, 9);
-        // 列11-12：第三学年，跨列2列
-        setCellText(table.getRow(1).getCell(9), "第三学年", true, cellWidth.getCellWidth(2));
+        setCellText(table.getRow(1).getCell(9), "第二学年", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 9, 10);
-        // 列13-14：第四学年，跨列2列
-        setCellText(table.getRow(1).getCell(10), "第四学年", true, cellWidth.getCellWidth(2));
+        setCellText(table.getRow(1).getCell(10), "第三学年", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsHorizontal(table, 1, 10, 11);
+        setCellText(table.getRow(1).getCell(11), "第四学年", true, cellWidth.getCellWidth(2));
+        WordUtil.mergeCellsHorizontal(table, 1, 11, 12);
 
         // ========== 表头第3行（行号2） ==========
-        // 列7-14：学期子项（秋、春交替）
-        setCellText(table.getRow(2).getCell(7), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(8), "春", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(9), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(10), "春", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(11), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(12), "春", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(13), "秋", true, cellWidth.getCellWidth(1));
-        setCellText(table.getRow(2).getCell(14), "春", true, cellWidth.getCellWidth(1));
-
-        // 删除第一行第二行多余的列
-        // deleteCol(table,0,6,15); // 删除第6列（索引5）
-        // deleteCol(table,1,11,15);// 删除第11列（索引10）
+        // 学期子项（秋、春交替）
+        setCellText(table.getRow(2).getCell(8), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(9), "春", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(10), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(11), "春", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(12), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(13), "春", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(14), "秋", true, cellWidth.getCellWidth(1));
+        setCellText(table.getRow(2).getCell(15), "春", true, cellWidth.getCellWidth(1));
     }
 
     private void practicalProjectCourseHeader(XWPFTable table, CellWidth cellWidth) {
@@ -1078,44 +1066,64 @@ TrainingPlanGenerator {
     /**
      * 设置课程数据行
      */
-    protected void setCourseDataRow(XWPFTable table, int rowIndex, TrainingSchemeCourseModel course, int initCell, CountModel countModel, CellWidth cellWidth) {
+    protected void setCourseDataRow(XWPFTable table, int rowIndex, TrainingSchemeCourseModel course, int initCell, CountModel countModel, CellWidth cellWidth,Integer nameSpan) {
+        setCourseDataRow(table, rowIndex, course, initCell, nameSpan, countModel, cellWidth);
+    }
+
+    /**
+     * 设置课程数据行
+     * @param nameSpan 课程名称占的物理列数(公共基础表为2，其余为1)。nameSpan>1时名称单元格横向合并。
+     * 说明：poi 水平合并会移除被合并单元格使索引塌缩；nameSpan=2合并后正好抵消多占的1列，
+     *       故无论 nameSpan 取1或2，后续单元格的"塌缩后索引"均为 initCell+1, initCell+2, ...
+     */
+    protected void setCourseDataRow(XWPFTable table, int rowIndex, TrainingSchemeCourseModel course, int initCell, int nameSpan, CountModel countModel, CellWidth cellWidth) {
         XWPFTableRow row = table.getRow(rowIndex);
 
-        // 列1：课程名称
+        // 课程名称
         XWPFTableCell cell1 = row.getCell(initCell);
-        WordUtil.setCellText(cell1, course.getName(), false,  cellWidth.getCellWidth(1));
+        WordUtil.setCellText(cell1, course.getName(), false,  cellWidth.getCellWidth(nameSpan));
+//        if (nameSpan > 1) {
+//            WordUtil.mergeCellsHorizontal(table, rowIndex, initCell, initCell + nameSpan - 1);
+//        }
 
-        // 列2：修读要求（B=必修，X=限选，R=任选）
-        XWPFTableCell cell2 = row.getCell(initCell+1);
+        // 学分（课程名称后，来源 course.getCredits()）
+        XWPFTableCell cellCredits = row.getCell(initCell+1);
+        WordUtil.setCellText(cellCredits, course.getCredits() != null ? course.getCredits().toString() : "", false,  cellWidth.getCellWidth(1));
+        double m_credits = countModel.getTotalCredits() == null ? 0 : countModel.getTotalCredits();
+        double c_credits = course.getCredits() == null ? 0 : course.getCredits();
+        countModel.setTotalCredits(m_credits+c_credits);
+
+        // 修读要求（B=必修，X=限选，R=任选）
+        XWPFTableCell cell2 = row.getCell(initCell+2);
         String attrText = getAttrText(course.getCourseAttr());
         WordUtil.setCellText(cell2, attrText, false,  cellWidth.getCellWidth(1));
 
-        // 列3：考核方式（S=考试，C=考查）
-        XWPFTableCell cell3 = row.getCell(initCell+2);
+        // 考核方式（S=考试，C=考查）
+        XWPFTableCell cell3 = row.getCell(initCell+3);
         String assessText = getAssessText(course.getExaMethod());
         WordUtil.setCellText(cell3, assessText, false,  cellWidth.getCellWidth(1));
 
-        // 列4：小计
-        XWPFTableCell cell4 = row.getCell(initCell+3);
+        // 小计
+        XWPFTableCell cell4 = row.getCell(initCell+4);
         WordUtil.setCellText(cell4, course.getHours() != null ? course.getHours().toString() : "", false,  cellWidth.getCellWidth(1));
         countModel.setTotalHours(countModel.getTotalHours()+course.getHours());
 
-        // 列5：讲授
-        XWPFTableCell cell5 = row.getCell(initCell+4);
+        // 讲授
+        XWPFTableCell cell5 = row.getCell(initCell+5);
         WordUtil.setCellText(cell5, course.getTeachHours() != null ? course.getTeachHours().toString() : "", false,  cellWidth.getCellWidth(1));
         double m_hours = countModel.getTeachHours() == null ? 0 : countModel.getTeachHours();
         double c_hours = course.getTeachHours() == null ? 0 : course.getTeachHours();
         countModel.setTeachHours(m_hours+c_hours);
 
-        // 列6：实践
-        XWPFTableCell cell6 = row.getCell(initCell+5);
+        // 实践
+        XWPFTableCell cell6 = row.getCell(initCell+6);
         WordUtil.setCellText(cell6, course.getPracticeHours() != null ? course.getPracticeHours().toString() : "", false,  cellWidth.getCellWidth(1));
         double m_practiceHours = countModel.getPracticeHours() == null ? 0 : countModel.getPracticeHours();
         double c_practiceHours = course.getPracticeHours() == null ? 0 : course.getPracticeHours();
         countModel.setPracticeHours(m_practiceHours+c_practiceHours);
 
-        // 列7-12：学期安排（在开课学期填写对应学时）
-        setTermCheckmarks(row, course,initCell+6,cellWidth,countModel);
+        // 学期安排（在开课学期填写对应学时）
+        setTermCheckmarks(row, course,initCell+7,cellWidth,countModel);
     }
 
 //    private void setGenerateCourseDataRow(XWPFTable table, int rowIndex, TrainingSchemeCourseModel course,int initCell) {
@@ -1212,28 +1220,38 @@ TrainingPlanGenerator {
      * 设置小计行
      *
      * @param dataCell       学时安排（小计/讲授/实践）三列的起始列
-     * @param termStartCell  学期安排8列的起始列，用于填写各学期总学时
+     * @param termStartCell  学期安排列的起始列，用于填写各学期总学时
+     * 说明：小计行为全新行(无先前合并)，按物理列绝对索引填文本，最后再合并标签区。
+     *       学分位于学时三列前一列(creditCol=dataCell-3)，修读/考核留空(默认空单元格)。
+     *       "小计"标签合并 0..creditCol-1(覆盖模块+名称等前缀列)：
+     *         公共基础 creditCol=3 → 合并0..2(模块+子模块+名称)
+     *         学科基础 creditCol=1 → 不合并(仅列0填"小计")
+     *         专业课程 creditCol=2 → 合并0..1(专业方向+名称)
      */
     protected void setTotalRow(XWPFTable table, int rowIndex, CountModel countModel, int dataCell, int termStartCell, CellWidth cellWidth) {
         XWPFTableRow row = table.getRow(rowIndex);
         int termCount = termColumnCount();
+        int creditCol = dataCell - 3;
 
-        // 列0：小计
-        XWPFTableCell cell0 = row.getCell(0);
-        WordUtil.setCellText(cell0, "小  计", true,  cellWidth.getCellWidth(3));
-        // 合并列0-3
-        WordUtil.mergeCellsHorizontal(table, rowIndex, 0, 1);
-        XWPFTableCell cell1 = row.getCell(dataCell);
-        WordUtil.setCellText(cell1, countModel.getTotalHours()+"", true,  cellWidth.getCellWidth(1));
-        XWPFTableCell cell2 = row.getCell(dataCell+1);
-        WordUtil.setCellText(cell2, countModel.getTeachHours()+"", true,  cellWidth.getCellWidth(1));
-        XWPFTableCell cell3 = row.getCell(dataCell+2);
-        WordUtil.setCellText(cell3, countModel.getPracticeHours()+"", true,  cellWidth.getCellWidth(1));
-
+        // 1) 先按物理列绝对索引填文本
+        // "小计"标签(宽度覆盖 0..creditCol-1)
+        WordUtil.setCellText(row.getCell(0), "小  计", true, cellWidth.getCellWidth(creditCol));
+        // 学分小计
+        WordUtil.setCellText(row.getCell(creditCol), countModel.getTotalCredits()+"", true, cellWidth.getCellWidth(1));
+        // 修读要求(creditCol+1)、考核方式(creditCol+2) 留空(默认空单元格，不填)
+        // 学时小计/讲授/实践
+        WordUtil.setCellText(row.getCell(dataCell), countModel.getTotalHours()+"", true, cellWidth.getCellWidth(1));
+        WordUtil.setCellText(row.getCell(dataCell+1), countModel.getTeachHours()+"", true, cellWidth.getCellWidth(1));
+        WordUtil.setCellText(row.getCell(dataCell+2), countModel.getPracticeHours()+"", true, cellWidth.getCellWidth(1));
         // 学期安排各列总学时
         Double[] termHours = countModel.getTermHours();
         for (int i = 0; i < termCount; i++) {
             WordUtil.setCellText(row.getCell(termStartCell + i), formatHours(termHours[i]), true, cellWidth.getCellWidth(1));
+        }
+
+        // 2) 最后合并"小计"标签区 0..creditCol-1(creditCol>1时才合并)
+        if (creditCol > 1) {
+            WordUtil.mergeCellsHorizontal(table, rowIndex, 0, creditCol - 1);
         }
     }
 

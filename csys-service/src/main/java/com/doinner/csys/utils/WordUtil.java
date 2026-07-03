@@ -182,7 +182,10 @@ public class WordUtil {
         if (style != null) {
             paragraph.setStyle(style);
         }
-        paragraph.getCTP().addNewPPr().addNewInd().setFirstLine(BigInteger.valueOf(720));
+        // 首行缩进2字符（firstLineChars=200）；同时给 firstLine=480twips(2×小四12pt) 作兼容回退
+        CTInd ind = paragraph.getCTP().addNewPPr().addNewInd();
+        ind.setFirstLineChars(BigInteger.valueOf(200));
+        ind.setFirstLine(BigInteger.valueOf(480));
         XWPFRun run = paragraph.createRun();
         run.setText(text);
         run.setFontSize(12);
@@ -206,13 +209,18 @@ public class WordUtil {
         if (ObjectUtils.isEmpty(firstCell)) {
             return;
         }
-        firstCell.getCTTc().addNewTcPr().addNewGridSpan().setVal(BigInteger.valueOf(endCol - startCol + 1));
+        // 复用已有 TcPr，避免 addNewTcPr 产生重复 TcPr 元素导致 Word 渲染异常
+        CTTcPr tcPr = firstCell.getCTTc().isSetTcPr() ? firstCell.getCTTc().getTcPr() : firstCell.getCTTc().addNewTcPr();
+        if (tcPr.isSetGridSpan()) {
+            tcPr.getGridSpan().setVal(BigInteger.valueOf(endCol - startCol + 1));
+        } else {
+            tcPr.addNewGridSpan().setVal(BigInteger.valueOf(endCol - startCol + 1));
+        }
         for (int i = endCol; i > startCol; i--) {
             table.getRow(rowIndex).removeCell(i);
         }
 
     }
-
 
     /**
      * 合并表格单元格（垂直合并）

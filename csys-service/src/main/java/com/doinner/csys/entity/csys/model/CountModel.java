@@ -11,6 +11,8 @@ public class CountModel {
     private Double optionalHours;
     private Double optionalCredit;
     private Double totalCredit;
+    //课程学分小计（公共基础/学科基础/专业课程表的学分列合计）
+    private Double totalCredits;
     //各学期对应的学时小计：0-7 对应第一学年秋季~第四学年春季，8-9 对应第五学年秋季/春季（五年制时使用）
     private Double[] termHours = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -79,6 +81,14 @@ public class CountModel {
         this.totalCredit= new BigDecimal(totalCredit).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
     }
 
+    public Double getTotalCredits() {
+        return totalCredits;
+    }
+
+    public void setTotalCredits(Double totalCredits) {
+        this.totalCredits = new BigDecimal(totalCredits).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue();
+    }
+
     public Double[] getTermHours() {
         return termHours;
     }
@@ -109,6 +119,7 @@ public class CountModel {
         this.optionalHours= 0.0;
         this.optionalCredit= 0.0;
         this.totalCredit= 0.0;
+        this.totalCredits= 0.0;
         for (int i = 0; i < this.termHours.length; i++) {
             this.termHours[i] = 0.0;
         }
