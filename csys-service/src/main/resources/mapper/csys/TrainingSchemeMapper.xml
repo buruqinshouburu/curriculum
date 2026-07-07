@@ -1639,4 +1639,12 @@
             </otherwise>
         </choose>
     </select>
+
+    <select id="selectTrainingSchemeCoursesByIdAndsubMajorId" resultMap="CourseResult">
+        <include refid="selectTrainingSchemeCourses"/>
+        where src.scheme_id = #{id}
+        <if test="subMajorId !=null and subMajorId != ''">
+            and (c.sub_major_id =#{subMajorId} or  c.sub_major_id is null)
+        </if>
+    </select>
 </mapper>

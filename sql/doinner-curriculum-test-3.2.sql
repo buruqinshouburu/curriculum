@@ -310,6 +310,7 @@ CREATE TABLE `t_csys_std_major`  (
   `college_id` bigint NULL DEFAULT NULL COMMENT '学院(college_id)',
   `category_id` bigint NULL DEFAULT NULL COMMENT '细门类id',
   `class_id` varchar(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '0' COMMENT '细分专业分类(0:未分类,1:技术类,2:指挥类,3:技术/技术类)',
+  `applicable_object` varchar(225) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '适用对象 字典表sys_education_level',
   `leaf` tinyint UNSIGNED NULL DEFAULT 1 COMMENT '是否叶子(leaf)',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间(create_time)',
   `creator` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建者(creator)',

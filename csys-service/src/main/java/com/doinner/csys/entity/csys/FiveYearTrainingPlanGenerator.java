@@ -47,7 +47,7 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 19; // 模块3+名称1+学分1+修读1+考核1+学时3+学期10 = 20单位，模块占3列故物理19列(原18+学分1)
+        int totalCols = 19; // 模块3+名称1+修读1+考核1+学分1+学时3+学期10 = 20单位，模块占3列故物理19列(原18+学分1)
         CellWidth cellWidth = new CellWidth(21);
 
         XWPFTable table = document.createTable(totalRows, totalCols);
@@ -114,7 +114,7 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
      */
     @Override
     protected void generateCourseHeader(XWPFTable table, CellWidth cellWidth) {
-        // 列布局(19列,塌缩后索引)：模块gs3(0)|名称(1)|学分(2)|修读(3)|考核(4)|学时gs3(5)|学期gs10(6)
+        // 列布局(19列,塌缩后索引)：模块gs3(0)|名称(1)|修读(2)|考核(3)|学分(4)|学时gs3(5)|学期gs10(6)
         // ========== 表头第1行（行号0） ==========
         // 课程模块，跨3行
         setCellText(table.getRow(0).getCell(0), "课程模块", true, cellWidth.getCellWidth(3));
@@ -127,16 +127,16 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
         setCellText(table.getRow(0).getCell(1), "课程名称", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 学分，跨3行
-        setCellText(table.getRow(0).getCell(2), "学分", true, cellWidth.getCellWidth(1));
+        // 修读要求，跨3行
+        setCellText(table.getRow(0).getCell(2), "修读\n要求", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        // 修读要求，跨3行
-        setCellText(table.getRow(0).getCell(3), "修读\n要求", true, cellWidth.getCellWidth(1));
+        // 考核方式，跨3行
+        setCellText(table.getRow(0).getCell(3), "考核\n方式", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        // 考核方式，跨3行
-        setCellText(table.getRow(0).getCell(4), "考核\n方式", true, cellWidth.getCellWidth(1));
+        // 学分，跨3行（位于考核方式之后）
+        setCellText(table.getRow(0).getCell(4), "学分", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 4, 0, 2);
 
         // 学时安排，跨3列
@@ -192,7 +192,7 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 17; // 名称1+学分1+修读1+考核1+学时3+学期10 = 17列
+        int totalCols = 17; // 名称1+修读1+考核1+学分1+学时3+学期10 = 17列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -227,19 +227,21 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
      */
     @Override
     protected void disciplineCoursesHeader(XWPFTable table, CellWidth cellWidth) {
-        // 列布局(17列)：名称(0) | 学分(1) | 修读(2) | 考核(3) | 学时(4-6) | 学期(7-16,10列)
+        // 列布局(17列)：名称(0) | 修读(1) | 考核(2) | 学分(3) | 学时(4-6) | 学期(7-16,10列)
         // ========== 表头第1行（行号0） ==========
         setCellText(table.getRow(0).getCell(0), "课程名称", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
 
-        // 学分，跨3行
-        setCellText(table.getRow(0).getCell(1), "学分", true, cellWidth.getCellWidth(1));
+        // 修读要求，跨3行
+        setCellText(table.getRow(0).getCell(1), "修读\n要求", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        setCellText(table.getRow(0).getCell(2), "修读\n要求", true, cellWidth.getCellWidth(1));
+        // 考核方式，跨3行
+        setCellText(table.getRow(0).getCell(2), "考核\n方式", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        setCellText(table.getRow(0).getCell(3), "考核\n方式", true, cellWidth.getCellWidth(1));
+        // 学分，跨3行（位于考核方式之后）
+        setCellText(table.getRow(0).getCell(3), "学分", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
         // 学时安排，跨3列
@@ -296,7 +298,7 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行（每个专业方向一个小计）
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + couseMap.size();
-        int totalCols = 18; // 专业方向1+名称1+学分1+修读1+考核1+学时3+学期10 = 18列
+        int totalCols = 18; // 专业方向1+名称1+修读1+考核1+学分1+学时3+学期10 = 18列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -337,7 +339,7 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
      */
     @Override
     protected void majorCoursesHeader(XWPFTable table, CellWidth cellWidth) {
-        // 列布局(18列)：专业方向(0) | 名称(1) | 学分(2) | 修读(3) | 考核(4) | 学时(5-7) | 学期(8-17,10列)
+        // 列布局(18列)：专业方向(0) | 名称(1) | 修读(2) | 考核(3) | 学分(4) | 学时(5-7) | 学期(8-17,10列)
         // ========== 表头第1行（行号0） ==========
         setCellText(table.getRow(0).getCell(0), "专业方向", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
@@ -345,14 +347,16 @@ public class FiveYearTrainingPlanGenerator extends TrainingPlanGenerator {
         setCellText(table.getRow(0).getCell(1), "课程名称", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 学分，跨3行
-        setCellText(table.getRow(0).getCell(2), "学分", true, cellWidth.getCellWidth(1));
+        // 修读要求，跨3行
+        setCellText(table.getRow(0).getCell(2), "修读\n要求", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        setCellText(table.getRow(0).getCell(3), "修读\n要求", true, cellWidth.getCellWidth(1));
+        // 考核方式，跨3行
+        setCellText(table.getRow(0).getCell(3), "考核\n方式", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        setCellText(table.getRow(0).getCell(4), "考核\n方式", true, cellWidth.getCellWidth(1));
+        // 学分，跨3行（位于考核方式之后）
+        setCellText(table.getRow(0).getCell(4), "学分", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 4, 0, 2);
 
         // 学时安排，跨3列

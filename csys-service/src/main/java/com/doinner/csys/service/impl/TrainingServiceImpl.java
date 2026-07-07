@@ -108,8 +108,8 @@ public class TrainingServiceImpl implements TrainingService {
 
 
     @Override
-    public List<TrainingSchemeCourseVo> selectTrainingSchemeCoursesById(Long id) {
-        return trainingSchemeMapper.selectTrainingSchemeCoursesById(id);
+    public List<TrainingSchemeCourseVo> selectTrainingSchemeCoursesById(Long id, Long subMajorId) {
+        return trainingSchemeMapper.selectTrainingSchemeCoursesByIdAndsubMajorId(id,subMajorId);
     }
 
     @Override

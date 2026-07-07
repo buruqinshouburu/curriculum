@@ -122,6 +122,9 @@
             <if test="creator != null  and creator != ''">
                 and tcs.creator = #{creator}
             </if>
+            <if test="subMajorId!=null and subMajorId!=''">
+                and (c.sub_Major_Id=#{subMajorId} or c.sub_Major_Id is null)
+            </if>
         </where>
     </select>
 

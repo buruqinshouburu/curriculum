@@ -12,9 +12,11 @@ public class TrainingCourseVo {
     private Long  majorId;
     private Long  collegeId;
     private String  courseModule;
+    private String  courseModuleChildren;
     private String  courseAttr;
     private Double  hours;
     private Double  credit;
+    private Long  subMajorId;
 
     /** 排序字段: 前端属性名 -> 数据库列名(列名与 selectCoursesByIdsWithSort 别名一致) */
     private static Map<String, String> propMapping = new HashMap<String, String>();
@@ -144,5 +146,21 @@ public class TrainingCourseVo {
 
     public void setOrder(String order) {
         this.order = order;
+    }
+
+    public Long getSubMajorId() {
+        return subMajorId;
+    }
+
+    public void setSubMajorId(Long subMajorId) {
+        this.subMajorId = subMajorId;
+    }
+
+    public String getCourseModuleChildren() {
+        return courseModuleChildren;
+    }
+
+    public void setCourseModuleChildren(String courseModuleChildren) {
+        this.courseModuleChildren = courseModuleChildren;
     }
 }

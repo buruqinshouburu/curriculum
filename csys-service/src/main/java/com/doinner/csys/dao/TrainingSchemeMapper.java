@@ -147,4 +147,6 @@ public interface TrainingSchemeMapper {
     void updateTrainingSchemeFileId(@Param("trainingSchemeVo") TrainingSchemeVo trainingSchemeVo);
 
     List<TrainingSchemeVo> selectTrainingSchemeVoByIds(@Param("trainingSchemeIds")List<Long> trainingSchemeIds, @Param("order") String order, @Param("databaseProp")String databaseProp);
+
+    List<TrainingSchemeCourseVo> selectTrainingSchemeCoursesByIdAndsubMajorId(@Param("id") Long id, @Param("subMajorId") Long subMajorId);
 }

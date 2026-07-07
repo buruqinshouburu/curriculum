@@ -4,12 +4,10 @@ package com.doinner.csys.auditProvider;
 
 import com.doinner.csys.dao.StandardMajorMapper;
 import com.doinner.csys.dao.TrainingSchemeCategoryMapper;
-import com.doinner.csys.domain.StandardAbility;
 import com.doinner.csys.domain.StandardMajor;
 import com.doinner.csys.domain.TrainingSchemeCategory;
 import com.doinner.csys.domain.vo.TrainingSchemeCourseVo;
 import com.doinner.csys.domain.vo.TrainingSchemeVo;
-import com.doinner.csys.service.StandardService;
 import com.doinner.csys.service.TrainingService;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +37,7 @@ public class TeachingSchemeProvider implements AuditContentProvider {
     @Override
     public Map<String, Object> getAuditContent(Long businessId) {
         TrainingSchemeVo trainingSchemeVo = trainingService.viewTrainingScheme(businessId, 1L);
-        List<TrainingSchemeCourseVo> trainingSchemeCourseVos = trainingService.selectTrainingSchemeCoursesById(businessId);
+        List<TrainingSchemeCourseVo> trainingSchemeCourseVos = trainingService.selectTrainingSchemeCoursesById(businessId, null);
         if (trainingSchemeVo == null) {
             throw new RuntimeException("培养方案不存在：" + businessId);
         }

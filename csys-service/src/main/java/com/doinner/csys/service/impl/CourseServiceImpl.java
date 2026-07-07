@@ -11,6 +11,7 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TrainingSchemeRefCourse;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.entity.csys.model.CourseChooseStatusModel;
+import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.po.CourseRefKnowledgeUnit;
 import com.doinner.csys.io.service.ExportService;
 import com.doinner.csys.service.CourseService;
@@ -187,9 +188,14 @@ public class CourseServiceImpl implements CourseService {
         List<Long> quoteCourseIds=courseTemplateVo.getIds();
         if(ObjectUtils.isNotEmpty(hasInvokeCourseIds)){
             List<Course> hasInvokeCourses = courseMapper.selectCoursesByIds(hasInvokeCourseIds);
-            List<Long> quotedCourseIdList=hasInvokeCourses.stream().map(c->c.getSourceId()).collect(Collectors.toList());
-            //过滤已经调用过的课程
-            quoteCourseIds = quoteCourseIds.stream().filter(courseId -> !quotedCourseIdList.contains(courseId)).collect(Collectors.toList());
+            String targetCourseModule = courseTemplateVo.getCourseModule();
+            String targetCourseModuleChildren = courseTemplateVo.getCourseModuleChildren();
+            Long targetSubMajorId = courseTemplateVo.getSubMajorId();
+            //过滤已经调用过的课程：课程模块为专业课程时同一专业方向(subMajor)下同一门课只能调用一次，
+            //否则同一课程模块(及子模块)下同一门课只能调用一次
+            quoteCourseIds = quoteCourseIds.stream()
+                    .filter(courseId -> !isCourseAlreadyInvoked(courseId, hasInvokeCourses, targetCourseModule, targetCourseModuleChildren, targetSubMajorId))
+                    .collect(Collectors.toList());
             if(ObjectUtils.isEmpty(quoteCourseIds)){
                 return Message.error("所选课程均已被调用");
             }
@@ -202,7 +208,7 @@ public class CourseServiceImpl implements CourseService {
         /**复制课程*/
         List<Course> new_courseList =new ArrayList<>();
         quoteCourseList.forEach(c -> {
-            Course course = copyCourse(trainingSchemeVo, c);
+            Course course = copyCourse(trainingSchemeVo, c,courseTemplateVo);
             new_courseList.add(course);
         });
         //课程批量保存
@@ -234,6 +240,40 @@ public class CourseServiceImpl implements CourseService {
         //排课
         trainingService.setCourseSchedule(trainingSchemeVo,new_courseList);
         return Message.success();
+    }
+
+    /**
+     * 判断源课程在当前调用范围下是否已被该培养方案调用。
+     * 课程模块为专业课程时按专业方向(subMajorId)判断同一门课是否已调用，
+     * 其余课程模块按课程模块(courseModule)及子模块(courseModuleChildren)判断同一门课是否已调用。
+     *
+     * @param sourceCourseId           本次待调用的源课程id
+     * @param invokedCourses           该培养方案下已调用的课程集合
+     * @param targetCourseModule       目标课程模块
+     * @param targetCourseModuleChildren 目标课程子模块
+     * @param targetSubMajorId         目标专业方向
+     * @return 已调用返回true，否则false
+     */
+    private boolean isCourseAlreadyInvoked(Long sourceCourseId, List<Course> invokedCourses,
+                                           String targetCourseModule, String targetCourseModuleChildren,
+                                           Long targetSubMajorId) {
+        boolean professional = DictContent.MAJOR_COURSES_SCHEDULE.equals(targetCourseModule);
+        for (Course invoked : invokedCourses) {
+            if (!Objects.equals(invoked.getSourceId(), sourceCourseId)) {
+                continue;
+            }
+            if (professional) {
+                //专业课程按专业方向去重，subMajorId 为空时无法判定同一专业方向，不视为重复
+                if (targetSubMajorId != null && targetSubMajorId.equals(invoked.getSubMajorId())) {
+                    return true;
+                }
+            } else if (Objects.equals(invoked.getCourseModule(), targetCourseModule)
+                    && Objects.equals(invoked.getCourseModuleChildren(), targetCourseModuleChildren)) {
+                //非专业课程按课程模块及子模块去重
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -300,15 +340,33 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @NotNull
-    private Course copyCourse(TrainingSchemeVo trainingSchemeVo, Course c) {
+    private Course copyCourse(TrainingSchemeVo trainingSchemeVo, Course c, CourseTemplateVo courseTemplateVo) {
         Course course = new Course();
         BeanUtils.copyProperties(c, course);
         course.setSourceId(c.getId());
         course.setMajorId(c.getMajorId() == null ? trainingSchemeVo.getMajorId() : c.getMajorId());
-        course.setCategoryId(c.getCategoryId() == null ? trainingSchemeVo.getCategoryId() : c.getCategoryId());
+        course.setCategoryId(trainingSchemeVo.getCategoryId() == null ? c.getCategoryId():trainingSchemeVo.getCategoryId());
         course.setVersion(trainingSchemeVo.getVersion());
         course.setTemplateType(2);
         course.setId(null);
+        if(ObjectUtils.isNotEmpty(courseTemplateVo.getCourseModule())){
+            course.setCourseModule(courseTemplateVo.getCourseModule());
+        }
+        if(ObjectUtils.isNotEmpty(courseTemplateVo.getCourseModuleChildren())){
+            course.setCourseModuleChildren(courseTemplateVo.getCourseModuleChildren());
+        }
+        if(ObjectUtils.isNotEmpty(courseTemplateVo.getMajorId())){
+            course.setMajorId(courseTemplateVo.getMajorId());
+        }
+        if(ObjectUtils.isNotEmpty(courseTemplateVo.getSubMajorId())){
+            course.setSubMajorId(courseTemplateVo.getSubMajorId());
+        }
+        if(ObjectUtils.isNotEmpty(courseTemplateVo.getLocation())){
+            course.setLocation(courseTemplateVo.getLocation());
+        }
+        if(ObjectUtils.isNotEmpty(courseTemplateVo.getProgramLevel())){
+            course.setProgramLevel(courseTemplateVo.getProgramLevel());
+        }
         UserUtils.clearAndRefreshObj(course);
         return course;
     }

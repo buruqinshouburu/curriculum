@@ -501,7 +501,7 @@ TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 17; // 模块3+名称1+学分1+修读1+考核1+学时3+学期8 = 18单位，模块占3列故物理17列(原16+学分1)
+        int totalCols = 17; // 模块3+名称1+修读1+考核1+学分1+学时3+学期8 = 18单位，模块占3列故物理17列(原16+学分1)
         CellWidth cellWidth = new CellWidth(19);
 
         XWPFTable table = document.createTable(totalRows, totalCols);
@@ -572,7 +572,7 @@ TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows + 1;
-        int totalCols = 15; // 名称1+学分1+修读1+考核1+学时3+学期8 = 15列
+        int totalCols = 15; // 名称1+修读1+考核1+学分1+学时3+学期8 = 15列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -611,7 +611,7 @@ TrainingPlanGenerator {
         // 计算总行数：表头3行 + 数据行 + 小计1行
         int dataRows = courses.size();
         int totalRows = 3 + dataRows +couseMap.size();
-        int totalCols = 16; // 专业方向1+名称1+学分1+修读1+考核1+学时3+学期8 = 16列
+        int totalCols = 16; // 专业方向1+名称1+修读1+考核1+学分1+学时3+学期8 = 16列
 
         XWPFTable table = document.createTable(totalRows, totalCols);
         WordUtil.initTableGrid(table,totalCols,1000);
@@ -811,8 +811,9 @@ TrainingPlanGenerator {
      * 填充通识课程表格表头（3行）
      */
     protected void generateCourseHeader(XWPFTable table, CellWidth cellWidth) {
-        // 列布局(18列,塌缩后索引)：模块gs2(0) | 名称gs2(1) | 学分(2) | 修读(3) | 考核(4) | 学时gs3(5) | 学期gs8(6)
+        // 列布局(18列,塌缩后索引)：模块gs2(0) | 名称gs2(1) | 修读(2) | 考核(3) | 学分(4) | 学时gs3(5) | 学期gs8(6)
         // poi 水平合并后单元格索引塌缩，后续 getCell 取塌缩后位置(沿用原表头写法)
+        // 列序：课程名称 → 修读要求 → 考核方式 → 学分 → 学时安排 → 学期安排（学分位于考核方式之后）
         // ========== 表头第1行（行号0） ==========
         // 列0：课程模块，跨行3行(模块表头gs3，沿用原塌缩后索引写法)
         setCellText(table.getRow(0).getCell(0), "课程模块", true, cellWidth.getCellWidth(3));
@@ -825,16 +826,16 @@ TrainingPlanGenerator {
         setCellText(table.getRow(0).getCell(1), "课程名称", true, cellWidth.getCellWidth(2));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 学分，跨3行
-        setCellText(table.getRow(0).getCell(2), "学分", true, cellWidth.getCellWidth(1));
+        // 修读要求，跨3行
+        setCellText(table.getRow(0).getCell(2), "修读\n要求", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        // 修读要求，跨3行
-        setCellText(table.getRow(0).getCell(3), "修读\n要求", true, cellWidth.getCellWidth(1));
+        // 考核方式，跨3行
+        setCellText(table.getRow(0).getCell(3), "考核\n方式", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        // 考核方式，跨3行
-        setCellText(table.getRow(0).getCell(4), "考核\n方式", true, cellWidth.getCellWidth(1));
+        // 学分，跨3行（位于考核方式之后）
+        setCellText(table.getRow(0).getCell(4), "学分", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 4, 0, 2);
 
         // 学时安排，跨3列（小计、讲授、实践）
@@ -889,16 +890,16 @@ TrainingPlanGenerator {
         setCellText(table.getRow(0).getCell(0), "课程名称", true, cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
 
-        // 学分，跨3行
-        setCellText(table.getRow(0).getCell(1), "学分", true,  cellWidth.getCellWidth(1));
+        // 修读要求，跨行3行
+        setCellText(table.getRow(0).getCell(1), "修读\n要求", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 修读要求，跨行3行
-        setCellText(table.getRow(0).getCell(2), "修读\n要求", true,  cellWidth.getCellWidth(1));
+        // 考核方式，跨行3行
+        setCellText(table.getRow(0).getCell(2), "考核\n方式", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        // 考核方式，跨行3行
-        setCellText(table.getRow(0).getCell(3), "考核\n方式", true,  cellWidth.getCellWidth(1));
+        // 学分，跨3行（位于考核方式之后）
+        setCellText(table.getRow(0).getCell(3), "学分", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
         // 学时安排，跨列3列（小计、讲授、实践）
@@ -946,7 +947,7 @@ TrainingPlanGenerator {
      * @param cellWidth
      */
     protected void majorCoursesHeader(XWPFTable table, CellWidth cellWidth) {
-        // 列布局(16列)：专业方向(0) | 名称(1) | 学分(2) | 修读(3) | 考核(4) | 学时(5-7) | 学期(8-15)
+        // 列布局(16列)：专业方向(0) | 名称(1) | 修读(2) | 考核(3) | 学分(4) | 学时(5-7) | 学期(8-15)
         // ========== 表头第1行（行号0） ==========
         setCellText(table.getRow(0).getCell(0), "专业方向", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 0, 0, 2);
@@ -954,14 +955,16 @@ TrainingPlanGenerator {
         setCellText(table.getRow(0).getCell(1), "课程名称", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 1, 0, 2);
 
-        // 学分，跨3行
-        setCellText(table.getRow(0).getCell(2), "学分", true,  cellWidth.getCellWidth(1));
+        // 修读要求，跨3行
+        setCellText(table.getRow(0).getCell(2), "修读\n要求", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 2, 0, 2);
 
-        setCellText(table.getRow(0).getCell(3), "修读\n要求", true,  cellWidth.getCellWidth(1));
+        // 考核方式，跨3行
+        setCellText(table.getRow(0).getCell(3), "考核\n方式", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 3, 0, 2);
 
-        setCellText(table.getRow(0).getCell(4), "考核\n方式", true,  cellWidth.getCellWidth(1));
+        // 学分，跨3行（位于考核方式之后）
+        setCellText(table.getRow(0).getCell(4), "学分", true,  cellWidth.getCellWidth(1));
         WordUtil.mergeCellsVertical(table, 4, 0, 2);
 
         // 学时安排，跨列3列（小计、讲授、实践）
@@ -1086,22 +1089,22 @@ TrainingPlanGenerator {
 //            WordUtil.mergeCellsHorizontal(table, rowIndex, initCell, initCell + nameSpan - 1);
 //        }
 
-        // 学分（课程名称后，来源 course.getCredits()）
-        XWPFTableCell cellCredits = row.getCell(initCell+1);
-        WordUtil.setCellText(cellCredits, course.getCredits() != null ? course.getCredits().toString() : "", false,  cellWidth.getCellWidth(1));
-        double m_credits = countModel.getTotalCredits() == null ? 0 : countModel.getTotalCredits();
-        double c_credits = course.getCredits() == null ? 0 : course.getCredits();
-        countModel.setTotalCredits(m_credits+c_credits);
-
         // 修读要求（B=必修，X=限选，R=任选）
-        XWPFTableCell cell2 = row.getCell(initCell+2);
+        XWPFTableCell cell2 = row.getCell(initCell+1);
         String attrText = getAttrText(course.getCourseAttr());
         WordUtil.setCellText(cell2, attrText, false,  cellWidth.getCellWidth(1));
 
         // 考核方式（S=考试，C=考查）
-        XWPFTableCell cell3 = row.getCell(initCell+3);
+        XWPFTableCell cell3 = row.getCell(initCell+2);
         String assessText = getAssessText(course.getExaMethod());
         WordUtil.setCellText(cell3, assessText, false,  cellWidth.getCellWidth(1));
+
+        // 学分（考核方式后，来源 course.getCredits()）
+        XWPFTableCell cellCredits = row.getCell(initCell+3);
+        WordUtil.setCellText(cellCredits, course.getCredits() != null ? course.getCredits().toString() : "", false,  cellWidth.getCellWidth(1));
+        double m_credits = countModel.getTotalCredits() == null ? 0 : countModel.getTotalCredits();
+        double c_credits = course.getCredits() == null ? 0 : course.getCredits();
+        countModel.setTotalCredits(m_credits+c_credits);
 
         // 小计
         XWPFTableCell cell4 = row.getCell(initCell+4);
@@ -1222,23 +1225,24 @@ TrainingPlanGenerator {
      * @param dataCell       学时安排（小计/讲授/实践）三列的起始列
      * @param termStartCell  学期安排列的起始列，用于填写各学期总学时
      * 说明：小计行为全新行(无先前合并)，按物理列绝对索引填文本，最后再合并标签区。
-     *       学分位于学时三列前一列(creditCol=dataCell-3)，修读/考核留空(默认空单元格)。
-     *       "小计"标签合并 0..creditCol-1(覆盖模块+名称等前缀列)：
-     *         公共基础 creditCol=3 → 合并0..2(模块+子模块+名称)
-     *         学科基础 creditCol=1 → 不合并(仅列0填"小计")
-     *         专业课程 creditCol=2 → 合并0..1(专业方向+名称)
+     *       列序为 名称→修读→考核→学分→学时(小计/讲授/实践)，故学分位于学时三列前一列(creditCol=dataCell-1)，
+     *       修读/考核并入"小计"标签合并区(不再留空)。
+     *       "小计"标签合并 0..creditCol-1(覆盖模块+名称+修读+考核等前缀列)：
+     *         公共基础 creditCol=5 → 合并0..4(模块+子模块+名称+修读+考核)
+     *         学科基础 creditCol=3 → 合并0..2(名称+修读+考核)
+     *         专业课程 creditCol=4 → 合并0..3(专业方向+名称+修读+考核)
      */
     protected void setTotalRow(XWPFTable table, int rowIndex, CountModel countModel, int dataCell, int termStartCell, CellWidth cellWidth) {
         XWPFTableRow row = table.getRow(rowIndex);
         int termCount = termColumnCount();
-        int creditCol = dataCell - 3;
+        int creditCol = dataCell - 1;
 
         // 1) 先按物理列绝对索引填文本
         // "小计"标签(宽度覆盖 0..creditCol-1)
         WordUtil.setCellText(row.getCell(0), "小  计", true, cellWidth.getCellWidth(creditCol));
         // 学分小计
         WordUtil.setCellText(row.getCell(creditCol), countModel.getTotalCredits()+"", true, cellWidth.getCellWidth(1));
-        // 修读要求(creditCol+1)、考核方式(creditCol+2) 留空(默认空单元格，不填)
+        // 修读/考核已并入"小计"标签合并区(0..creditCol-1)；学分(creditCol)与学时小计(dataCell)相邻，中间无空列
         // 学时小计/讲授/实践
         WordUtil.setCellText(row.getCell(dataCell), countModel.getTotalHours()+"", true, cellWidth.getCellWidth(1));
         WordUtil.setCellText(row.getCell(dataCell+1), countModel.getTeachHours()+"", true, cellWidth.getCellWidth(1));

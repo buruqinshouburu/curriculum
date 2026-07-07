@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface TrainingService {
-    List<TrainingSchemeCourseVo> selectTrainingSchemeCoursesById(Long id);
+    List<TrainingSchemeCourseVo> selectTrainingSchemeCoursesById(Long id, Long subMajorId);
     TrainingSchemeVo selectTrainingSchemeById(Long id);
     List<TrainingSchemeVo> selectTrainingSchemeList(TrainingScheme trainingScheme);
     List<TrainingScheme> selectTrainingSchemeCategoryList(TrainingScheme trainingScheme);

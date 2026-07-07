@@ -20,6 +20,14 @@ public class CourseTemplateVo {
 
     private Long trainingSchemeId;
 
+    private String courseModule;
+
+    private String courseModuleChildren;
+
+    private String location;
+
+    private String programLevel;
+
     public List<Long> getIds() {
         return ids;
     }
@@ -77,5 +85,37 @@ public class CourseTemplateVo {
 
     public void setTrainingSchemeId(Long trainingSchemeId) {
         this.trainingSchemeId = trainingSchemeId;
+    }
+
+    public String getCourseModule() {
+        return courseModule;
+    }
+
+    public void setCourseModule(String courseModule) {
+        this.courseModule = courseModule;
+    }
+
+    public String getCourseModuleChildren() {
+        return courseModuleChildren;
+    }
+
+    public void setCourseModuleChildren(String courseModuleChildren) {
+        this.courseModuleChildren = courseModuleChildren;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getProgramLevel() {
+        return programLevel;
+    }
+
+    public void setProgramLevel(String programLevel) {
+        this.programLevel = programLevel;
     }
 }

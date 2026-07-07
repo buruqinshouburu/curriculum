@@ -157,5 +157,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="trainingCourseVo.credit !=null">
             and c.credit=#{trainingCourseVo.credit}
         </if>
+        <if test="trainingCourseVo.subMajorId !=null">
+            and c.sub_major_id=#{trainingCourseVo.subMajorId}
+        </if>
+        <if test="trainingCourseVo.courseModuleChildren !=null">
+            and c.course_Module_Children=#{trainingCourseVo.courseModuleChildren}
+        </if>
+
     </select>
 </mapper>

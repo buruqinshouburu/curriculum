@@ -153,8 +153,8 @@ public class TrainingController {
     /** 根据培养方案id查询课程列表 */
     @ApiOperation("根据培养方案id查询课程列表")
     @GetMapping("/scheme/courses/list/{id}")
-    public DataSet<List<TrainingSchemeCourseVo>> listTrainingSchemeCoursesById(@PathVariable Long id){
-        return DataSet.success(trainingService.selectTrainingSchemeCoursesById(id));
+    public DataSet<List<TrainingSchemeCourseVo>> listTrainingSchemeCoursesById(@PathVariable Long id,Long subMajorId){
+        return DataSet.success(trainingService.selectTrainingSchemeCoursesById(id,subMajorId));
     }
 
     /** 根据培养方案id查看培养方案视图 */

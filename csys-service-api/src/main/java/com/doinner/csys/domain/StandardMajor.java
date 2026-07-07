@@ -58,6 +58,12 @@ public class StandardMajor extends AbstractDoinnerLogicalDelBaseEntity {
     // 细分专业分类(0:未分类,1:技术类,2:指挥类,3:技术/技术类)
     private String classId;
 
+    /**
+     * 适用对象(字典表 sys_education_level)
+     */
+    @Excel(name = "适用对象")
+    private String applicableObject;
+
     private List<StandardMajor> children;
 
     private Integer pageNum;
@@ -142,6 +148,14 @@ public class StandardMajor extends AbstractDoinnerLogicalDelBaseEntity {
 
     public void setClassId(String classId) {
         this.classId = classId;
+    }
+
+    public String getApplicableObject() {
+        return applicableObject;
+    }
+
+    public void setApplicableObject(String applicableObject) {
+        this.applicableObject = applicableObject;
     }
 
     public Integer getLeaf() {

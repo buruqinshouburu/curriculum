@@ -84,6 +84,7 @@ public class TrainingSchemeCourseSchedule extends AbstractDoinnerLogicalDelBaseE
     @Excel(name = "学分")
     private Double credits;
     private Long sourceId;
+    private Long subMajorId;
 
 
     public TrainingSchemeCourseSchedule() {
@@ -197,5 +198,13 @@ public class TrainingSchemeCourseSchedule extends AbstractDoinnerLogicalDelBaseE
 
     public void setSourceId(Long sourceId) {
         this.sourceId = sourceId;
+    }
+
+    public Long getSubMajorId() {
+        return subMajorId;
+    }
+
+    public void setSubMajorId(Long subMajorId) {
+        this.subMajorId = subMajorId;
     }
 }

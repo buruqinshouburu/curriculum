@@ -12,6 +12,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="level"    column="level"    />
         <result property="collegeId"    column="college_id"    />
         <result property="classId"    column="class_id"    />
+        <result property="applicableObject"    column="applicable_object"    />
         <result property="categoryId"    column="category_id"    />
         <result property="categoryName"    column="category_name"    />
         <result property="createTime"    column="create_time"    />
@@ -23,12 +24,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectStandardMajorVo">
-        select id, name, code, parent_id, level,leaf, college_id,category_Id, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_std_major
+        select id, name, code, parent_id, level,leaf, college_id,category_Id, applicable_object, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_std_major
     </sql>
 
     <select id="selectStandardMajorList" parameterType="com.doinner.csys.domain.StandardMajor" resultMap="StandardMajorResult">
         select major.id, major.name, major.code, major.parent_id, major.level, major.college_id,major.category_Id,
         major.create_time, major.creator, major.last_modified_time,major.class_id ,
+        major.applicable_object,
         major.last_modifier, major.remark,  major.sysflag,
         category.name  category_name
         from t_csys_std_major major
@@ -41,6 +43,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="level != null "> and major.level = #{level}</if>
             <if test="collegeId != null "> and major.college_id = #{collegeId}</if>
             <if test="categoryId != null "> and major.category_id = #{categoryId}</if>
+            <if test="applicableObject != null and applicableObject != ''"> and major.applicable_object = #{applicableObject}</if>
             AND major.sysflag = 0
         </where>
     </select>
@@ -48,6 +51,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectStandardMajorAccurate" resultMap="StandardMajorResult">
         select major.id, major.name, major.code, major.parent_id, major.level, major.college_id,major.category_Id,
         major.create_time, major.creator, major.last_modified_time,major.class_id ,
+        major.applicable_object,
         major.last_modifier, major.remark,  major.sysflag,
         category.name  category_name,category.url categoryUrl
         from t_csys_std_major major
@@ -61,6 +65,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="collegeId != null "> and major.college_id = #{collegeId}</if>
             <if test="categoryId != null "> and major.category_id = #{categoryId}</if>
             <if test="classId != null "> and major.class_id = #{classId}</if>
+            <if test="applicableObject != null and applicableObject != ''"> and major.applicable_object = #{applicableObject}</if>
             AND major.sysflag = 0
         </where>
         order by major.id desc
@@ -104,6 +109,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="remark != null">remark,</if>
             <if test="sysflag != null and sysflag != ''">sysflag,</if>
             <if test="classId != null">class_Id,</if>
+            <if test="applicableObject != null">applicable_object,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="id != null">#{id},</if>
@@ -120,6 +126,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="remark != null">#{remark},</if>
             <if test="sysflag != null and sysflag != ''">#{sysflag},</if>
             <if test="classId != null">#{classId},</if>
+            <if test="applicableObject != null">#{applicableObject},</if>
          </trim>
     </insert>
 
@@ -133,6 +140,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="leaf != null">leaf = #{leaf},</if>
             <if test="collegeId != null">college_id = #{collegeId},</if>
             <if test="classId != null">class_Id = #{classId},</if>
+            <if test="applicableObject != null">applicable_object = #{applicableObject},</if>
             <if test="categoryId != null">category_id = #{categoryId},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
             <if test="creator != null">creator = #{creator},</if>
@@ -196,6 +204,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectSubMajorList" resultType="java.util.Map">
-        select id,name from t_csys_std_major where level=2 and sysflag=0
+        select id,name from t_csys_std_major where level=2 and sysflag=0 order by id desc
     </select>
 </mapper>
