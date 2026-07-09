@@ -112,5 +112,11 @@ public class CourseController {
         return DataSet.success(courseService.refreshLegacySchedule());
     }
 
+    @ApiOperation("同步毕业要求(总库课程绑定关系追加到培养方案课程，不覆盖已存在)")
+    @PostMapping("/syncGraduation/{trainingSchemeId}")
+    public DataSet<Map<String, Object>> syncGraduation(@PathVariable("trainingSchemeId") Long trainingSchemeId) {
+        return DataSet.success(courseService.syncGraduationFromSource(trainingSchemeId));
+    }
+
 
 }

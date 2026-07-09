@@ -86,4 +86,14 @@ public interface StandardGraduationMapper {
     List<StandardGraduation> selectStandardGraduationByMajorId(@Param("trainingSchemeVo") TrainingSchemeVo trainingSchemeVo);
 
     void deleteStandardGraduationBySchemeId(Long schemeId);
+
+    /**
+     * 查询某培养方案下、有总库来源(source_id 非空)的毕业要求，
+     * 用于同步时把总库毕业要求 id 映射为方案毕业要求 id。
+     * 返回对象填充 id(方案毕业要求id) 与 sourceId(总库毕业要求id)。
+     *
+     * @param schemeId 培养方案id
+     * @return 方案毕业要求集合
+     */
+    List<StandardGraduation> selectSchemeGraduationWithSourceBySchemeId(@Param("schemeId") Long schemeId);
 }

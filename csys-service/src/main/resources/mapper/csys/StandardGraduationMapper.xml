@@ -741,6 +741,15 @@
         select * from t_csys_std_graduation where major_id=#{trainingSchemeVo.majorId} and version=#{trainingSchemeVo.version} and sysflag=0;
     </select>
 
+    <!-- 某培养方案下有总库来源(source_id 非空)的毕业要求，用于把总库毕业要求id映射为方案毕业要求id -->
+    <select id="selectSchemeGraduationWithSourceBySchemeId" resultMap="StandardGraduationResult">
+        select g.id, g.source_id
+        from t_csys_std_graduation g
+        where g.sysflag = 0
+        and g.scheme_Id = #{schemeId}
+        and g.source_id is not null
+    </select>
+
     <delete id="deleteStandardGraduationBySchemeId">
         delete from t_csys_std_graduation where scheme_Id=#{schemeId}
     </delete>

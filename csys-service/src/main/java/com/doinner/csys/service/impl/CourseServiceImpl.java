@@ -516,4 +516,129 @@ public class CourseServiceImpl implements CourseService {
         summary.put("rowsInserted", rowsInserted);
         return summary;
     }
+
+    /**
+     * 将总库课程的毕业要求绑定同步到培养方案中对应的课程，仅追加不覆盖。
+     * 映射：总库毕业要求 id -> 方案毕业要求 id，通过方案毕业要求的 source_id 匹配。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> syncGraduationFromSource(Long trainingSchemeId) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        int coursesSynced = 0, rowsInserted = 0, skippedExisting = 0, skippedUnmapped = 0, skippedNoSourceBinding = 0;
+
+        // 1. 培养方案下的被调用课程(source_id 非空)
+        List<TrainingSchemeRefCourse> refCourses =
+                trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoId(trainingSchemeId);
+        if (ObjectUtils.isEmpty(refCourses)) {
+            putSyncSummary(summary, 0, 0, 0, 0, 0);
+            return summary;
+        }
+        List<Long> invokedCourseIds = refCourses.stream()
+                .map(TrainingSchemeRefCourse::getCourseId).collect(Collectors.toList());
+        // selectCoursesByIds 已带 source_id
+        List<Course> invokedCourses = courseMapper.selectCoursesByIds(invokedCourseIds);
+
+        // 只处理有源课程的被调用课程
+        Map<Long, Long> invokedToSource = new LinkedHashMap<>();
+        for (Course c : invokedCourses) {
+            if (c.getSourceId() != null) {
+                invokedToSource.put(c.getId(), c.getSourceId());
+            }
+        }
+        if (invokedToSource.isEmpty()) {
+            putSyncSummary(summary, 0, 0, 0, 0, 0);
+            return summary;
+        }
+
+        // 2. 总库毕业要求 source_id -> 方案毕业要求 id 的映射
+        List<StandardGraduation> schemeGraduations =
+                standardGraduationMapper.selectSchemeGraduationWithSourceBySchemeId(trainingSchemeId);
+        Map<Long, Long> sourceToSchemeGradId = new HashMap<>();
+        if (ObjectUtils.isNotEmpty(schemeGraduations)) {
+            for (StandardGraduation sg : schemeGraduations) {
+                if (sg.getSourceId() != null) {
+                    sourceToSchemeGradId.putIfAbsent(sg.getSourceId(), sg.getId());
+                }
+            }
+        }
+
+        // 3. 源课程的毕业要求绑定(总库)：sourceCourseId -> graduationId集合
+        List<Long> sourceCourseIds = new ArrayList<>(new HashSet<>(invokedToSource.values()));
+        List<CourseRefGraduation> sourceBindings =
+                courseRefGraduationMapper.selectCourseTargetRefGraduationByCourseIds(sourceCourseIds);
+        Map<Long, List<Long>> sourceToGradIds = new HashMap<>();
+        if (ObjectUtils.isNotEmpty(sourceBindings)) {
+            for (CourseRefGraduation ref : sourceBindings) {
+                sourceToGradIds.computeIfAbsent(ref.getCourseId(), k -> new ArrayList<>())
+                        .add(ref.getGraduationId());
+            }
+        }
+
+        // 4. 被调用课程已有绑定，构造 (courseId+graduationId) 集合用于跳过
+        List<CourseRefGraduation> existing =
+                courseRefGraduationMapper.selectExistingRefByCourseIds(new ArrayList<>(invokedToSource.keySet()));
+        Set<String> existingKeys = new HashSet<>();
+        if (ObjectUtils.isNotEmpty(existing)) {
+            for (CourseRefGraduation ref : existing) {
+                existingKeys.add(ref.getCourseId() + "_" + ref.getGraduationId());
+            }
+        }
+
+        // 5. 逐课程追加未存在的绑定
+        List<CourseRefGraduation> toInsert = new ArrayList<>();
+        for (Map.Entry<Long, Long> entry : invokedToSource.entrySet()) {
+            Long invokedCourseId = entry.getKey();
+            Long sourceCourseId = entry.getValue();
+            List<Long> sourceGradIds = sourceToGradIds.get(sourceCourseId);
+            if (ObjectUtils.isEmpty(sourceGradIds)) {
+                skippedNoSourceBinding++;
+                continue;
+            }
+            boolean anyInserted = false;
+            for (Long sourceGradId : sourceGradIds) {
+                Long schemeGradId = sourceToSchemeGradId.get(sourceGradId);
+                if (schemeGradId == null) {
+                    // 方案尚未生成对应毕业要求(可能未同步毕业要求树)，跳过
+                    skippedUnmapped++;
+                    continue;
+                }
+                String key = invokedCourseId + "_" + schemeGradId;
+                if (existingKeys.contains(key)) {
+                    skippedExisting++;
+                    continue;
+                }
+                existingKeys.add(key);
+                CourseRefGraduation ref = new CourseRefGraduation();
+                ref.setCourseId(invokedCourseId);
+                ref.setGraduationId(schemeGradId);
+                toInsert.add(ref);
+                rowsInserted++;
+                anyInserted = true;
+            }
+            if (anyInserted) {
+                coursesSynced++;
+            }
+        }
+
+        if (!toInsert.isEmpty()) {
+            courseRefGraduationMapper.insertCourseTargetRefGraduationList(toInsert);
+            // 刷新课程绑定状态
+            for (CourseRefGraduation ref : toInsert) {
+                courseMapper.updateBindStatusById(ref.getCourseId(), CourseConstant.COURSE_BIND_STATUS_TRUE);
+            }
+        }
+
+        putSyncSummary(summary, coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding);
+        return summary;
+    }
+
+    private void putSyncSummary(Map<String, Object> summary, int coursesSynced, int rowsInserted,
+                                int skippedExisting, int skippedUnmapped, int skippedNoSourceBinding) {
+        summary.put("coursesSynced", coursesSynced);
+        summary.put("rowsInserted", rowsInserted);
+        summary.put("skippedExisting", skippedExisting);
+        summary.put("skippedUnmapped", skippedUnmapped);
+        summary.put("skippedNoSourceBinding", skippedNoSourceBinding);
+    }
 }

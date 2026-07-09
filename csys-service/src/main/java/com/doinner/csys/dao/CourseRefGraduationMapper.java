@@ -76,4 +76,13 @@ public interface CourseRefGraduationMapper {
     void insertCourseTargetRefGraduationList(@Param("courseTargetRefGraduationList")List<CourseRefGraduation> courseTargetRefGraduationList);
 
     int deleteCourseRefGraduationByCourseId(@Param("courseId") Long courseId);
+
+    /**
+     * 按课程id集合查询已有的课程-毕业要求绑定(course_id + graduation_id)，
+     * 用于同步时跳过已存在的绑定关系(只追加不覆盖)。
+     *
+     * @param courseIds 课程id集合
+     * @return 绑定关系集合
+     */
+    List<CourseRefGraduation> selectExistingRefByCourseIds(@Param("courseIds") List<Long> courseIds);
 }

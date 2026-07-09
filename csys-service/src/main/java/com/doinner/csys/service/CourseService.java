@@ -48,4 +48,14 @@ public interface CourseService {
      */
     CourseChooseStatusModel getCourseChooseStatus(Long sourceCourseId);
 
+    /**
+     * 将总库课程的毕业要求绑定同步到培养方案中对应的课程。
+     * 仅追加、不删除/覆盖：已存在的绑定关系跳过。
+     * 总库毕业要求 id 通过 source_id 映射为方案毕业要求 id；映射不到的跳过。
+     *
+     * @param trainingSchemeId 培养方案id
+     * @return 同步结果汇总(coursesSynced/rowsInserted/skippedExisting/skippedUnmapped/skippedNoSourceBinding)
+     */
+    Map<String, Object> syncGraduationFromSource(Long trainingSchemeId);
+
 }

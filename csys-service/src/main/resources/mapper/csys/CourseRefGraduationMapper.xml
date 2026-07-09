@@ -142,4 +142,14 @@
         </foreach>
 
     </insert>
+
+    <!-- 按课程id集合查已有绑定(同步跳过用)，不 join 课程表以免过滤掉孤儿绑定 -->
+    <select id="selectExistingRefByCourseIds" resultMap="CourseRefGraduationResult">
+        select course_id, graduation_id
+        from t_csys_course_ref_graduation
+        where course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
 </mapper>
