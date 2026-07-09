@@ -256,6 +256,7 @@ public class TrainingServiceImpl implements TrainingService {
 //        Map<Long, String> CourseVoMap = trainingSchemeVo.getCourseVos().stream().filter(c->ObjectUtils.isNotEmpty(c.getCourseAttr())).collect(Collectors.toMap(c -> c.getId(), c -> c.getCourseAttr()));
         if (ObjectUtils.isNotEmpty(courses)) {
             courses.forEach(c -> {
+                // todo c.getCourseScheduleList()  应该从关联表里拿数据
                 if (ObjectUtils.isNotEmpty(c.getSemesterSchedule()) && ObjectUtils.isNotEmpty(c.getSpringAutumn())) {
                     if("6".equals(c.getSemesterSchedule())){
                         for (int i = 1; i < 5; i++) {

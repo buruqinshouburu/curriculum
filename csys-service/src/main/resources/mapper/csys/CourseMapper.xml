@@ -67,6 +67,8 @@
         <result property="subMajorName" column="subMajorName"/>
         <result property="courseModuleName" column="courseModuleName"/>
         <result property="courseModuleChildrenName" column="courseModuleChildrenName"/>
+        <collection property="courseScheduleList" javaType="java.util.List" resultMap="CourseScheduleResult"/>
+
     </resultMap>
     <resultMap type="com.doinner.csys.domain.vo.CourseVo" id="CourseVoResult">
         <result property="id" column="id"/>
@@ -154,6 +156,17 @@
         <result property="sysflag" column="kp_sysflag"/>
     </resultMap>
 
+
+    <resultMap type="com.doinner.csys.domain.CourseSchedule" id="CourseScheduleResult">
+        <result property="id" column="s_id"/>
+        <result property="courseId" column="s_course_id"/>
+        <result property="semesterSchedule" column="s_semester_Schedule"/>
+        <result property="springAutumn" column="s_spring_Autumn"/>
+        <result property="teachHours" column="s_teach_Hours"/>
+        <result property="practiceHours" column="s_practice_Hours"/>
+        <result property="timeWeek" column="s_time_Week"/>
+        <result property="unit" column="s_unit"/>
+    </resultMap>
 
     <sql id="selectCourseVo">
         select id,
@@ -537,9 +550,19 @@
         c.build_status,
         c.has_Work,
         c.academic_terms_number,
-        dept.dept_name as collegeName
+        dept.dept_name as collegeName,
+        s.id s_id,
+        s.course_id s_course_id,
+        s.semester_Schedule s_semester_Schedule,
+        s.spring_Autumn s_spring_Autumn,
+        s.teach_Hours s_teach_Hours,
+        s.practice_Hours s_practice_Hours,
+        s.time_Week s_time_week,
+        s.unit s_unit
         from t_csys_course c
         left join sys_dept dept on dept.dept_id= c.college_id
+        left join t_csys_course_ref_schedule s
+        on c.id = s.course_id
         where c.sysflag = 0
         <if test="ids != null and ids.size() > 0">
             and c.id in
@@ -1413,7 +1436,7 @@
         <collection property="courseTextbookVoList" javaType="java.util.List" resultMap="CourseTextbookVoResult"/>
         <collection property="knowledgeUnitVoList" javaType="java.util.List" resultMap="KnowledgeUnitVoResult"/>
         <collection property="knowledgeDomainVoList" javaType="java.util.List" resultMap="KnowledgeDomainVoResult"/>
-
+        <collection property="courseScheduleList" javaType="java.util.List" resultMap="CourseScheduleResult"/>
     </resultMap>
 
     <resultMap type="com.doinner.csys.domain.vo.KnowledgeDomainVo" id="KnowledgeDomainVoResult">
@@ -1834,7 +1857,15 @@
                kp.last_modified_time     kp_last_modified_time,
                kp.last_modifier          kp_last_modifier,
                kp.remark                 kp_remark,
-               kp.sysflag                kp_sysflag
+               kp.sysflag                kp_sysflag,
+               s.id s_id,
+               s.course_id s_course_id,
+               s.semester_Schedule s_semester_Schedule,
+               s.spring_Autumn s_spring_Autumn,
+               s.teach_Hours s_teach_Hours,
+               s.practice_Hours s_practice_Hours,
+               s.time_Week s_time_week,
+               s.unit s_unit
         FROM t_csys_course tc
                  left join t_csys_course_target c_target on c_target.course_id = tc.id
                  left join t_csys_course_domain_ref_source_unit rsu on rsu.course_target_id = c_target.course_target_id
@@ -1845,6 +1876,8 @@
                  LEFT JOIN t_csys_course_teaching_theory_plan ttp ON tc.id = ttp.course_id and ttp.sysflag = 0
                  LEFT JOIN t_csys_course_chapter cc ON tc.id = cc.course_id and cc.sysflag = 0
                  LEFT JOIN t_csys_course_textbook ct ON tc.id = ct.course_id and ct.sysflag = 0
+                 left join t_csys_course_ref_schedule s
+                           on tc.id = s.course_id
     </sql>
 
 
@@ -2359,8 +2392,18 @@
         c.version,
         c.bind_Status,
         c.max_quote_count,
-        c.enable_flag,c.education_level,c.has_Work
+        c.enable_flag,c.education_level,c.has_Work,
+        s.id s_id,
+        s.course_id s_course_id,
+        s.semester_Schedule s_semester_Schedule,
+        s.spring_Autumn s_spring_Autumn,
+        s.teach_Hours s_teach_Hours,
+        s.practice_Hours s_practice_Hours,
+        s.time_Week s_time_week,
+        s.unit s_unit
         from t_csys_course c
+        left join t_csys_course_ref_schedule s
+        on c.id = s.course_id
         inner join t_csys_training_scheme_ref_course schemeRefCourse on c.id = schemeRefCourse.course_id
         <where>
             c.sysflag = 0

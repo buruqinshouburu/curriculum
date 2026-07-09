@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.CourseScheduleMapper">
+
+    <resultMap type="com.doinner.csys.domain.CourseSchedule" id="CourseScheduleResult">
+        <result property="id" column="id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="semesterSchedule" column="semester_Schedule"/>
+        <result property="springAutumn" column="spring_Autumn"/>
+        <result property="teachHours" column="teach_Hours"/>
+        <result property="practiceHours" column="practice_Hours"/>
+        <result property="timeWeek" column="time_Week"/>
+        <result property="unit" column="unit"/>
+    </resultMap>
+
+    <select id="selectByCourseId" parameterType="Long" resultMap="CourseScheduleResult">
+        select id,course_id,semester_Schedule,
+        spring_Autumn,teach_Hours,practice_Hours,time_Week,unit
+        from t_csys_course_ref_schedule where course_id = #{courseId}
+    </select>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.CourseSchedule" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into t_csys_course_ref_schedule
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="courseId != null and courseId != ''">
+                course_id,
+            </if>
+            <if test="semesterSchedule != null">
+                semester_Schedule,
+            </if>
+            <if test="springAutumn != null">
+                spring_Autumn,
+            </if>
+            <if test="teachHours != null">
+                teach_Hours,
+            </if>
+            <if test="practiceHours != null">
+                practice_Hours,
+            </if>
+            <if test="timeWeek != null">
+                time_Week,
+            </if>
+            <if test="unit != null">
+                unit,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="courseId != null and courseId != ''">
+                #{courseId},
+            </if>
+            <if test="semesterSchedule != null">
+                #{semesterSchedule},
+            </if>
+            <if test="springAutumn != null">
+                #{springAutumn},
+            </if>
+            <if test="teachHours != null">
+                #{teachHours},
+            </if>
+            <if test="practiceHours != null">
+                #{practiceHours},
+            </if>
+            <if test="timeWeek != null">
+                #{timeWeek},
+            </if>
+            <if test="unit != null">
+                #{unit},
+            </if>
+        </trim>
+    </insert>
+
+
+
+    <delete id="delete" parameterType="Long">
+        delete
+        from t_csys_course_ref_schedule where course_id = #{courseId}
+    </delete>
+
+</mapper>

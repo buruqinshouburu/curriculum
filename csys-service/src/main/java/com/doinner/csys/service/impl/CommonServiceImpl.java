@@ -162,6 +162,7 @@ public class CommonServiceImpl implements CommonService {
         scopeQuery.setLevel(standardMajor.getLevel());
         scopeQuery.setCategoryId(standardMajor.getCategoryId());
         scopeQuery.setClassId(standardMajor.getClassId());
+        scopeQuery.setApplicableObject(standardMajor.getApplicableObject());
         List<StandardMajor> allInScope = standardMajorMapper.selectStandardMajorAccurate(scopeQuery);
         if (CollectionUtils.isEmpty(allInScope)) {
             allInScope = matched;

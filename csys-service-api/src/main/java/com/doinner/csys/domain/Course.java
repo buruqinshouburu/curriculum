@@ -51,7 +51,7 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
     /**
      * 所属学院(college_id)
      */
-   // @Excel(name = "所属学院(college_id)")
+    // @Excel(name = "所属学院(college_id)")
     private Long collegeId;
 
     private String collegeName;
@@ -279,6 +279,9 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
 
     // private Boolean graduationBindingFlag = false;
 
+    // 课程对 学年安排 学期安排 实践学时 讲授学时对象  一对多
+    private List<CourseSchedule> courseScheduleList = new ArrayList<>();
+
 
     public List<CourseTarget> getCourseTargetList() {
         return courseTargetList;
@@ -328,7 +331,6 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
     public String getCode() {
         return code;
     }
-
 
 
     public void setAuthors(String authors) {
@@ -762,5 +764,13 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
 
     public void setCollegeName(String collegeName) {
         this.collegeName = collegeName;
+    }
+
+    public List<CourseSchedule> getCourseScheduleList() {
+        return courseScheduleList;
+    }
+
+    public void setCourseScheduleList(List<CourseSchedule> courseScheduleList) {
+        this.courseScheduleList = courseScheduleList;
     }
 }

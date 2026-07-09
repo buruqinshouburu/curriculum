@@ -139,6 +139,10 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Resource
     private TrainingSchemeRefCourseMapper courseRefCourseMapper;
 
+
+    @Resource
+    private CourseScheduleMapper courseScheduleMapper;
+
     @Value("${kg.dictionary.courseModuleType:69a7f3162dc370362ef3ee6d}")
     private String kgCourseModuleType;
 
@@ -390,6 +394,7 @@ public class CurriculumServiceImpl implements CurriculumService {
             }
             List<CourseTarget> courseTargets = courseTargetMapper.selectCourseTargetByCourseId(c.getId());
             c.setCourseTargetList(courseTargets);
+            c.setCourseScheduleList(courseScheduleMapper.selectByCourseId(c.getId()));
             /*if (CollectionUtils.isNotEmpty(c.getCourseTargetList())) {
                 for (CourseTarget courseTarget : c.getCourseTargetList()) {
                     // 查询知识领域，知识单元，知识点
@@ -524,6 +529,15 @@ public class CurriculumServiceImpl implements CurriculumService {
         return true;
     }
 
+    private void insertCourseSchedule(Long courseId,List<CourseSchedule> courseScheduleList){
+        if (CollectionUtils.isNotEmpty(courseScheduleList)) {
+            for (CourseSchedule courseSchedule : courseScheduleList) {
+                courseSchedule.setCourseId(courseId);
+                courseScheduleMapper.insert(courseSchedule);
+            }
+        }
+    }
+
     /**
      * 新增课程
      *
@@ -539,12 +553,15 @@ public class CurriculumServiceImpl implements CurriculumService {
         UserUtils.reflash(course);
         if (course.getId() != null) {
             courseMapper.updateCourse(course);
+            courseScheduleMapper.delete(course.getId());
+            insertCourseSchedule(course.getId(),course.getCourseScheduleList());
         } else {
             // 实践项目课程不用生成课程编号
             if (StringUtils.isNotBlank(course.getType()) && !"4".equals(course.getType())) {
                 course.setCode(getCourseCode_new(course));
             }
             courseMapper.insertCourse(course);
+            insertCourseSchedule(course.getId(),course.getCourseScheduleList());
         }
         dealCourseTarget(course);
         if (!"1".equals(course.getType())) {
@@ -1093,6 +1110,8 @@ public class CurriculumServiceImpl implements CurriculumService {
         UserUtils.reflash(course);
         courseMapper.updateCourse(course);
         this.insertRelevance(course);
+        courseScheduleMapper.delete(course.getId());
+        insertCourseSchedule(course.getId(),course.getCourseScheduleList());
         return course;
     }
 
@@ -2074,6 +2093,10 @@ public class CurriculumServiceImpl implements CurriculumService {
                     courseVo.setSubMajorId(subMajorId);
                     checkCourseRepetition(courseVo);
                     courseMapper.insertCourse(courseVo);
+                    CourseSchedule schedule = new CourseSchedule();
+                    BeanUtils.copyProperties(courseVo, schedule);
+                    schedule.setCourseId(courseVo.getId());
+                    courseScheduleMapper.insert(schedule);
                     //courseList.add(courseVo);
                 }
                 //checkCourseRepetition(courseList.stream().map(Course::getName).collect(Collectors.toList()), version, null);
@@ -2204,6 +2227,10 @@ public class CurriculumServiceImpl implements CurriculumService {
                     }
                     courseVo.setLocation(excelVo.getSubjectModule());
                     courseMapper.insertCourse(courseVo);
+                    CourseSchedule schedule = new CourseSchedule();
+                    BeanUtils.copyProperties(courseVo, schedule);
+                    schedule.setCourseId(courseVo.getId());
+                    courseScheduleMapper.insert(schedule);
                 }
                 if (ObjectUtils.isNotEmpty(courseNameBuilder)) {
                     throw new RuntimeException(courseNameBuilder.deleteCharAt(courseNameBuilder.length() - 1) + "存在重名，请更换一个名称！");
@@ -2283,6 +2310,10 @@ public class CurriculumServiceImpl implements CurriculumService {
                         courseNameBuilder.append(courseVo.getName()).append(",");
                     }
                     courseMapper.insertCourse(courseVo);
+                    CourseSchedule schedule = new CourseSchedule();
+                    BeanUtils.copyProperties(courseVo, schedule);
+                    schedule.setCourseId(courseVo.getId());
+                    courseScheduleMapper.insert(schedule);
                 }
                 if (ObjectUtils.isNotEmpty(courseNameBuilder)) {
                     throw new RuntimeException(courseNameBuilder.deleteCharAt(courseNameBuilder.length() - 1) + " 存在重名，请更换一个名称！");
@@ -2757,6 +2788,7 @@ public class CurriculumServiceImpl implements CurriculumService {
             if (c.getCategoryId() != null) {
                 c.setCategoryName(categoryToNameMap.get(c.getCategoryId()));
             }
+            c.setCourseScheduleList(courseScheduleMapper.selectByCourseId(c.getId()));
         }
         //单位ID替换
 

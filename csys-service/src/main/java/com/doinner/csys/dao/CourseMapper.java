@@ -54,7 +54,7 @@ public interface CourseMapper {
 
     /**
      * 查询课程列表
-     *
+     *  注意这个是分页方法  不能关联表一对多关联查询  会导致分页问题
      * @param course 课程
      * @return 课程集合
      */
