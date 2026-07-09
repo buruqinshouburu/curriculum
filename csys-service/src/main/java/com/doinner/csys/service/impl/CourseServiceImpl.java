@@ -365,6 +365,7 @@ public class CourseServiceImpl implements CourseService {
         course.setCategoryId(trainingSchemeVo.getCategoryId() == null ? c.getCategoryId():trainingSchemeVo.getCategoryId());
         course.setVersion(trainingSchemeVo.getVersion());
         course.setTemplateType(2);
+        course.setBindStatus(2);
         course.setId(null);
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getCourseModule())){
             course.setCourseModule(courseTemplateVo.getCourseModule());
