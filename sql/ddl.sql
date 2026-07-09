@@ -112,3 +112,20 @@ create table audit_node
 create index idx_flow_id
     on audit_node (flow_id);
 
+-- ----------------------------
+-- Table structure for t_csys_course_ref_schedule
+-- ----------------------------
+DROP TABLE IF EXISTS `t_csys_course_ref_schedule`;
+CREATE TABLE `t_csys_course_ref_schedule`  (
+                                               `id` bigint NOT NULL AUTO_INCREMENT,
+                                               `course_id` bigint NULL DEFAULT NULL COMMENT '课程id',
+                                               `semester_Schedule` varchar(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '学年安排',
+                                               `spring_Autumn` varchar(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '学期安排',
+                                               `teach_Hours` double NULL DEFAULT 0 COMMENT '讲授学时',
+                                               `practice_Hours` double NULL DEFAULT 0 COMMENT '实践学时',
+                                               `time_Week` double NULL DEFAULT NULL COMMENT '时间安排',
+                                               `unit` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '单位',
+                                               PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '课程关联学年学期学时' ROW_FORMAT = Dynamic;
+
+SET FOREIGN_KEY_CHECKS = 1;

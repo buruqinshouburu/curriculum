@@ -211,6 +211,13 @@ public interface CourseMapper {
 
     List<Course> selectCourseBySourceId(Long id);
 
+    /**
+     * 查询学期安排字典为历史值(6=贯穿4年 / 7=多学期排课)的课程id集合。
+     * 检测范围：课程表 t_csys_course.semester_Schedule 在 ('6','7')，
+     * 或其关联表 t_csys_course_ref_schedule 存在 semester_Schedule 在 ('6','7') 的行。
+     */
+    List<Long> selectLegacyScheduleCourseIds();
+
     int removeCourseByIds(@Param("ids") List<Long> ids);
 
     void updateEnableFlag(@Param("id") Long courseId,@Param("enableFlag") Integer enableFlag);

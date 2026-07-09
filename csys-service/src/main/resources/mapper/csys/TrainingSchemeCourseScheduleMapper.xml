@@ -403,6 +403,17 @@
         </foreach>
     </delete>
 
+    <!-- 按课程id集合查询排课明细(用于历史 6/7 课程刷新取数) -->
+    <select id="selectByCourseIds" resultMap="TrainingSchemeCourseScheduleResult">
+        select course_id, term, teach_hours, practice_hours
+        from t_csys_training_scheme_course_schedule
+        where sysflag = 0
+        and course_id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+    </select>
+
     <resultMap type="com.doinner.csys.domain.vo.CourseChooseStatusVo" id="CourseChooseStatusVoResult">
         <result property="sourceCourseId" column="source_course_id"/>
         <result property="courseId" column="course_id"/>

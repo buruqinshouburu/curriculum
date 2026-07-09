@@ -5,9 +5,11 @@ import com.doinner.common.core.utils.PageUtils;
 import com.doinner.csys.constant.CourseConstant;
 import com.doinner.csys.dao.*;
 import com.doinner.csys.domain.Course;
+import com.doinner.csys.domain.CourseSchedule;
 import com.doinner.csys.domain.CourseInvokeDeleteLog;
 import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.StandardGraduation;
+import com.doinner.csys.domain.TrainingSchemeCourseSchedule;
 import com.doinner.csys.domain.TrainingSchemeRefCourse;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.entity.csys.model.CourseChooseStatusModel;
@@ -38,6 +40,8 @@ import java.util.stream.Collectors;
 public class CourseServiceImpl implements CourseService {
     @Resource
     protected CourseMapper courseMapper;
+    @Resource
+    private CourseScheduleMapper courseScheduleMapper;
     @Resource
     private CourseKnowledgeUnitMapper courseknowledgeUnitMapper;
     @Resource
@@ -225,6 +229,19 @@ public class CourseServiceImpl implements CourseService {
             }
             courseRefKnowledgeUnitMapper.insertBatch(new_courseRefKnowledgeUnitList);
         }
+        /**复制课程排课关联(t_csys_course_ref_schedule)，供后续 setCourseSchedule 排课取值*/
+        for (Course course : new_courseList) {
+            List<CourseSchedule> sourceScheduleList = course.getCourseScheduleList();
+            if (CollectionUtils.isNotEmpty(sourceScheduleList)) {
+                for (CourseSchedule sourceSchedule : sourceScheduleList) {
+                    CourseSchedule newSchedule = new CourseSchedule();
+                    BeanUtils.copyProperties(sourceSchedule, newSchedule);
+                    newSchedule.setId(null);
+                    newSchedule.setCourseId(course.getId());
+                    courseScheduleMapper.insert(newSchedule);
+                }
+            }
+        }
         /**创建课程与培养方案关系并排课*/
         //创建培养方案课程关联
         List<TrainingSchemeRefCourse> new_trainingSchemeRefCourses = new ArrayList<>();
@@ -369,5 +386,134 @@ public class CourseServiceImpl implements CourseService {
         }
         UserUtils.clearAndRefreshObj(course);
         return course;
+    }
+
+    /**
+     * 刷新历史学年安排为 6(贯穿4年)/7(多学期排课) 的课程，转成 t_csys_course_ref_schedule 多行(1-5)格式。
+     * 取数：t_csys_training_scheme_course_schedule 已展开的排课明细。
+     *   - 调用的课程(source_id 非空)：取自身 course_id 的排课明细
+     *   - 源课程(source_id 为空)：取其被调用课程(source_id = 该源课程)的排课明细
+     * 幂等：若课程已存在 1-5 的有效关联行且无 6/7 行，则跳过。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> refreshLegacySchedule() {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        int refreshed = 0, skippedAlready = 0, noData = 0, rowsInserted = 0;
+
+        // 1. 检测历史 6/7 课程(课程表字段或关联表行命中其一)
+        List<Long> courseIds = courseMapper.selectLegacyScheduleCourseIds();
+        if (ObjectUtils.isEmpty(courseIds)) {
+            summary.put("detected", 0);
+            summary.put("refreshed", 0);
+            summary.put("skippedAlready", 0);
+            summary.put("noData", 0);
+            summary.put("rowsInserted", 0);
+            return summary;
+        }
+        // 复用 selectCoursesByIds：已 left join t_csys_course_ref_schedule 填充 courseScheduleList，并带 sourceId/hours/timeWeek/unit
+        List<Course> courses = courseMapper.selectCoursesByIds(courseIds);
+
+        for (Course course : courses) {
+            List<CourseSchedule> existing = course.getCourseScheduleList();
+            boolean hasValid = false, hasLegacy = false;
+            if (ObjectUtils.isNotEmpty(existing)) {
+                for (CourseSchedule cs : existing) {
+                    String s = cs.getSemesterSchedule();
+                    if ("6".equals(s) || "7".equals(s)) {
+                        hasLegacy = true;
+                    } else if (ObjectUtils.isNotEmpty(s)) {
+                        hasValid = true;
+                    }
+                }
+            }
+            // 已是 1-5 多行且无 6/7 -> 已刷新过，跳过(幂等)
+            if (hasValid && !hasLegacy) {
+                skippedAlready++;
+                continue;
+            }
+            // 清掉残留的 6/7 行
+            if (hasLegacy) {
+                courseScheduleMapper.deleteLegacyByCourseId(course.getId());
+            }
+
+            // 2. 取排课明细：调用课程用自身，源课程用其被调用课程
+            List<Long> lookupCourseIds = new ArrayList<>();
+            if (course.getSourceId() != null) {
+                // 调用课程
+                lookupCourseIds.add(course.getId());
+            } else {
+                // 源课程：取被调用课程
+                List<Course> copies = courseMapper.selectCourseBySourceId(course.getId());
+                if (ObjectUtils.isNotEmpty(copies)) {
+                    for (Course copy : copies) {
+                        lookupCourseIds.add(copy.getId());
+                    }
+                }
+            }
+            List<TrainingSchemeCourseSchedule> detailRows =
+                    ObjectUtils.isNotEmpty(lookupCourseIds)
+                            ? trainingSchemeCourseScheduleMapper.selectByCourseIds(lookupCourseIds)
+                            : Collections.emptyList();
+            if (ObjectUtils.isEmpty(detailRows)) {
+                noData++;
+                continue;
+            }
+
+            // 3. 按 semesterSchedule 分组：term->semesterSchedule = (term+1)/2；学期归属按组内 term 奇偶推断
+            Map<Integer, List<TrainingSchemeCourseSchedule>> grouped = new LinkedHashMap<>();
+            for (TrainingSchemeCourseSchedule r : detailRows) {
+                if (r.getTerm() == null) {
+                    continue;
+                }
+                int semester = (r.getTerm() + 1) / 2;
+                grouped.computeIfAbsent(semester, k -> new ArrayList<>()).add(r);
+            }
+            if (grouped.isEmpty()) {
+                noData++;
+                continue;
+            }
+
+            // 4. 每组生成一条 t_csys_course_ref_schedule 行
+            for (Map.Entry<Integer, List<TrainingSchemeCourseSchedule>> entry : grouped.entrySet()) {
+                int semester = entry.getKey();
+                List<TrainingSchemeCourseSchedule> group = entry.getValue();
+                boolean hasOdd = false, hasEven = false;
+                Double teachHours = null, practiceHours = null;
+                for (TrainingSchemeCourseSchedule r : group) {
+                    int t = r.getTerm();
+                    if (t % 2 == 0) {
+                        hasEven = true;
+                    } else {
+                        hasOdd = true;
+                    }
+                    if (teachHours == null) {
+                        teachHours = r.getTeachHours();
+                    }
+                    if (practiceHours == null) {
+                        practiceHours = r.getPracticeHours();
+                    }
+                }
+                String springAutumn = (hasOdd && hasEven) ? "5" : (hasEven ? "2" : "1");
+                CourseSchedule ns = new CourseSchedule();
+                ns.setCourseId(course.getId());
+                ns.setSemesterSchedule(String.valueOf(semester));
+                ns.setSpringAutumn(springAutumn);
+                ns.setTeachHours(teachHours);
+                ns.setPracticeHours(practiceHours);
+                ns.setTimeWeek(course.getTimeWeek());
+                ns.setUnit(course.getUnit());
+                courseScheduleMapper.insert(ns);
+                rowsInserted++;
+            }
+            refreshed++;
+        }
+
+        summary.put("detected", courses.size());
+        summary.put("refreshed", refreshed);
+        summary.put("skippedAlready", skippedAlready);
+        summary.put("noData", noData);
+        summary.put("rowsInserted", rowsInserted);
+        return summary;
     }
 }

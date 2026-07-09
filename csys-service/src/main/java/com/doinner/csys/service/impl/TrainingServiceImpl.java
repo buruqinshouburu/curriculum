@@ -256,17 +256,24 @@ public class TrainingServiceImpl implements TrainingService {
 //        Map<Long, String> CourseVoMap = trainingSchemeVo.getCourseVos().stream().filter(c->ObjectUtils.isNotEmpty(c.getCourseAttr())).collect(Collectors.toMap(c -> c.getId(), c -> c.getCourseAttr()));
         if (ObjectUtils.isNotEmpty(courses)) {
             courses.forEach(c -> {
-                // todo c.getCourseScheduleList()  应该从关联表里拿数据
-                if (ObjectUtils.isNotEmpty(c.getSemesterSchedule()) && ObjectUtils.isNotEmpty(c.getSpringAutumn())) {
-                    if("6".equals(c.getSemesterSchedule())){
-                        for (int i = 1; i < 5; i++) {
-                            createCourseSchedule(trainingSchemeVo, c, termArr, trainingSchemeCourseSchedules,i);
+                // 学期与学时安排取值改为课程关联的 t_csys_course_ref_schedule 列表(一对多)。
+                // 其中 semesterSchedule=6(贯穿4年)/7(多学期排课) 属历史数据，已由 refreshLegacySchedule
+                // 接口刷新为新格式(每行一个 1-5 的学年)；刷新前此处仍按原规则展开，保证历史课程排课正确。
+                List<CourseSchedule> courseScheduleList = c.getCourseScheduleList();
+                if (ObjectUtils.isNotEmpty(courseScheduleList)) {
+                    courseScheduleList.forEach(cs -> {
+                        if (ObjectUtils.isNotEmpty(cs.getSemesterSchedule()) && ObjectUtils.isNotEmpty(cs.getSpringAutumn())) {
+                            if ("6".equals(cs.getSemesterSchedule())) {
+                                for (int i = 1; i < 5; i++) {
+                                    createCourseSchedule(trainingSchemeVo, c, cs, termArr, trainingSchemeCourseSchedules, i);
+                                }
+                            } else if ("7".equals(cs.getSemesterSchedule())) {
+                                createCourseSchedule(trainingSchemeVo, c, cs, termArr, trainingSchemeCourseSchedules, 1);
+                            } else {
+                                createCourseSchedule(trainingSchemeVo, c, cs, termArr, trainingSchemeCourseSchedules, Integer.valueOf(cs.getSemesterSchedule()));
+                            }
                         }
-                    }else if("7".equals(c.getSemesterSchedule())){
-                        createCourseSchedule(trainingSchemeVo, c, termArr, trainingSchemeCourseSchedules,1);
-                    }else{
-                        createCourseSchedule(trainingSchemeVo, c, termArr, trainingSchemeCourseSchedules,Integer.valueOf(c.getSemesterSchedule()));
-                    }
+                    });
                 }
             });
             trainingSchemeCourseScheduleMapper.insertTrainingSchemeCourseSchedules(trainingSchemeCourseSchedules);
@@ -323,12 +330,13 @@ public class TrainingServiceImpl implements TrainingService {
 
     private static void createCourseSchedule(TrainingSchemeVo trainingSchemeVo,
                                              Course c,
+                                             CourseSchedule cs,
                                              int[][] termArr,
                                              ArrayList<TrainingSchemeCourseSchedule> trainingSchemeCourseSchedules,
                                              int semesterSchedule) {
         // springAutumn: 1=秋 2=春 3=寒假 4=暑假 5=两个学期都排课
         // 排课时 1、3 归第一学期(秋)，2、4 归第二学期(春)，5 则两个学期各排一条
-        String springAutumn = c.getSpringAutumn();
+        String springAutumn = cs.getSpringAutumn();
         List<Integer> termIndexList;
         if ("2".equals(springAutumn) || "4".equals(springAutumn)) {
             termIndexList = Collections.singletonList(2);
@@ -343,9 +351,10 @@ public class TrainingServiceImpl implements TrainingService {
             tss.setSchemeId(trainingSchemeVo.getId());
             tss.setCourseId(c.getId());
             tss.setType(c.getCourseModuleChildren());
+            // 总课时仍取课程上的总学时；讲授学时、实践学时按关联表逐条取值
             tss.setHours(c.getHours());
-            tss.setPracticeHours(c.getPracticeHours());
-            tss.setTeachHours(c.getTeachHours());
+            tss.setPracticeHours(cs.getPracticeHours());
+            tss.setTeachHours(cs.getTeachHours());
             tss.setChecked(1);
             tss.setCourseAttr(c.getCourseAttr());
             tss.setCredits(c.getCredit());

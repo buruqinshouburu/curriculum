@@ -32,6 +32,15 @@ public interface CourseService {
     List<StandardGraduation> viewCourseGraduation(Long courseId);
 
     /**
+     * 刷新历史学年安排字典为 6(贯穿4年)/7(多学期排课) 的课程，转换为 t_csys_course_ref_schedule 多行格式。
+     * 取数来源：t_csys_training_scheme_course_schedule 已展开的排课明细。
+     * 调用的课程(source_id 非空)用自身排课明细；源课程(source_id 为空)用其被调用课程的排课明细。
+     *
+     * @return 刷新结果汇总(detected/refreshed/skippedAlready/noData/rowsInserted)
+     */
+    Map<String, Object> refreshLegacySchedule();
+
+    /**
      * 查询单个源课程的被选用情况(供前端自行渲染表格)
      *
      * @param sourceCourseId 源课程id

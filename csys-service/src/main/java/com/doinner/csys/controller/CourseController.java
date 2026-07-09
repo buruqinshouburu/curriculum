@@ -106,5 +106,11 @@ public class CourseController {
         return courseService.getCourseChooseStatus(sourceCourseId);
     }
 
+    @ApiOperation("刷新历史6/7学年排课数据(转 t_csys_course_ref_schedule 多行格式)")
+    @PostMapping("/refreshLegacySchedule")
+    public DataSet<Map<String, Object>> refreshLegacySchedule() {
+        return DataSet.success(courseService.refreshLegacySchedule());
+    }
+
 
 }

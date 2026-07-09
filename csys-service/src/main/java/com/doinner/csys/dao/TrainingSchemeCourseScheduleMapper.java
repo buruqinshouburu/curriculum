@@ -86,6 +86,15 @@ public interface TrainingSchemeCourseScheduleMapper {
     int deleteByCourseIds(@Param("ids") List<Long> ids);
 
     /**
+     * 按课程id集合查询排课明细(course_id / term / teach_hours / practice_hours)，
+     * 供历史 6/7 课程刷新为 t_csys_course_ref_schedule 新格式时取数。
+     *
+     * @param courseIds 课程id集合
+     * @return 排课明细集合
+     */
+    List<TrainingSchemeCourseSchedule> selectByCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    /**
      * 查询课程被选用情况（用于"课程被选用情况表"导出）。
      * 入参为源课程ID集合，通过 source_id 定位被选用课程(被各培养方案引用排课的课程实例)，
      * 选用单位/专业类/专业取自被选用课程自身字段。

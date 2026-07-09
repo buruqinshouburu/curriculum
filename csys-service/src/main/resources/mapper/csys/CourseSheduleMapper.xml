@@ -79,4 +79,10 @@
         from t_csys_course_ref_schedule where course_id = #{courseId}
     </delete>
 
+    <delete id="deleteLegacyByCourseId" parameterType="Long">
+        delete
+        from t_csys_course_ref_schedule
+        where course_id = #{courseId} and semester_Schedule in ('6', '7')
+    </delete>
+
 </mapper>

@@ -2302,6 +2302,15 @@
         select * from t_csys_course where source_id=#{id} and sysflag=0;
     </select>
 
+    <!-- 历史学年安排 6(贯穿4年)/7(多学期排课) 的课程id：课程表字段或关联表行命中其一 -->
+    <select id="selectLegacyScheduleCourseIds" resultType="Long">
+        select distinct c.id
+        from t_csys_course c
+        left join t_csys_course_ref_schedule s on s.course_id = c.id
+        where c.sysflag = 0
+        and (c.semester_Schedule in ('6', '7') or s.semester_Schedule in ('6', '7'))
+    </select>
+
     <delete id="removeCourseByIds">
         delete from t_csys_course where id in
         <foreach item="id" collection="ids" open="(" separator="," close=")">
