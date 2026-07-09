@@ -520,17 +520,20 @@ public class CourseServiceImpl implements CourseService {
     /**
      * 将总库课程的毕业要求绑定同步到培养方案中对应的课程，仅追加不覆盖。
      * 映射：总库毕业要求 id -> 方案毕业要求 id，通过方案毕业要求的 source_id 匹配。
+     * 方案未生成毕业要求树(无任何方案毕业要求)时，message 明确提示。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> syncGraduationFromSource(Long trainingSchemeId) {
         Map<String, Object> summary = new LinkedHashMap<>();
         int coursesSynced = 0, rowsInserted = 0, skippedExisting = 0, skippedUnmapped = 0, skippedNoSourceBinding = 0;
+        int totalInvoked = 0, withSourceBinding = 0;
 
         // 1. 培养方案下的被调用课程(source_id 非空)
         List<TrainingSchemeRefCourse> refCourses =
                 trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoId(trainingSchemeId);
         if (ObjectUtils.isEmpty(refCourses)) {
+            summary.put("message", "培养方案下没有可同步的课程");
             putSyncSummary(summary, 0, 0, 0, 0, 0);
             return summary;
         }
@@ -546,7 +549,9 @@ public class CourseServiceImpl implements CourseService {
                 invokedToSource.put(c.getId(), c.getSourceId());
             }
         }
+        totalInvoked = invokedToSource.size();
         if (invokedToSource.isEmpty()) {
+            summary.put("message", "培养方案下没有可同步的课程(无被调用课程)");
             putSyncSummary(summary, 0, 0, 0, 0, 0);
             return summary;
         }
@@ -555,7 +560,8 @@ public class CourseServiceImpl implements CourseService {
         List<StandardGraduation> schemeGraduations =
                 standardGraduationMapper.selectSchemeGraduationWithSourceBySchemeId(trainingSchemeId);
         Map<Long, Long> sourceToSchemeGradId = new HashMap<>();
-        if (ObjectUtils.isNotEmpty(schemeGraduations)) {
+        boolean schemeHasGraduationTree = ObjectUtils.isNotEmpty(schemeGraduations);
+        if (schemeHasGraduationTree) {
             for (StandardGraduation sg : schemeGraduations) {
                 if (sg.getSourceId() != null) {
                     sourceToSchemeGradId.putIfAbsent(sg.getSourceId(), sg.getId());
@@ -572,6 +578,11 @@ public class CourseServiceImpl implements CourseService {
             for (CourseRefGraduation ref : sourceBindings) {
                 sourceToGradIds.computeIfAbsent(ref.getCourseId(), k -> new ArrayList<>())
                         .add(ref.getGraduationId());
+            }
+        }
+        for (Long sourceCourseId : invokedToSource.values()) {
+            if (ObjectUtils.isNotEmpty(sourceToGradIds.get(sourceCourseId))) {
+                withSourceBinding++;
             }
         }
 
@@ -629,8 +640,32 @@ public class CourseServiceImpl implements CourseService {
             }
         }
 
+        // 6. 生成提示信息
+        summary.put("message", buildSyncMessage(totalInvoked, withSourceBinding, schemeHasGraduationTree,
+                coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding));
         putSyncSummary(summary, coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding);
         return summary;
+    }
+
+    /**
+     * 根据同步结果构造提示信息：
+     * - 方案未生成毕业要求树：明确提示需先同步毕业要求树
+     * - 有源课程但无总库绑定：提示源课程未绑定毕业要求
+     * - 其余：给出同步结果概览
+     */
+    private String buildSyncMessage(int totalInvoked, int withSourceBinding, boolean schemeHasGraduationTree,
+                                    int coursesSynced, int rowsInserted, int skippedExisting,
+                                    int skippedUnmapped, int skippedNoSourceBinding) {
+        if (!schemeHasGraduationTree) {
+            return "该培养方案尚未生成毕业要求树，无法映射总库毕业要求，未同步任何绑定。请先同步/建立毕业要求树后再执行同步。";
+        }
+        if (withSourceBinding == 0) {
+            return "被调用的课程在总库均未绑定毕业要求，无可同步内容。";
+        }
+        return String.format(
+                "同步完成：共 %d 门被调用课程，新增绑定 %d 条；已存在跳过 %d 条，"
+                        + "方案无对应毕业要求跳过 %d 条，源课程未绑定毕业要求跳过 %d 条。",
+                totalInvoked, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding);
     }
 
     private void putSyncSummary(Map<String, Object> summary, int coursesSynced, int rowsInserted,
