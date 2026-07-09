@@ -1,173 +1,283 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.example</groupId>
-    <artifactId>curriculum</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>flowableDemo</name>
-    <description>flowableDemo</description>
-    <url/>
-    <licenses>
-        <license/>
-    </licenses>
-    <developers>
-        <developer/>
-    </developers>
-    <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
-    </scm>
+
+    <groupId>com.doinner</groupId>
+    <artifactId>curriculum-system</artifactId>
+    <version>3.2.0</version>
+
+    <name>doinner-curriculum-system</name>
+    <url>http://www.doinner.com</url>
+    <description>董因培养方案系统</description>
+
     <properties>
+        <doinner.version>4.1.0</doinner.version>
+        <!--<start.doinner.version>1.0.2</start.doinner.version>-->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>11</java.version>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
         <spring-boot.version>2.7.2</spring-boot.version>
+        <spring-cloud.version>2021.0.3</spring-cloud.version>
+        <spring-cloud-alibaba.version>2021.0.1.0</spring-cloud-alibaba.version>
+        <alibaba.nacos.version>2.0.4</alibaba.nacos.version>
         <spring-boot-admin.version>2.7.3</spring-boot-admin.version>
         <swagger.fox.version>3.0.0</swagger.fox.version>
         <swagger.core.version>1.6.2</swagger.core.version>
-        <commons.io.version>2.11.0</commons.io.version>
+        <commons.io.version>2.12.0</commons.io.version>
+        <commons.fileupload.version>1.4</commons.fileupload.version>
         <fastjson.version>2.0.14</fastjson.version>
         <jjwt.version>0.9.1</jjwt.version>
         <commons-collections.version>3.2.2</commons-collections.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
-        <transmittable-thread-local.version>2.13.2</transmittable-thread-local.version>
-        <hutool.version>5.3.2</hutool.version>
-        <rocketmq.version>2.2.0</rocketmq.version>
-        <mybatis-plus-version>3.5.10.1</mybatis-plus-version>
-        <mysql-version>8.0.29</mysql-version>
+        <druid.version>1.2.6</druid.version>
+        <dynamic-ds.version>3.5.2</dynamic-ds.version>
+        <doinner-common-core.version>4.1.0</doinner-common-core.version>
+        <doinner-common-mongodb.version>4.1.0</doinner-common-mongodb.version>
+        <doinner-kg.version>4.0.4</doinner-kg.version>
+        <doinner-file.version>4.0.0</doinner-file.version>
+
     </properties>
+
+    <!-- 依赖声明 -->
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- SpringCloud 微服务 -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- SpringCloud Alibaba 微服务 -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Alibaba Nacos 配置 -->
+            <dependency>
+                <groupId>com.alibaba.nacos</groupId>
+                <artifactId>nacos-client</artifactId>
+                <version>${alibaba.nacos.version}</version>
+            </dependency>
+
+            <!-- Alibaba Seata 配置 -->
+            <dependency>
+                <groupId>io.seata</groupId>
+                <artifactId>seata-spring-boot-starter</artifactId>
+                <version>${alibaba.seata.version}</version>
+            </dependency>
+
+            <!-- SpringBoot 依赖配置 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+
+            <!-- Swagger 依赖配置 -->
+            <dependency>
+                <groupId>io.swagger</groupId>
+                <artifactId>swagger-models</artifactId>
+                <version>${swagger.core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger</groupId>
+                <artifactId>swagger-annotations</artifactId>
+                <version>${swagger.core.version}</version>
+            </dependency>
+
+
+            <!-- io常用工具类 -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons.io.version}</version>
+            </dependency>
+
+
+            <!-- 文件上传工具类 -->
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>${commons.fileupload.version}</version>
+            </dependency>
+
+            <!-- Collection 增强Java集合框架 -->
+            <dependency>
+                <groupId>commons-collections</groupId>
+                <artifactId>commons-collections</artifactId>
+                <version>${commons-collections.version}</version>
+            </dependency>
+
+            <!-- lang3工具类 -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
+
+            <!-- JWT -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+            <!-- Doinner Common Core-->
+            <dependency>
+                <groupId>com.doinner</groupId>
+                <artifactId>doinner-common-core</artifactId>
+                <version>${doinner-common-core.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.doinner</groupId>
+                        <artifactId>doinner-api-system</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi-ooxml</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+
+
+
+            <!-- doinner Common Core-->
+            <dependency>
+                <groupId>com.doinner</groupId>
+                <artifactId>doinner-common-core</artifactId>
+                <version>${doinner.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi-ooxml</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.doinner</groupId>
+                <artifactId>doinner-common-mongodb</artifactId>
+                <version>${doinner-common-mongodb.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.doinner</groupId>
+                <artifactId>kg-service-api</artifactId>
+                <version>${doinner-kg.version}</version>
+            </dependency>
+            <!-- Doinner Common Core-->
+            <dependency>
+                <groupId>com.doinner</groupId>
+                <artifactId>file-service-api</artifactId>
+                <version>${doinner-file.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi-ooxml</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>transmittable-thread-local</artifactId>
+                <version>2.14.3</version>
+            </dependency>
+
+            <!--<dependency>
+                <groupId>com.doinner</groupId>
+                <artifactId>doinner-starter-doinner</artifactId>
+                <version>${start.doinner.version}</version>
+            </dependency>-->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>5.2.5</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>5.2.5</version>
+            </dependency>
+        </dependencies>
+
+    </dependencyManagement>
+
+    <modules>
+        <module>csys-service</module>
+        <module>csys-service-api</module>
+    </modules>
+    <packaging>pom</packaging>
+
     <dependencies>
+        <!-- bootstrap 启动器 -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-dependencies</artifactId>
-            <version>${spring-boot.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <version>${spring-boot.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc</artifactId>
-            <version>${spring-boot.version}</version>
-        </dependency>
-
-        <!-- 必加：MySQL驱动（和你的MySQL版本匹配） -->
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>${mysql-version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi</artifactId>
-            <version>5.2.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.2.3</version>
-        </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.apache.poi</groupId>-->
-<!--            <artifactId>poi-scratchpad</artifactId>-->
-<!--            <version>5.2.3</version>-->
-<!--        </dependency>-->
-
-        <!-- 必加：Flowable核心依赖 -->
-<!--        <dependency>-->
-<!--            <groupId>org.flowable</groupId>-->
-<!--            <artifactId>flowable-spring-boot-starter</artifactId>-->
-<!--            <version>6.8.0</version> &lt;!&ndash; 和Spring Boot 2.7.2兼容 &ndash;&gt;-->
-<!--        </dependency>-->
-
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>${mybatis-plus-version}</version>
-        </dependency>
-
-        <!-- 测试依赖（确保测试能加载Spring上下文） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <version>2.7.2</version>
-            <scope>compile</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-            <version>2.7.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>fr.opensagres.xdocreport</groupId>
-            <artifactId>fr.opensagres.xdocreport.document</artifactId>
-            <version>2.0.2</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.opensagres.xdocreport</groupId>
-            <artifactId>fr.opensagres.xdocreport.template</artifactId>
-            <version>2.0.2</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.opensagres.xdocreport</groupId>
-            <artifactId>fr.opensagres.xdocreport.document.docx</artifactId>
-            <version>2.0.2</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.opensagres.xdocreport</groupId>
-            <artifactId>fr.opensagres.xdocreport.template.freemarker</artifactId>
-            <version>2.0.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.freemarker</groupId>
-            <artifactId>freemarker</artifactId>
-            <version>2.3.31</version>
-        </dependency>
-        <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>5.6.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
-            <scope>provided</scope>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- 1. 配置Maven编译插件，指定source和target版本 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version> <!-- 稳定版本 -->
                 <configuration>
-                    <source>11</source> <!-- 源版本 -->
-                    <target>11</target> <!-- 目标版本（和source一致） -->
-                    <encoding>UTF-8</encoding> <!-- 可选，避免中文乱码 -->
-                    <compilerArgs>
-                        <arg>-Xlint:unchecked</arg> <!-- 可选，关闭无关警告 -->
-                    </compilerArgs>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>${project.build.sourceEncoding}</encoding>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <!--<repositories>
+        <repository>
+            <id>public</id>
+            <name>aliyun nexus</name>
+            <url>http://nexus.doinner.com/repository/maven-public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>public</id>
+            <name>aliyun nexus</name>
+            <url>http://nexus.doinner.com/repository/maven-public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>-->
+
 </project>

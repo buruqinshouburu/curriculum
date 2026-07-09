@@ -174,7 +174,14 @@
       "Skill(update-config)",
       "Bash(python3 *)",
       "Bash(mvn -q compile exec:java -e)",
-      "Bash(mvn -q exec:java -e)"
+      "Bash(mvn -q exec:java -e)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(grep -viE \"placeholder|example|your_|xxx|test|//\\\\s|/\\\\*|\\\\* \")",
+      "Bash(grep -iE \"\\\\.\\(yml|yaml|properties\\)$\")",
+      "Bash(git add *)",
+      "Bash(git commit -m '新增同步毕业要求接口：总库课程绑定关系追加到培养方案课程 *)",
+      "Bash(git commit -m '同步毕业要求接口：方案未建毕业要求树时给出明确提示 *)"
     ]
   }
 }
