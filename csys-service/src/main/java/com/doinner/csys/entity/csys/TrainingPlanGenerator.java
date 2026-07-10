@@ -117,7 +117,7 @@ TrainingPlanGenerator {
     /**
      * 生成毕业要求部分
      */
-    private void generateStandardGraduations(TrainingPlanModel model, XWPFDocument document) {
+    protected void generateStandardGraduations(TrainingPlanModel model, XWPFDocument document) {
         // 一级标题
         WordUtil.createHeading(document, "二、毕业要求", 1);
 
@@ -137,7 +137,7 @@ TrainingPlanGenerator {
     /**
      * 处理一级标题及其子结构
      */
-    private void processFirstLevel(StandardGraduation graduation, XWPFDocument document) {
+    protected void processFirstLevel(StandardGraduation graduation, XWPFDocument document) {
         WordUtil.createHeading(document, graduation.getName(), 2);
         List<StandardGraduation> children = (List<StandardGraduation>) (graduation.getChildren());
         if (ObjectUtils.isNotEmpty(children)) {
@@ -188,7 +188,7 @@ TrainingPlanGenerator {
     /**
      * 生成修业时间与学时学分部分
      */
-    private void generateDurationAndCredits(TrainingPlanModel model, XWPFDocument document) {
+    protected void generateDurationAndCredits(TrainingPlanModel model, XWPFDocument document) {
         DurationAndCreditsModel dac = model.getDurationAndCredits();
 
         // 一级标题
@@ -425,7 +425,7 @@ TrainingPlanGenerator {
     /**
      * 生成教学训练体系与安排（课程信息表格）
      */
-    private void generateCourseArrangements(TrainingPlanModel model, XWPFDocument document) {
+    protected void generateCourseArrangements(TrainingPlanModel model, XWPFDocument document) {
         // 一级标题
         WordUtil.createHeading(document, "四、教学训练体系与安排", 1);
         WordUtil.createParagraph(document,"通识课程任选课程安排表见附录1、专业任选课程安排表见附录2、其他课程和实践训练安排如下：",null);
@@ -1208,7 +1208,7 @@ TrainingPlanGenerator {
     /**
      * 格式化学时：整数显示为整型，否则保留有效小数
      */
-    private String formatHours(Double hours) {
+    protected String formatHours(Double hours) {
         if (hours == null) {
             return "";
         }
@@ -1280,7 +1280,7 @@ TrainingPlanGenerator {
     /**
      * 获取考核方式文本（S=考试，C=考查）
      */
-    private String getAssessText(String exaMethod) {
+    protected String getAssessText(String exaMethod) {
         if (exaMethod == null) {
             return "";
         }

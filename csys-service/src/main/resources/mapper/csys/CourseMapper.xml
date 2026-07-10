@@ -1488,7 +1488,7 @@
     <select id="selectCourseAndRelevanceById" parameterType="Long" resultMap="CourseAndRelevanceResult">
         <include refid="selectCourseAndRelevanceVo"/>
         where tc.id = #{id}
-        order by ct.id asc, ku.id asc,kp.id asc
+        order by ct.id asc, ku.id asc,kp.id asc,s.id asc
     </select>
 
     <select id="selectCourseAndRelevanceByIds" parameterType="Long" resultMap="CourseAndRelevanceResult">

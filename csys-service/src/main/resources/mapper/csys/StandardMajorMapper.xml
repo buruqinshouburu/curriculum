@@ -204,6 +204,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectSubMajorList" resultType="java.util.Map">
-        select id,name from t_csys_std_major where level=2 and sysflag=0 order by id desc
+        select a.id id,a.name name,b.id parentId,b.name parentName from t_csys_std_major a left join
+                                                                        t_csys_std_major b on a.parent_id = b.id  where a.level=2 and a.sysflag=0 order by a.id desc
     </select>
 </mapper>

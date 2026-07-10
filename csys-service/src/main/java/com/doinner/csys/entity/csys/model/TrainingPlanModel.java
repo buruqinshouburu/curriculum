@@ -43,6 +43,8 @@ public class TrainingPlanModel {
     private List<TrainingSchemeCourseModel> trainingSubjectCourses;
     //训练课项目与安排
     private List<TrainingSchemeCourseModel> practicalProjectCourse;
+    //军士职业技术教育课程（军事职业教育父模块下的政治理论/军事基础/任职基础/任职岗位4个子模块）
+    private List<TrainingSchemeCourseModel> ncoCourses;
 
     public String getTrainingPlanName() {
         return trainingPlanName;
@@ -110,6 +112,14 @@ public class TrainingPlanModel {
         return practicalProjectCourse;
     }
 
+    public List<TrainingSchemeCourseModel> getNcoCourses() {
+        return ncoCourses;
+    }
+
+    public void setNcoCourses(List<TrainingSchemeCourseModel> ncoCourses) {
+        this.ncoCourses = ncoCourses;
+    }
+
     public String getStandardGraduationContent() {
         return standardGraduationContent;
     }
@@ -137,6 +147,8 @@ public class TrainingPlanModel {
         DurationAndCreditsModel durationAndCreditsModel = new DurationAndCreditsModel();
         //设置公共基础课程
         setGeneralCourseHoursAndCredits(durationAndCreditsModel);
+        //设置军士职业技术教育课程（军事职业教育4个子模块，学时学分表按子模块汇总）
+        setNcoCourseHoursAndCredits(durationAndCreditsModel);
         //设置学科基础课程
         setDisciplineCourse(durationAndCreditsModel);
         //设置专业课程
@@ -176,6 +188,23 @@ public class TrainingPlanModel {
             courseMap.forEach((childrenModelName, courseModelList) -> {
                 if (ObjectUtils.isNotEmpty(courseModelList)) {
                     CreditsDetailModel creditsDetailModel = setCourseDetailModel(durationAndCreditsModel,courseModelList);
+                    durationAndCreditsModel.setGeneralCourse(creditsDetailModel);
+                }
+            });
+        });
+    }
+
+    /**
+     * 设置军士职业技术教育课程学时学分：按4个子模块（courseModeChildrenName）汇总，
+     * 每个 CreditsDetailModel 追加到 durationAndCreditsModel.generalCourses，
+     * 供军士学时学分表按子模块行读取。
+     */
+    private void setNcoCourseHoursAndCredits(DurationAndCreditsModel durationAndCreditsModel) {
+        Map<String, Map<String, List<TrainingSchemeCourseModel>>> ncoCourseMap = TrainingSchemeCourseModel.groupCourses(ncoCourses);
+        ncoCourseMap.forEach((ModelName, courseMap) -> {
+            courseMap.forEach((childrenModelName, courseModelList) -> {
+                if (ObjectUtils.isNotEmpty(courseModelList)) {
+                    CreditsDetailModel creditsDetailModel = setCourseDetailModel(durationAndCreditsModel, courseModelList);
                     durationAndCreditsModel.setGeneralCourse(creditsDetailModel);
                 }
             });
@@ -264,6 +293,8 @@ public class TrainingPlanModel {
         List<TrainingSchemeCourseModel> trainingSubjectCourseList = new ArrayList<>();
         //训练科目
         List<TrainingSchemeCourseModel> practicalProjectCourse = new ArrayList<>();
+        //军士职业技术教育课程（军事职业教育父模块下的4个子模块）
+        List<TrainingSchemeCourseModel> ncoCourseList = new ArrayList<>();
         courseTypeMap.forEach((type, courses) -> {
             switch (type) {
                 case ConstantTrainingScheme.TRAINING_TYPE:
@@ -291,6 +322,16 @@ public class TrainingPlanModel {
                                 //专业课程教学安排
                                 setCourse(majorCourseList, course, courseScheduleMap.get(course.getId()));
                                 break;
+                            case DictContent.MILITARY_VOCATIONAL_EDUCATION:
+                                //军士职业技术教育：军事职业教育父模块
+                                setCourse(ncoCourseList, course, courseScheduleMap.get(course.getId()));
+                                break;
+                            default:
+                                //兼容 courseModule 存的是4个子模块ID的情况（按子模块ID归类）
+                                if (isNcoSubModule(course.getCourseModule())) {
+                                    setCourse(ncoCourseList, course, courseScheduleMap.get(course.getId()));
+                                }
+                                break;
                         }
                     }
                     break;
@@ -304,6 +345,18 @@ public class TrainingPlanModel {
         this.trainingSubjectCourses = trainingSubjectCourseList;
         //训练科目
         this.practicalProjectCourse = practicalProjectCourse;
+        //军士职业技术教育课程
+        this.ncoCourses = ncoCourseList;
+    }
+
+    /**
+     * 判断 courseModule 是否为军士4个子模块之一。
+     */
+    private boolean isNcoSubModule(String courseModule) {
+        return DictContent.POLITICAL_THEORY_NCO.equals(courseModule)
+                || DictContent.MILITARY_FOUNDATION_NCO.equals(courseModule)
+                || DictContent.POSITION_FOUNDATION.equals(courseModule)
+                || DictContent.DUTY_POSITION.equals(courseModule);
     }
 
     private void setCourse(List<TrainingSchemeCourseModel> courseModeList, Course course, List<TrainingSchemeCourseScheduleVo> trainingSchemeCourseScheduleVos) {

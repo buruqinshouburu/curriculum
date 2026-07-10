@@ -12,6 +12,7 @@ import com.doinner.csys.domain.*;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.io.utils.ExcelUtils;
 import com.doinner.csys.io.utils.TreeEntityUtils;
+import com.doinner.csys.io.handler.GraduationCourseSupportExcelHandler;
 import com.doinner.csys.service.KnowledgeSourceService;
 import com.doinner.csys.service.StandardService;
 import com.doinner.csys.utils.MapToObjectUtil;
@@ -22,6 +23,8 @@ import com.doinner.system.domain.entity.SysDept;
 import com.doinner.system.service.DoinnerDeptService;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -32,7 +35,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -2629,5 +2635,132 @@ public class StandardServiceImpl implements StandardService {
                         vo.getUrl(),schemeId);
             }
         }
+    }
+
+    @Override
+    public GraduationCourseSupportVo selectGraduationCourseSupport(Long schemeId) {
+        GraduationCourseSupportVo result = new GraduationCourseSupportVo();
+        result.setSchemeId(schemeId);
+
+        // 1. 查询培养方案下的毕业要求树(按 scheme_Id 过滤)
+        StandardGraduation query = new StandardGraduation();
+        query.setSchemeId(schemeId);
+        List<StandardGraduation> rootTree = standardGraduationMapper.selectStandardGraduationListNoJoin(query);
+        List<StandardGraduation> roots = TreeBuilderUtils.buildRootTree(rootTree);
+        if (CollectionUtils.isEmpty(roots)) {
+            return result;
+        }
+
+        // 2. 收集所有叶子节点
+        List<StandardGraduation> leaves = new ArrayList<>();
+        for (StandardGraduation root : roots) {
+            collectLeaves(root, leaves);
+        }
+
+        // 3. 按叶子id查询绑定的课程(含课程名)
+        Map<Long, List<GraduationCourseSupportVo.SupportCourseVo>> courseMap = new HashMap<>();
+        int maxCourseCount = 0;
+        if (CollectionUtils.isNotEmpty(leaves)) {
+            List<Long> leafIds = leaves.stream().map(StandardGraduation::getId).collect(Collectors.toList());
+            List<GraduationRefCourseVo> refList =
+                    courseRefGraduationMapper.selectCourseRefGraduationWithCourseByGraduationIds(leafIds);
+            if (CollectionUtils.isNotEmpty(refList)) {
+                for (GraduationRefCourseVo ref : refList) {
+                    GraduationCourseSupportVo.SupportCourseVo course = new GraduationCourseSupportVo.SupportCourseVo();
+                    course.setId(ref.getCourseId());
+                    course.setName(ref.getCourseName());
+                    course.setCode(ref.getCourseCode());
+                    courseMap.computeIfAbsent(ref.getGraduationId(), k -> new ArrayList<>()).add(course);
+                }
+            }
+        }
+
+        // 4. 遍历树构建 VO
+        for (StandardGraduation root : roots) {
+            GraduationCourseSupportVo.SupportGroupVo group = new GraduationCourseSupportVo.SupportGroupVo();
+            group.setRootId(root.getId());
+            group.setRootName(resolveRootName(root));
+            group.setGraduationType(root.getGraduationType());
+            if (CollectionUtils.isNotEmpty(root.getChildren())) {
+                for (StandardGraduation first : root.getChildren()) {
+                    GraduationCourseSupportVo.SupportFirstLevelVo firstVo = new GraduationCourseSupportVo.SupportFirstLevelVo();
+                    firstVo.setId(first.getId());
+                    firstVo.setName(first.getName());
+                    // 一级下可能直接是叶子，也可能还有下一级；统一收叶子
+                    List<StandardGraduation> firstLeaves = new ArrayList<>();
+                    collectLeaves(first, firstLeaves);
+                    if (CollectionUtils.isNotEmpty(firstLeaves)) {
+                        for (StandardGraduation leaf : firstLeaves) {
+                            GraduationCourseSupportVo.SupportRequirementVo reqVo = new GraduationCourseSupportVo.SupportRequirementVo();
+                            reqVo.setId(leaf.getId());
+                            reqVo.setName(leaf.getName());
+                            List<GraduationCourseSupportVo.SupportCourseVo> courses = courseMap.get(leaf.getId());
+                            if (CollectionUtils.isNotEmpty(courses)) {
+                                reqVo.setCourses(courses);
+                                if (courses.size() > maxCourseCount) {
+                                    maxCourseCount = courses.size();
+                                }
+                            }
+                            firstVo.getRequirements().add(reqVo);
+                        }
+                    }
+                    group.getFirstLevels().add(firstVo);
+                }
+            }
+            result.getGroups().add(group);
+        }
+        result.setMaxCourseCount(maxCourseCount);
+        return result;
+    }
+
+    @Override
+    public void exportGraduationCourseSupport(HttpServletResponse response, Long schemeId) {
+        GraduationCourseSupportVo vo = selectGraduationCourseSupport(schemeId);
+        GraduationCourseSupportExcelHandler handler = new GraduationCourseSupportExcelHandler(vo);
+        XSSFWorkbook workbook = handler.create();
+        try {
+            String fileName = URLEncoder.encode("毕业要求与课程支撑矩阵.xlsx", "utf-8");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("utf-8");
+            response.setHeader("Content-disposition", "attachment;filename*=UTF-8''" + fileName);
+            workbook.write(response.getOutputStream());
+        } catch (UnsupportedEncodingException e) {
+            log.error("导出毕业要求与课程支撑矩阵-编码异常", e);
+        } catch (IOException e) {
+            log.error("导出毕业要求与课程支撑矩阵-IO异常", e);
+        }
+    }
+
+    /**
+     * 递归收集叶子节点(无 children 的节点视为叶子)。
+     */
+    private void collectLeaves(StandardGraduation node, List<StandardGraduation> leaves) {
+        if (node == null) {
+            return;
+        }
+        if (CollectionUtils.isEmpty(node.getChildren())) {
+            leaves.add(node);
+            return;
+        }
+        for (StandardGraduation child : node.getChildren()) {
+            collectLeaves(child, leaves);
+        }
+    }
+
+    /**
+     * 解析根节点展示名：优先 name，为空时用 graduationType 映射(1知识/2能力/3素质)。
+     */
+    private String resolveRootName(StandardGraduation root) {
+        if (StringUtils.isNotBlank(root.getName())) {
+            return root.getName();
+        }
+        if ("1".equals(root.getGraduationType())) {
+            return "知识";
+        } else if ("2".equals(root.getGraduationType())) {
+            return "能力";
+        } else if ("3".equals(root.getGraduationType())) {
+            return "素质";
+        }
+        return "";
     }
 }

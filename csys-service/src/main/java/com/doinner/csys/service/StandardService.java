@@ -212,6 +212,23 @@ public interface StandardService {
 
 
     /**
+     * 根据培养方案id查询毕业要求与课程支撑矩阵(树结构，前端展示用)。
+     *
+     * @param schemeId 培养方案id
+     * @return 支撑矩阵展示对象
+     */
+    GraduationCourseSupportVo selectGraduationCourseSupport(Long schemeId);
+
+    /**
+     * 根据培养方案id导出毕业要求与课程支撑矩阵 Excel。
+     *
+     * @param response HttpServletResponse
+     * @param schemeId 培养方案id
+     */
+    void exportGraduationCourseSupport(HttpServletResponse response, Long schemeId);
+
+
+    /**
      * 查看毕业标准配置
      */
     StandardGraduationRefTargetListVo selectStandardCultivationTargetByGraduationId(Long graduationId);

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.CourseRefSourceDomain;
+import com.doinner.csys.domain.vo.GraduationRefCourseVo;
 import org.apache.ibatis.annotations.Param;
 
 /**
@@ -85,4 +86,13 @@ public interface CourseRefGraduationMapper {
      * @return 绑定关系集合
      */
     List<CourseRefGraduation> selectExistingRefByCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    /**
+     * 按毕业要求(叶子)id集合查询绑定的课程(含课程名称/编号)，用于毕业要求与课程支撑矩阵。
+     * 仅返回未删除(sysflag=0)的课程。
+     *
+     * @param graduationIds 毕业要求id集合
+     * @return 绑定关系集合(含课程信息)
+     */
+    List<GraduationRefCourseVo> selectCourseRefGraduationWithCourseByGraduationIds(@Param("ids") List<Long> graduationIds);
 }

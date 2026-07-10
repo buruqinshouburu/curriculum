@@ -18,7 +18,7 @@
     <select id="selectByCourseId" parameterType="Long" resultMap="CourseScheduleResult">
         select id,course_id,semester_Schedule,
         spring_Autumn,teach_Hours,practice_Hours,time_Week,unit
-        from t_csys_course_ref_schedule where course_id = #{courseId}
+        from t_csys_course_ref_schedule where course_id = #{courseId} order by id asc 
     </select>
 
     <insert id="insert" parameterType="com.doinner.csys.domain.CourseSchedule" useGeneratedKeys="true"

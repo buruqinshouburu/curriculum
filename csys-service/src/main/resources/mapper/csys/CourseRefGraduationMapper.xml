@@ -152,4 +152,20 @@
             #{courseId}
         </foreach>
     </select>
+
+    <!-- 毕业要求与课程支撑矩阵：按毕业要求(叶子)id集合查绑定课程(含课程信息) -->
+    <select id="selectCourseRefGraduationWithCourseByGraduationIds"
+            resultType="com.doinner.csys.domain.vo.GraduationRefCourseVo">
+        select g.graduation_id as graduationId,
+               g.course_id     as courseId,
+               c.name          as courseName,
+               c.code          as courseCode
+        from t_csys_course_ref_graduation g
+                 inner join t_csys_course c on c.id = g.course_id and c.sysflag = 0
+        where g.graduation_id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        order by g.graduation_id, c.id
+    </select>
 </mapper>

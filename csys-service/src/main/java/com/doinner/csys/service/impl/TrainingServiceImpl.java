@@ -14,6 +14,7 @@ import com.doinner.csys.dao.*;
 import com.doinner.csys.domain.*;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.entity.csys.FiveYearTrainingPlanGenerator;
+import com.doinner.csys.entity.csys.NcoTrainingPlanGenerator;
 import com.doinner.csys.entity.csys.TrainingPlanGenerator;
 import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.model.TrainingPlanModel;
@@ -276,7 +277,10 @@ public class TrainingServiceImpl implements TrainingService {
                     });
                 }
             });
-            trainingSchemeCourseScheduleMapper.insertTrainingSchemeCourseSchedules(trainingSchemeCourseSchedules);
+            // 排课数据为空时跳过批量插入，避免 mapper 对空集合报错
+            if (ObjectUtils.isNotEmpty(trainingSchemeCourseSchedules)) {
+                trainingSchemeCourseScheduleMapper.insertTrainingSchemeCourseSchedules(trainingSchemeCourseSchedules);
+            }
         }
     }
 
@@ -1508,11 +1512,16 @@ public class TrainingServiceImpl implements TrainingService {
 
     /**
      * 根据培养方案适用对象（培养层次 educationLevel）选择培养方案生成器：
-     * 值为 7（英烈子女班）或 8（生长军官学员及英烈子女班）时使用五年制生成器（启用第五学年），否则使用四年制生成器。
+     * 值为 7（英烈子女班）或 8（生长军官学员及英烈子女班）时使用五年制生成器（启用第五学年）；
+     * 值为 3（军士职业技术教育学员）时使用军士三年制生成器；
+     * 其他值使用四年制父类生成器。
      */
     private TrainingPlanGenerator createTrainingPlanGenerator(String educationLevel) {
         if ("7".equals(educationLevel) || "8".equals(educationLevel)) {
             return new FiveYearTrainingPlanGenerator();
+        }
+        if ("3".equals(educationLevel)) {
+            return new NcoTrainingPlanGenerator();
         }
         return new TrainingPlanGenerator();
     }
@@ -1613,6 +1622,16 @@ public class TrainingServiceImpl implements TrainingService {
 
             // 处理每个课程模式组
             courseModelMap.forEach(this::processCourseGroup);
+        }
+        //处理军士职业技术教育课程（军事职业教育4个子模块）
+        List<TrainingSchemeCourseModel> ncoCourses = trainingPlanModel.getNcoCourses();
+        if (ObjectUtils.isNotEmpty(ncoCourses)) {
+            // 按课程模式子ID（courseModuleChildren）分组
+            Map<String, List<TrainingSchemeCourseModel>> ncoModelMap =
+                    ncoCourses.stream().filter(c -> ObjectUtils.isNotEmpty(c.getCourseModeChildrenId()))
+                            .collect(Collectors.groupingBy(TrainingSchemeCourseModel::getCourseModeChildrenId));
+            // 处理每个子模块组，补全 courseModeChildrenName/childrenModelSort
+            ncoModelMap.forEach(this::processCourseGroup);
         }
         //处理专业课程教学安排 专业方向转换
         List<TrainingSchemeCourseModel> majorCourses = trainingPlanModel.getMajorCourses();

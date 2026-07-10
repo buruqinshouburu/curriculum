@@ -452,6 +452,18 @@ public class StandardController extends BaseController {
         return Message.success();
     }
 
+    @GetMapping("/graduation/courseSupport/{schemeId}")
+    @ApiOperation("根据培养方案id查询毕业要求与课程支撑矩阵")
+    public DataSet<GraduationCourseSupportVo> selectGraduationCourseSupport(@PathVariable("schemeId") Long schemeId) {
+        return DataSet.success(stdService.selectGraduationCourseSupport(schemeId));
+    }
+
+    @GetMapping("/graduation/courseSupport/export")
+    @ApiOperation("根据培养方案id导出毕业要求与课程支撑矩阵")
+    public void exportGraduationCourseSupport(HttpServletResponse response, Long schemeId) {
+        stdService.exportGraduationCourseSupport(response, schemeId);
+    }
+
 
 
 
