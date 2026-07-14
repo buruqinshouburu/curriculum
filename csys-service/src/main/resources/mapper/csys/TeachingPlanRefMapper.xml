@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanRefMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanRef">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="context_id" property="contextId" jdbcType="BIGINT"/>
+        <result column="ref_type" property="refType" jdbcType="TINYINT"/>
+        <result column="ref_id" property="refId" jdbcType="BIGINT"/>
+        <result column="ref_name" property="refName" jdbcType="VARCHAR"/>
+        <result column="ref_hours" property="refHours" jdbcType="DECIMAL"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, context_id, ref_type, ref_id, ref_name, ref_hours, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_ref (
+            plan_id, context_id, ref_type, ref_id, ref_name, ref_hours, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.contextId}, #{item.refType}, #{item.refId}, #{item.refName},
+                #{item.refHours}, #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier},
+                #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_ref
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+        ORDER BY ref_type ASC, sort ASC, id ASC
+    </select>
+
+    <select id="selectByPlanAndType" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_ref
+        WHERE plan_id = #{planId}
+          AND ref_type = #{refType}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_ref SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanRef"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_ref
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="contextId != null">context_id,</if>
+            <if test="refType != null">ref_type,</if>
+            <if test="refId != null">ref_id,</if>
+            <if test="refName != null">ref_name,</if>
+            <if test="refHours != null">ref_hours,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="contextId != null">#{contextId},</if>
+            <if test="refType != null">#{refType},</if>
+            <if test="refId != null">#{refId},</if>
+            <if test="refName != null">#{refName},</if>
+            <if test="refHours != null">#{refHours},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanRef">
+        UPDATE t_csys_teaching_plan_ref
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="contextId != null">context_id = #{contextId},</if>
+            <if test="refType != null">ref_type = #{refType},</if>
+            <if test="refId != null">ref_id = #{refId},</if>
+            <if test="refName != null">ref_name = #{refName},</if>
+            <if test="refHours != null">ref_hours = #{refHours},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, plan_id, context_id, ref_type, ref_id, ref_name, ref_hours, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_teaching_plan_ref
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_ref SET sysflag = 2 WHERE id = #{id}
+    </update>
+</mapper>

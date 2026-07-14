@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanContentMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanContent">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="parent_id" property="parentId" jdbcType="BIGINT"/>
+        <result column="content_type" property="contentType" jdbcType="TINYINT"/>
+        <result column="title" property="title" jdbcType="VARCHAR"/>
+        <result column="content" property="content" jdbcType="LONGVARCHAR"/>
+        <result column="purpose" property="purpose" jdbcType="LONGVARCHAR"/>
+        <result column="hours" property="hours" jdbcType="DECIMAL"/>
+        <result column="time_arrange" property="timeArrange" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, parent_id, content_type, title, content, purpose, hours, time_arrange, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_content (
+            plan_id, parent_id, content_type, title, content, purpose, hours, time_arrange, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.parentId}, #{item.contentType}, #{item.title}, #{item.content},
+                #{item.purpose}, #{item.hours}, #{item.timeArrange}, #{item.sort}, #{item.creator},
+                #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_content
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_content SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanContent"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_content
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="parentId != null">parent_id,</if>
+            <if test="contentType != null">content_type,</if>
+            <if test="title != null">title,</if>
+            <if test="content != null">content,</if>
+            <if test="purpose != null">purpose,</if>
+            <if test="hours != null">hours,</if>
+            <if test="timeArrange != null">time_arrange,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="parentId != null">#{parentId},</if>
+            <if test="contentType != null">#{contentType},</if>
+            <if test="title != null">#{title},</if>
+            <if test="content != null">#{content},</if>
+            <if test="purpose != null">#{purpose},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="timeArrange != null">#{timeArrange},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanContent">
+        UPDATE t_csys_teaching_plan_content
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="contentType != null">content_type = #{contentType},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="purpose != null">purpose = #{purpose},</if>
+            <if test="hours != null">hours = #{hours},</if>
+            <if test="timeArrange != null">time_arrange = #{timeArrange},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, plan_id, parent_id, content_type, title, content, purpose, hours, time_arrange, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_teaching_plan_content
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_content SET sysflag = 2 WHERE id = #{id}
+    </update>
+</mapper>

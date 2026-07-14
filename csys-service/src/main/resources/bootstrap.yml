@@ -10,27 +10,47 @@ spring:
   application:
     # 应用名称
     name: doinner-curriculum
+    # 远程服务名（原由 nacos 配置中心下发，本地运行时给一个合法服务名，避免 Feign 注册报非法主机名）
+    remote:
+      system: doinner-system
   profiles:
     # 环境配置
     active: dev
+  # 移除整个spring.cloud.nacos 全部删除
   cloud:
     nacos:
-      discovery:
-        # 服务注册地址
-        server-addr: 27.132.187.88:8848
-        namespace: test
-      #        server-addr: 192.168.3.122:8848
+      # 本地运行：关闭 nacos 配置中心与服务注册，避免 bootstrap 阶段去连 127.0.0.1:9848 失败
       config:
-        # 配置中心地址
-        server-addr: 27.132.187.88:8848
-        namespace: test
-#        group: XIEFAN_GROUP
-      #        server-addr: 192.168.3.122:8848
-        # 配置文件格式
-        file-extension: yml
-        # 共享配置
-        shared-configs:
-          - application-${spring.profiles.active}.${spring.cloud.nacos.config.file-extension}
+        enabled: false
+      discovery:
+        enabled: false
+  # 本地mysql数据源（项目使用 dynamic-datasource，需放在 dynamic.datasource 下并指定 primary）
+  datasource:
+    dynamic:
+      primary: master
+      strict: false
+      datasource:
+        master:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://127.0.0.1:3306/my-curr?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+          username: root
+          password: 123456
+
 mybatis-plus:
+  # 原由 nacos 下发，本地补上：mapper xml 位置与实体类型别名包（csys + dataparser 两套）
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.doinner.csys.domain,com.agileai.dataparser.domain
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 以下业务属性原由 nacos 配置中心下发，本地运行时在此补默认值（按需修改成真实值）
+category:
+  # 教学大纲分类id
+  TeachingProgramme: 0
+  # 培养方案分类id
+  trainingPlan: 69ba4b5da5db953a32ac0c62
+
+# dataparser 模块 mongodb 配置（仅在调用相关功能时才真正连接）
+mongodb:
+  url: mongodb://127.0.0.1:27017
+  database: curriculum

@@ -1,0 +1,1 @@
+14:54:57.319 [main] ERROR c.b.m.c.MybatisConfiguration - [addMappedStatement,110] - mapper[com.doinner.csys.dao.SourceDomainMapper.selectSourceDomainByCourseId] is ignored, because it exists, maybe from xml file

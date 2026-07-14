@@ -251,6 +251,18 @@
             <artifactId>transmittable-thread-local</artifactId>
             <version>2.14.3</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>doinner-common-security</artifactId>
+            <version>4.1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.doinner</groupId>
+            <artifactId>system-service-api</artifactId>
+            <version>4.1.0</version>
+        </dependency>
     </dependencies>
 
     <build>

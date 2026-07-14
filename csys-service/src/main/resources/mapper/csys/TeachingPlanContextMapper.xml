@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanContextMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanContext">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="source_course_id" property="sourceCourseId" jdbcType="BIGINT"/>
+        <result column="quote_course_id" property="quoteCourseId" jdbcType="BIGINT"/>
+        <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
+        <result column="schedule_id" property="scheduleId" jdbcType="BIGINT"/>
+        <result column="scheme_name" property="schemeName" jdbcType="VARCHAR"/>
+        <result column="scheme_version" property="schemeVersion" jdbcType="VARCHAR"/>
+        <result column="education_level" property="educationLevel" jdbcType="VARCHAR"/>
+        <result column="object_type" property="objectType" jdbcType="VARCHAR"/>
+        <result column="education" property="education" jdbcType="VARCHAR"/>
+        <result column="academic_type" property="academicType" jdbcType="VARCHAR"/>
+        <result column="duration_type" property="durationType" jdbcType="VARCHAR"/>
+        <result column="degree" property="degree" jdbcType="VARCHAR"/>
+        <result column="college_id" property="collegeId" jdbcType="BIGINT"/>
+        <result column="category_id" property="categoryId" jdbcType="BIGINT"/>
+        <result column="major_id" property="majorId" jdbcType="BIGINT"/>
+        <result column="sub_major_id" property="subMajorId" jdbcType="BIGINT"/>
+        <result column="course_module" property="courseModule" jdbcType="VARCHAR"/>
+        <result column="course_module_children" property="courseModuleChildren" jdbcType="VARCHAR"/>
+        <result column="semester_schedule" property="semesterSchedule" jdbcType="VARCHAR"/>
+        <result column="term" property="term" jdbcType="TINYINT"/>
+        <result column="course_attr" property="courseAttr" jdbcType="VARCHAR"/>
+        <result column="time_arrange" property="timeArrange" jdbcType="VARCHAR"/>
+        <result column="hours" property="hours" jdbcType="DECIMAL"/>
+        <result column="teach_hours" property="teachHours" jdbcType="DECIMAL"/>
+        <result column="practice_hours" property="practiceHours" jdbcType="DECIMAL"/>
+        <result column="credits" property="credits" jdbcType="DECIMAL"/>
+        <result column="sync_time" property="syncTime" jdbcType="TIMESTAMP"/>
+        <result column="sync_flag" property="syncFlag" jdbcType="TINYINT"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, source_course_id, quote_course_id, scheme_id, schedule_id, scheme_name, scheme_version,
+        education_level, object_type, education, academic_type, duration_type, degree, college_id, category_id,
+        major_id, sub_major_id, course_module, course_module_children, semester_schedule, term, course_attr,
+        time_arrange, hours, teach_hours, practice_hours, credits, sync_time, sync_flag, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_context (
+            plan_id, source_course_id, quote_course_id, scheme_id, schedule_id, scheme_name, scheme_version,
+            education_level, object_type, education, academic_type, duration_type, degree, college_id, category_id,
+            major_id, sub_major_id, course_module, course_module_children, semester_schedule, term, course_attr,
+            time_arrange, hours, teach_hours, practice_hours, credits, sync_time, sync_flag, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.sourceCourseId}, #{item.quoteCourseId}, #{item.schemeId}, #{item.scheduleId},
+                #{item.schemeName}, #{item.schemeVersion}, #{item.educationLevel}, #{item.objectType}, #{item.education},
+                #{item.academicType}, #{item.durationType}, #{item.degree}, #{item.collegeId}, #{item.categoryId},
+                #{item.majorId}, #{item.subMajorId}, #{item.courseModule}, #{item.courseModuleChildren},
+                #{item.semesterSchedule}, #{item.term}, #{item.courseAttr}, #{item.timeArrange}, #{item.hours},
+                #{item.teachHours}, #{item.practiceHours}, #{item.credits}, #{item.syncTime}, #{item.syncFlag},
+                #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
+                #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_context
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_context SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanContext"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_context
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="sourceCourseId != null">source_course_id,</if>
+            <if test="quoteCourseId != null">quote_course_id,</if>
+            <if test="schemeId != null">scheme_id,</if>
+            <if test="scheduleId != null">schedule_id,</if>
+            <if test="schemeName != null">scheme_name,</if>
+            <if test="schemeVersion != null">scheme_version,</if>
+            <if test="educationLevel != null">education_level,</if>
+            <if test="objectType != null">object_type,</if>
+            <if test="education != null">education,</if>
+            <if test="academicType != null">academic_type,</if>
+            <if test="durationType != null">duration_type,</if>
+            <if test="degree != null">degree,</if>
+            <if test="collegeId != null">college_id,</if>
+            <if test="categoryId != null">category_id,</if>
+            <if test="majorId != null">major_id,</if>
+            <if test="subMajorId != null">sub_major_id,</if>
+            <if test="courseModule != null">course_module,</if>
+            <if test="courseModuleChildren != null">course_module_children,</if>
+            <if test="semesterSchedule != null">semester_schedule,</if>
+            <if test="term != null">term,</if>
+            <if test="courseAttr != null">course_attr,</if>
+            <if test="timeArrange != null">time_arrange,</if>
+            <if test="hours != null">hours,</if>
+            <if test="teachHours != null">teach_hours,</if>
+            <if test="practiceHours != null">practice_hours,</if>
+            <if test="credits != null">credits,</if>
+            <if test="syncTime != null">sync_time,</if>
+            <if test="syncFlag != null">sync_flag,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="sourceCourseId != null">#{sourceCourseId},</if>
+            <if test="quoteCourseId != null">#{quoteCourseId},</if>
+            <if test="schemeId != null">#{schemeId},</if>
+            <if test="scheduleId != null">#{scheduleId},</if>
+            <if test="schemeName != null">#{schemeName},</if>
+            <if test="schemeVersion != null">#{schemeVersion},</if>
+            <if test="educationLevel != null">#{educationLevel},</if>
+            <if test="objectType != null">#{objectType},</if>
+            <if test="education != null">#{education},</if>
+            <if test="academicType != null">#{academicType},</if>
+            <if test="durationType != null">#{durationType},</if>
+            <if test="degree != null">#{degree},</if>
+            <if test="collegeId != null">#{collegeId},</if>
+            <if test="categoryId != null">#{categoryId},</if>
+            <if test="majorId != null">#{majorId},</if>
+            <if test="subMajorId != null">#{subMajorId},</if>
+            <if test="courseModule != null">#{courseModule},</if>
+            <if test="courseModuleChildren != null">#{courseModuleChildren},</if>
+            <if test="semesterSchedule != null">#{semesterSchedule},</if>
+            <if test="term != null">#{term},</if>
+            <if test="courseAttr != null">#{courseAttr},</if>
+            <if test="timeArrange != null">#{timeArrange},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="teachHours != null">#{teachHours},</if>
+            <if test="practiceHours != null">#{practiceHours},</if>
+            <if test="credits != null">#{credits},</if>
+            <if test="syncTime != null">#{syncTime},</if>
+            <if test="syncFlag != null">#{syncFlag},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanContext">
+        UPDATE t_csys_teaching_plan_context
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="sourceCourseId != null">source_course_id = #{sourceCourseId},</if>
+            <if test="quoteCourseId != null">quote_course_id = #{quoteCourseId},</if>
+            <if test="schemeId != null">scheme_id = #{schemeId},</if>
+            <if test="scheduleId != null">schedule_id = #{scheduleId},</if>
+            <if test="schemeName != null">scheme_name = #{schemeName},</if>
+            <if test="schemeVersion != null">scheme_version = #{schemeVersion},</if>
+            <if test="educationLevel != null">education_level = #{educationLevel},</if>
+            <if test="objectType != null">object_type = #{objectType},</if>
+            <if test="education != null">education = #{education},</if>
+            <if test="academicType != null">academic_type = #{academicType},</if>
+            <if test="durationType != null">duration_type = #{durationType},</if>
+            <if test="degree != null">degree = #{degree},</if>
+            <if test="collegeId != null">college_id = #{collegeId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="majorId != null">major_id = #{majorId},</if>
+            <if test="subMajorId != null">sub_major_id = #{subMajorId},</if>
+            <if test="courseModule != null">course_module = #{courseModule},</if>
+            <if test="courseModuleChildren != null">course_module_children = #{courseModuleChildren},</if>
+            <if test="semesterSchedule != null">semester_schedule = #{semesterSchedule},</if>
+            <if test="term != null">term = #{term},</if>
+            <if test="courseAttr != null">course_attr = #{courseAttr},</if>
+            <if test="timeArrange != null">time_arrange = #{timeArrange},</if>
+            <if test="hours != null">hours = #{hours},</if>
+            <if test="teachHours != null">teach_hours = #{teachHours},</if>
+            <if test="practiceHours != null">practice_hours = #{practiceHours},</if>
+            <if test="credits != null">credits = #{credits},</if>
+            <if test="syncTime != null">sync_time = #{syncTime},</if>
+            <if test="syncFlag != null">sync_flag = #{syncFlag},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, plan_id, source_course_id, quote_course_id, scheme_id, schedule_id, scheme_name, scheme_version, education_level, object_type, education, academic_type, duration_type, degree, college_id, category_id, major_id, sub_major_id, course_module, course_module_children, semester_schedule, term, course_attr, time_arrange, hours, teach_hours, practice_hours, credits, sync_time, sync_flag, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_teaching_plan_context
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_context SET sysflag = 2 WHERE id = #{id}
+    </update>
+</mapper>

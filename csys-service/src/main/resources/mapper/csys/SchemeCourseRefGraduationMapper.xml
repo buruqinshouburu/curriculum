@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.SchemeCourseRefGraduationMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.SchemeCourseRefGraduation">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
+        <result column="quote_course_id" property="quoteCourseId" jdbcType="BIGINT"/>
+        <result column="source_course_id" property="sourceCourseId" jdbcType="BIGINT"/>
+        <result column="graduation_id" property="graduationId" jdbcType="BIGINT"/>
+        <result column="source_graduation_id" property="sourceGraduationId" jdbcType="BIGINT"/>
+        <result column="college_id" property="collegeId" jdbcType="BIGINT"/>
+        <result column="category_id" property="categoryId" jdbcType="BIGINT"/>
+        <result column="major_id" property="majorId" jdbcType="BIGINT"/>
+        <result column="sub_major_id" property="subMajorId" jdbcType="BIGINT"/>
+        <result column="support_level" property="supportLevel" jdbcType="VARCHAR"/>
+        <result column="graduation_code" property="graduationCode" jdbcType="VARCHAR"/>
+        <result column="graduation_name" property="graduationName" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, scheme_id, quote_course_id, source_course_id, graduation_id, source_graduation_id, college_id,
+        category_id, major_id, sub_major_id, support_level, graduation_code, graduation_name, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_scheme_course_ref_graduation (
+            scheme_id, quote_course_id, source_course_id, graduation_id, source_graduation_id, college_id,
+            category_id, major_id, sub_major_id, support_level, graduation_code, graduation_name, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.schemeId}, #{item.quoteCourseId}, #{item.sourceCourseId}, #{item.graduationId},
+                #{item.sourceGraduationId}, #{item.collegeId}, #{item.categoryId}, #{item.majorId},
+                #{item.subMajorId}, #{item.supportLevel}, #{item.graduationCode}, #{item.graduationName},
+                #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
+                #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectBySchemeAndCourse" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_scheme_course_ref_graduation
+        WHERE scheme_id = #{schemeId}
+          AND quote_course_id = #{quoteCourseId}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.SchemeCourseRefGraduation"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_scheme_course_ref_graduation
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">scheme_id,</if>
+            <if test="quoteCourseId != null">quote_course_id,</if>
+            <if test="sourceCourseId != null">source_course_id,</if>
+            <if test="graduationId != null">graduation_id,</if>
+            <if test="sourceGraduationId != null">source_graduation_id,</if>
+            <if test="collegeId != null">college_id,</if>
+            <if test="categoryId != null">category_id,</if>
+            <if test="majorId != null">major_id,</if>
+            <if test="subMajorId != null">sub_major_id,</if>
+            <if test="supportLevel != null">support_level,</if>
+            <if test="graduationCode != null">graduation_code,</if>
+            <if test="graduationName != null">graduation_name,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="schemeId != null">#{schemeId},</if>
+            <if test="quoteCourseId != null">#{quoteCourseId},</if>
+            <if test="sourceCourseId != null">#{sourceCourseId},</if>
+            <if test="graduationId != null">#{graduationId},</if>
+            <if test="sourceGraduationId != null">#{sourceGraduationId},</if>
+            <if test="collegeId != null">#{collegeId},</if>
+            <if test="categoryId != null">#{categoryId},</if>
+            <if test="majorId != null">#{majorId},</if>
+            <if test="subMajorId != null">#{subMajorId},</if>
+            <if test="supportLevel != null">#{supportLevel},</if>
+            <if test="graduationCode != null">#{graduationCode},</if>
+            <if test="graduationName != null">#{graduationName},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.SchemeCourseRefGraduation">
+        UPDATE t_csys_scheme_course_ref_graduation
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="schemeId != null">scheme_id = #{schemeId},</if>
+            <if test="quoteCourseId != null">quote_course_id = #{quoteCourseId},</if>
+            <if test="sourceCourseId != null">source_course_id = #{sourceCourseId},</if>
+            <if test="graduationId != null">graduation_id = #{graduationId},</if>
+            <if test="sourceGraduationId != null">source_graduation_id = #{sourceGraduationId},</if>
+            <if test="collegeId != null">college_id = #{collegeId},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="majorId != null">major_id = #{majorId},</if>
+            <if test="subMajorId != null">sub_major_id = #{subMajorId},</if>
+            <if test="supportLevel != null">support_level = #{supportLevel},</if>
+            <if test="graduationCode != null">graduation_code = #{graduationCode},</if>
+            <if test="graduationName != null">graduation_name = #{graduationName},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, scheme_id, quote_course_id, source_course_id, graduation_id, source_graduation_id, college_id, category_id, major_id, sub_major_id, support_level, graduation_code, graduation_name, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_scheme_course_ref_graduation
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_scheme_course_ref_graduation SET sysflag = 2 WHERE id = #{id}
+    </update>
+</mapper>

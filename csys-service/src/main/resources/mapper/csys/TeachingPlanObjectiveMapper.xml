@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanObjectiveMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanObjective">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="context_id" property="contextId" jdbcType="BIGINT"/>
+        <result column="major_id" property="majorId" jdbcType="BIGINT"/>
+        <result column="objective_type_code" property="objectiveTypeCode" jdbcType="VARCHAR"/>
+        <result column="objective_type_name" property="objectiveTypeName" jdbcType="VARCHAR"/>
+        <result column="content" property="content" jdbcType="LONGVARCHAR"/>
+        <result column="source_mode" property="sourceMode" jdbcType="TINYINT"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, context_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_objective (
+            plan_id, context_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.contextId}, #{item.majorId}, #{item.objectiveTypeCode}, #{item.objectiveTypeName},
+                #{item.content}, #{item.sourceMode}, #{item.sort}, #{item.creator}, #{item.createTime},
+                #{item.lastModifier}, #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanAndContext" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_objective
+        WHERE plan_id = #{planId}
+          AND context_id = #{contextId}
+          AND sysflag = 0
+        ORDER BY objective_type_code ASC, sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_objective SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanObjective"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_objective
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="contextId != null">context_id,</if>
+            <if test="majorId != null">major_id,</if>
+            <if test="objectiveTypeCode != null">objective_type_code,</if>
+            <if test="objectiveTypeName != null">objective_type_name,</if>
+            <if test="content != null">content,</if>
+            <if test="sourceMode != null">source_mode,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="contextId != null">#{contextId},</if>
+            <if test="majorId != null">#{majorId},</if>
+            <if test="objectiveTypeCode != null">#{objectiveTypeCode},</if>
+            <if test="objectiveTypeName != null">#{objectiveTypeName},</if>
+            <if test="content != null">#{content},</if>
+            <if test="sourceMode != null">#{sourceMode},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanObjective">
+        UPDATE t_csys_teaching_plan_objective
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="contextId != null">context_id = #{contextId},</if>
+            <if test="majorId != null">major_id = #{majorId},</if>
+            <if test="objectiveTypeCode != null">objective_type_code = #{objectiveTypeCode},</if>
+            <if test="objectiveTypeName != null">objective_type_name = #{objectiveTypeName},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="sourceMode != null">source_mode = #{sourceMode},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, plan_id, context_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_teaching_plan_objective
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_objective SET sysflag = 2 WHERE id = #{id}
+    </update>
+
+    <select id="selectMajorByCourseId" resultType="com.doinner.csys.domain.vo.TeachingPlanMajorVo">
+        SELECT DISTINCT major.id AS id, major.name AS name
+        FROM t_csys_course source
+        LEFT JOIN t_csys_course course ON source.id = course.source_id
+        LEFT JOIN t_csys_scheme_ref_major schemeRefMajor ON course.id = schemeRefMajor.major_id
+        LEFT JOIN t_csys_std_major major ON schemeRefMajor.major_id = major.id
+        WHERE source.id = #{courseId}
+          AND major.id IS NOT NULL
+    </select>
+
+    <select id="countByPlanAndMajor" resultType="int">
+        SELECT COUNT(1)
+        FROM t_csys_teaching_plan_objective
+        WHERE plan_id = #{planId}
+          AND major_id = #{majorId}
+          AND sysflag = 0
+    </select>
+
+    <select id="countUnboundObjectiveByPlanAndMajor" resultType="int">
+        SELECT COUNT(1)
+        FROM t_csys_teaching_plan_objective obj
+        WHERE obj.plan_id = #{planId}
+          AND obj.major_id = #{majorId}
+          AND obj.sysflag = 0
+          AND NOT EXISTS (
+              SELECT 1
+              FROM t_csys_teaching_plan_objective_ref ref
+              WHERE ref.objective_id = obj.id
+                AND ref.sysflag = 0
+          )
+    </select>
+</mapper>

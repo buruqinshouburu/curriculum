@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanTargetDesignMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanTargetDesign">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="context_id" property="contextId" jdbcType="BIGINT"/>
+        <result column="design_type_code" property="designTypeCode" jdbcType="VARCHAR"/>
+        <result column="objective_id" property="objectiveId" jdbcType="BIGINT"/>
+        <result column="knowledge_unit_id" property="knowledgeUnitId" jdbcType="BIGINT"/>
+        <result column="knowledge_unit_name" property="knowledgeUnitName" jdbcType="VARCHAR"/>
+        <result column="knowledge_point_id" property="knowledgePointId" jdbcType="BIGINT"/>
+        <result column="knowledge_point_name" property="knowledgePointName" jdbcType="VARCHAR"/>
+        <result column="observation_point" property="observationPoint" jdbcType="LONGVARCHAR"/>
+        <result column="content_ids" property="contentIds" jdbcType="LONGVARCHAR"/>
+        <result column="content_text" property="contentText" jdbcType="LONGVARCHAR"/>
+        <result column="teaching_link" property="teachingLink" jdbcType="VARCHAR"/>
+        <result column="teaching_method" property="teachingMethod" jdbcType="VARCHAR"/>
+        <result column="learning_method" property="learningMethod" jdbcType="VARCHAR"/>
+        <result column="hours" property="hours" jdbcType="DECIMAL"/>
+        <result column="teaching_design" property="teachingDesign" jdbcType="LONGVARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, context_id, design_type_code, objective_id, knowledge_unit_id, knowledge_unit_name,
+        knowledge_point_id, knowledge_point_name, observation_point, content_ids, content_text, teaching_link,
+        teaching_method, learning_method, hours, teaching_design, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_target_design (
+            plan_id, context_id, design_type_code, objective_id, knowledge_unit_id, knowledge_unit_name,
+            knowledge_point_id, knowledge_point_name, observation_point, content_ids, content_text, teaching_link,
+            teaching_method, learning_method, hours, teaching_design, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.contextId}, #{item.designTypeCode}, #{item.objectiveId},
+                #{item.knowledgeUnitId}, #{item.knowledgeUnitName}, #{item.knowledgePointId},
+                #{item.knowledgePointName}, #{item.observationPoint}, #{item.contentIds}, #{item.contentText},
+                #{item.teachingLink}, #{item.teachingMethod}, #{item.learningMethod}, #{item.hours},
+                #{item.teachingDesign}, #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier},
+                #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_target_design
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+        ORDER BY design_type_code ASC, sort ASC, id ASC
+    </select>
+
+    <select id="selectByPlanAndContext" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_target_design
+        WHERE plan_id = #{planId}
+          AND context_id = #{contextId}
+          AND sysflag = 0
+        ORDER BY design_type_code ASC, sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_target_design SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanTargetDesign"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_target_design
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="contextId != null">context_id,</if>
+            <if test="designTypeCode != null">design_type_code,</if>
+            <if test="objectiveId != null">objective_id,</if>
+            <if test="knowledgeUnitId != null">knowledge_unit_id,</if>
+            <if test="knowledgeUnitName != null">knowledge_unit_name,</if>
+            <if test="knowledgePointId != null">knowledge_point_id,</if>
+            <if test="knowledgePointName != null">knowledge_point_name,</if>
+            <if test="observationPoint != null">observation_point,</if>
+            <if test="contentIds != null">content_ids,</if>
+            <if test="contentText != null">content_text,</if>
+            <if test="teachingLink != null">teaching_link,</if>
+            <if test="teachingMethod != null">teaching_method,</if>
+            <if test="learningMethod != null">learning_method,</if>
+            <if test="hours != null">hours,</if>
+            <if test="teachingDesign != null">teaching_design,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="contextId != null">#{contextId},</if>
+            <if test="designTypeCode != null">#{designTypeCode},</if>
+            <if test="objectiveId != null">#{objectiveId},</if>
+            <if test="knowledgeUnitId != null">#{knowledgeUnitId},</if>
+            <if test="knowledgeUnitName != null">#{knowledgeUnitName},</if>
+            <if test="knowledgePointId != null">#{knowledgePointId},</if>
+            <if test="knowledgePointName != null">#{knowledgePointName},</if>
+            <if test="observationPoint != null">#{observationPoint},</if>
+            <if test="contentIds != null">#{contentIds},</if>
+            <if test="contentText != null">#{contentText},</if>
+            <if test="teachingLink != null">#{teachingLink},</if>
+            <if test="teachingMethod != null">#{teachingMethod},</if>
+            <if test="learningMethod != null">#{learningMethod},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="teachingDesign != null">#{teachingDesign},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanTargetDesign">
+        UPDATE t_csys_teaching_plan_target_design
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="contextId != null">context_id = #{contextId},</if>
+            <if test="designTypeCode != null">design_type_code = #{designTypeCode},</if>
+            <if test="objectiveId != null">objective_id = #{objectiveId},</if>
+            <if test="knowledgeUnitId != null">knowledge_unit_id = #{knowledgeUnitId},</if>
+            <if test="knowledgeUnitName != null">knowledge_unit_name = #{knowledgeUnitName},</if>
+            <if test="knowledgePointId != null">knowledge_point_id = #{knowledgePointId},</if>
+            <if test="knowledgePointName != null">knowledge_point_name = #{knowledgePointName},</if>
+            <if test="observationPoint != null">observation_point = #{observationPoint},</if>
+            <if test="contentIds != null">content_ids = #{contentIds},</if>
+            <if test="contentText != null">content_text = #{contentText},</if>
+            <if test="teachingLink != null">teaching_link = #{teachingLink},</if>
+            <if test="teachingMethod != null">teaching_method = #{teachingMethod},</if>
+            <if test="learningMethod != null">learning_method = #{learningMethod},</if>
+            <if test="hours != null">hours = #{hours},</if>
+            <if test="teachingDesign != null">teaching_design = #{teachingDesign},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, plan_id, context_id, design_type_code, objective_id, knowledge_unit_id, knowledge_unit_name, knowledge_point_id, knowledge_point_name, observation_point, content_ids, content_text, teaching_link, teaching_method, learning_method, hours, teaching_design, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_teaching_plan_target_design
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_target_design SET sysflag = 2 WHERE id = #{id}
+    </update>
+
+    <select id="selectByPlanContextAndType" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_target_design
+        WHERE plan_id = #{planId}
+          AND context_id = #{contextId}
+          AND design_type_code = #{designTypeCode}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <select id="selectKnowledgeUnitInitByCourseId"
+            resultType="com.doinner.csys.entity.csys.po.CourseKnowledgeUnit">
+        SELECT DISTINCT unit.id AS id, unit.name AS name, unit.sort AS sort
+        FROM t_csys_course source
+        LEFT JOIN t_csys_course course ON source.id = course.source_id
+        LEFT JOIN t_csys_course_ref_knowledge_unit courseRefUnit ON course.id = courseRefUnit.course_id
+        LEFT JOIN t_csys_course_knowledge_unit unit ON courseRefUnit.course_unit_id = unit.id
+        WHERE source.id = #{courseId}
+          AND unit.id IS NOT NULL
+          AND unit.sysflag = 0
+        ORDER BY unit.sort ASC, unit.id ASC
+    </select>
+</mapper>

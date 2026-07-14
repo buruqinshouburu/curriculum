@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanPracticeItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanPracticeItem">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="item_type" property="itemType" jdbcType="TINYINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="hours" property="hours" jdbcType="DECIMAL"/>
+        <result column="group_info" property="groupInfo" jdbcType="VARCHAR"/>
+        <result column="experiment_nature" property="experimentNature" jdbcType="VARCHAR"/>
+        <result column="study_nature" property="studyNature" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, item_type, name, hours, group_info, experiment_nature, study_nature, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_practice_item (
+            plan_id, item_type, name, hours, group_info, experiment_nature, study_nature, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.itemType}, #{item.name}, #{item.hours}, #{item.groupInfo},
+                #{item.experimentNature}, #{item.studyNature}, #{item.sort}, #{item.creator}, #{item.createTime},
+                #{item.lastModifier}, #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_practice_item
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_practice_item SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanPracticeItem"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_practice_item
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="itemType != null">item_type,</if>
+            <if test="name != null">name,</if>
+            <if test="hours != null">hours,</if>
+            <if test="groupInfo != null">group_info,</if>
+            <if test="experimentNature != null">experiment_nature,</if>
+            <if test="studyNature != null">study_nature,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="itemType != null">#{itemType},</if>
+            <if test="name != null">#{name},</if>
+            <if test="hours != null">#{hours},</if>
+            <if test="groupInfo != null">#{groupInfo},</if>
+            <if test="experimentNature != null">#{experimentNature},</if>
+            <if test="studyNature != null">#{studyNature},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanPracticeItem">
+        UPDATE t_csys_teaching_plan_practice_item
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="itemType != null">item_type = #{itemType},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="hours != null">hours = #{hours},</if>
+            <if test="groupInfo != null">group_info = #{groupInfo},</if>
+            <if test="experimentNature != null">experiment_nature = #{experimentNature},</if>
+            <if test="studyNature != null">study_nature = #{studyNature},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id, plan_id, item_type, name, hours, group_info, experiment_nature, study_nature, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        FROM t_csys_teaching_plan_practice_item
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_practice_item SET sysflag = 2 WHERE id = #{id}
+    </update>
+</mapper>
