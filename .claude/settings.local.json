@@ -211,7 +211,11 @@
       "Bash(echo \"---exit:$?---\")",
       "Bash(python -c \"import openpyxl; print\\('openpyxl ok'\\)\")",
       "Bash(python /tmp/parse_xlsx.py)",
-      "Bash([ -d \"$REF\" ])"
+      "Bash([ -d \"$REF\" ])",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)",
+      "Bash(sed 's/^?? //')",
+      "Bash(git pull *)"
     ]
   }
 }

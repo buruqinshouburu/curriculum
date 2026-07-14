@@ -1,150 +1,176 @@
 package com.doinner.csys.io.handler;
 
 import com.doinner.csys.domain.vo.GraduationCourseSupportVo;
-import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.HorizontalAlignment;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.util.List;
 
 /**
- * 毕业要求与课程支撑矩阵 Excel 导出。
+ * 毕业要求与课程支撑矩阵 Excel 导出处理器。
+ * <p>
+ * 布局参照 毕业要求与课程支撑矩阵.xlsx 模板：
+ * <pre>
+ *  行1: A1:末列  合并 -> 「毕业要求与课程支撑矩阵」(标题)
+ *  行2: A2:C3   合并 -> 「毕业要求」; D2:末列2 合并 -> 「支撑课程」
+ *  行3: D3.. = 课程1, 课程2, ..., 课程N (N = 最大课程数)
+ *  行4起: A 列=根(知识/能力/素质, 按根合并), B 列=一级指标(按一级合并), C 列=叶子名, D~=课程名
+ * </pre>
+ * 为保证合并单元格也有完整边框，先对所用区域全部单元格设置样式，再写值，最后合并。
  *
- * 布局(每行一条具体毕业要求)：
- * 毕业要求类型 | 一级指标 | 具体毕业要求 | 支撑课程1 | 支撑课程2 | ...
- * 相同类型、相同一级指标的单元格纵向合并。
+ * @author doinner
  */
 public class GraduationCourseSupportExcelHandler {
 
-    private final GraduationCourseSupportVo vo;
+    /** 「毕业要求」固定占 3 列(A/B/C) */
+    private static final int REQUIREMENT_COL_COUNT = 3;
 
-    private XSSFWorkbook workBook;
+    private final GraduationCourseSupportVo data;
 
-    private Sheet sheet;
-
-    private XSSFCellStyle cellStyle;
-
-    /** 支撑课程列数(至少 1 列) */
-    private int courseColumnCount;
-
-    public GraduationCourseSupportExcelHandler(GraduationCourseSupportVo vo) {
-        this.vo = vo;
+    public GraduationCourseSupportExcelHandler(GraduationCourseSupportVo data) {
+        this.data = data;
     }
 
     public XSSFWorkbook create() {
-        init();
-        writeHeader();
-        writeBody();
-        return this.workBook;
-    }
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("毕业要求与课程支撑矩阵");
 
-    private void init() {
-        workBook = new XSSFWorkbook();
-        sheet = workBook.createSheet("毕业要求与课程支撑矩阵");
-        cellStyle = workBook.createCellStyle();
-        cellStyle.setWrapText(true);
-        cellStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-        cellStyle.setAlignment(HorizontalAlignment.CENTER);
-        this.courseColumnCount = vo != null && vo.getMaxCourseCount() > 0 ? vo.getMaxCourseCount() : 1;
-    }
+        XSSFCellStyle style = buildStyle(workbook, false);
+        XSSFCellStyle titleStyle = buildStyle(workbook, true);
 
-    private void writeHeader() {
-        Row row = getRow(0);
-        setCell(row, 0, "毕业要求类型");
-        setCell(row, 1, "一级指标");
-        setCell(row, 2, "具体毕业要求");
-        for (int i = 0; i < courseColumnCount; i++) {
-            setCell(row, 3 + i, "支撑课程" + (i + 1));
-        }
-    }
+        int courseColCount = data.getMaxCourseCount() == null ? 0 : Math.max(data.getMaxCourseCount(), 0);
+        int totalCols = Math.max(REQUIREMENT_COL_COUNT + courseColCount, REQUIREMENT_COL_COUNT);
+        int lastColIndex = totalCols - 1;
 
-    private void writeBody() {
-        if (vo == null || ObjectUtils.isEmpty(vo.getGroups())) {
-            return;
-        }
-        int currentRow = 1;
-        for (GraduationCourseSupportVo.SupportGroupVo group : vo.getGroups()) {
-            int groupStart = currentRow;
-            List<GraduationCourseSupportVo.SupportFirstLevelVo> firstLevels = group.getFirstLevels();
-            if (ObjectUtils.isEmpty(firstLevels)) {
-                Row row = getRow(currentRow);
-                setCell(row, 0, resolveGroupName(group));
-                currentRow++;
-                continue;
+        // 统计数据行数(叶子数)
+        int dataRowCount = countRequirements();
+        int totalRows = 3 + dataRowCount; // 3 行表头 + 数据行
+
+        // 1. 预建所有单元格并套用基础样式(含边框)，保证合并区域也有边框
+        for (int r = 0; r < totalRows; r++) {
+            Row row = sheet.createRow(r);
+            for (int c = 0; c < totalCols; c++) {
+                Cell cell = row.createCell(c);
+                cell.setCellStyle(style);
             }
-            for (GraduationCourseSupportVo.SupportFirstLevelVo first : firstLevels) {
-                int firstStart = currentRow;
-                List<GraduationCourseSupportVo.SupportRequirementVo> requirements = first.getRequirements();
-                if (ObjectUtils.isEmpty(requirements)) {
-                    Row row = getRow(currentRow);
-                    setCell(row, 1, first.getName());
-                    currentRow++;
-                } else {
-                    for (GraduationCourseSupportVo.SupportRequirementVo req : requirements) {
-                        Row row = getRow(currentRow);
-                        setCell(row, 2, req.getName());
+        }
+
+        // 2. 行1：标题(合并)
+        setCellValue(sheet, 0, 0, "毕业要求与课程支撑矩阵", titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, lastColIndex));
+
+        // 3. 行2-3：「毕业要求」(A2:C3) / 「支撑课程」(D2:末列2) / 课程1..N
+        setCellValue(sheet, 1, 0, "毕业要求", style);
+        sheet.addMergedRegion(new CellRangeAddress(1, 2, 0, REQUIREMENT_COL_COUNT - 1));
+        if (courseColCount > 0) {
+            setCellValue(sheet, 1, REQUIREMENT_COL_COUNT, "支撑课程", style);
+            sheet.addMergedRegion(new CellRangeAddress(1, 1, REQUIREMENT_COL_COUNT, lastColIndex));
+            for (int i = 0; i < courseColCount; i++) {
+                setCellValue(sheet, 2, REQUIREMENT_COL_COUNT + i, "课程" + (i + 1), style);
+            }
+        }
+
+        // 4. 数据行(从行4起，索引3)
+        int rowIdx = 3;
+        if (data.getGroups() != null) {
+            for (GraduationCourseSupportVo.SupportGroupVo group : data.getGroups()) {
+                int groupStartRow = rowIdx;
+                for (GraduationCourseSupportVo.SupportFirstLevelVo first : group.getFirstLevels()) {
+                    int firstStartRow = rowIdx;
+                    for (GraduationCourseSupportVo.SupportRequirementVo req : first.getRequirements()) {
+                        // C 列：叶子名
+                        setCellValue(sheet, rowIdx, 2, req.getName(), style);
+                        // D~：课程名
                         List<GraduationCourseSupportVo.SupportCourseVo> courses = req.getCourses();
-                        if (ObjectUtils.isNotEmpty(courses)) {
-                            for (int i = 0; i < courses.size(); i++) {
-                                setCell(row, 3 + i, courses.get(i).getName());
+                        if (CollectionUtils.isNotEmpty(courses)) {
+                            for (int i = 0; i < courses.size() && i < courseColCount; i++) {
+                                setCellValue(sheet, rowIdx, REQUIREMENT_COL_COUNT + i,
+                                        courses.get(i).getName(), style);
                             }
                         }
-                        currentRow++;
+                        rowIdx++;
                     }
-                    // 合并一级指标单元格
-                    mergeVertical(firstStart, currentRow - 1, 1);
-                    setCell(getRow(firstStart), 1, first.getName());
+                    // B 列：一级指标合并
+                    int firstEndRow = rowIdx - 1;
+                    if (firstEndRow >= firstStartRow) {
+                        setCellValue(sheet, firstStartRow, 1, first.getName(), style);
+                        if (firstEndRow > firstStartRow) {
+                            sheet.addMergedRegion(new CellRangeAddress(firstStartRow, firstEndRow, 1, 1));
+                        }
+                    }
+                }
+                // A 列：根(知识/能力/素质)合并
+                int groupEndRow = rowIdx - 1;
+                if (groupEndRow >= groupStartRow) {
+                    setCellValue(sheet, groupStartRow, 0, group.getRootName(), style);
+                    if (groupEndRow > groupStartRow) {
+                        sheet.addMergedRegion(new CellRangeAddress(groupStartRow, groupEndRow, 0, 0));
+                    }
                 }
             }
-            // 合并毕业要求类型单元格
-            mergeVertical(groupStart, currentRow - 1, 0);
-            setCell(getRow(groupStart), 0, resolveGroupName(group));
         }
+
+        // 5. 列宽：参照模板 B=18, C=34
+        sheet.setColumnWidth(0, 6 * 256);
+        sheet.setColumnWidth(1, 18 * 256);
+        sheet.setColumnWidth(2, 34 * 256);
+        for (int i = 0; i < courseColCount; i++) {
+            sheet.setColumnWidth(REQUIREMENT_COL_COUNT + i, 16 * 256);
+        }
+
+        return workbook;
     }
 
-    private String resolveGroupName(GraduationCourseSupportVo.SupportGroupVo group) {
-        if (StringUtils.isNotBlank(group.getRootName())) {
-            return group.getRootName();
+    private int countRequirements() {
+        int count = 0;
+        if (data == null || data.getGroups() == null) {
+            return 0;
         }
-        if ("1".equals(group.getGraduationType())) {
-            return "知识";
-        } else if ("2".equals(group.getGraduationType())) {
-            return "能力";
-        } else if ("3".equals(group.getGraduationType())) {
-            return "素质";
+        for (GraduationCourseSupportVo.SupportGroupVo group : data.getGroups()) {
+            if (group.getFirstLevels() == null) {
+                continue;
+            }
+            for (GraduationCourseSupportVo.SupportFirstLevelVo first : group.getFirstLevels()) {
+                if (first.getRequirements() != null) {
+                    count += first.getRequirements().size();
+                }
+            }
         }
-        return "";
+        return count;
     }
 
-    private void mergeVertical(int firstRow, int lastRow, int column) {
-        if (lastRow > firstRow) {
-            sheet.addMergedRegion(new CellRangeAddress(firstRow, lastRow, column, column));
-        }
+    private XSSFCellStyle buildStyle(XSSFWorkbook workbook, boolean bold) {
+        XSSFCellStyle style = workbook.createCellStyle();
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        XSSFFont font = workbook.createFont();
+        font.setFontName("等线");
+        font.setFontHeightInPoints((short) 11);
+        font.setBold(bold);
+        style.setFont(font);
+        return style;
     }
 
-    private Row getRow(int rowNumber) {
-        Row row = sheet.getRow(rowNumber);
-        if (ObjectUtils.isNotEmpty(row)) {
-            return row;
+    private void setCellValue(Sheet sheet, int rowIdx, int colIdx, String value, CellStyle style) {
+        Row row = sheet.getRow(rowIdx);
+        if (row == null) {
+            row = sheet.createRow(rowIdx);
         }
-        return sheet.createRow(rowNumber);
-    }
-
-    private void setCell(Row row, int column, String value) {
-        Cell cell = row.getCell(column);
-        if (ObjectUtils.isEmpty(cell)) {
-            cell = row.createCell(column);
+        Cell cell = row.getCell(colIdx);
+        if (cell == null) {
+            cell = row.createCell(colIdx);
         }
-        cell.setCellStyle(cellStyle);
-        if (StringUtils.isNotBlank(value)) {
-            cell.setCellValue(value);
-        }
+        cell.setCellValue(StringUtils.isBlank(value) ? "" : value);
+        cell.setCellStyle(style);
     }
 }

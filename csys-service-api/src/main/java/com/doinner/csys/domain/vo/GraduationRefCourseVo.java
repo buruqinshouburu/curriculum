@@ -1,14 +1,13 @@
 package com.doinner.csys.domain.vo;
 
 /**
- * 毕业要求(叶子)绑定课程的查询结果。
+ * 毕业要求-课程 绑定关系(含课程信息)，用于支撑矩阵导出/展示。
  *
- * 对应 CourseRefGraduationMapper.selectCourseRefGraduationWithCourseByGraduationIds,
- * 用于构建"毕业要求与课程支撑矩阵"。
+ * @author doinner
  */
 public class GraduationRefCourseVo {
 
-    /** 毕业要求(叶子)id */
+    /** 毕业要求id(叶子节点) */
     private Long graduationId;
 
     /** 课程id */

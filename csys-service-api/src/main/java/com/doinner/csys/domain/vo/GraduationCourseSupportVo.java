@@ -4,20 +4,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 毕业要求与课程支撑矩阵。
+ * 培养方案-毕业要求与课程支撑矩阵 展示对象。
+ * <p>
+ * 结构：培养方案 -> 毕业要求分组(知识/能力/素质) -> 一级指标 -> 叶子要求(绑定的课程)。
+ * 前端可据此做单元格合并(根跨所有叶子行、一级指标跨其下叶子行)。
+ * Excel 导出复用同一数据结构。
  *
- * 结构层级：培养方案 -> 毕业要求分组(知识/能力/素质) -> 一级指标 -> 具体毕业要求(叶子) -> 支撑课程。
- * 由 StandardServiceImpl.selectGraduationCourseSupport 组装, 供接口返回与 Excel 导出复用。
+ * @author doinner
  */
 public class GraduationCourseSupportVo {
 
     /** 培养方案id */
     private Long schemeId;
 
-    /** 单个毕业要求下支撑课程的最大数量(用于导出时确定列数) */
-    private int maxCourseCount;
+    /** 所有叶子中绑定的最大课程数(用于表头"课程1..课程N"列数) */
+    private Integer maxCourseCount = 0;
 
-    /** 毕业要求分组集合 */
+    /** 毕业要求分组(按根节点，如知识/能力/素质) */
     private List<SupportGroupVo> groups = new ArrayList<>();
 
     public Long getSchemeId() {
@@ -28,11 +31,11 @@ public class GraduationCourseSupportVo {
         this.schemeId = schemeId;
     }
 
-    public int getMaxCourseCount() {
+    public Integer getMaxCourseCount() {
         return maxCourseCount;
     }
 
-    public void setMaxCourseCount(int maxCourseCount) {
+    public void setMaxCourseCount(Integer maxCourseCount) {
         this.maxCourseCount = maxCourseCount;
     }
 
@@ -45,20 +48,14 @@ public class GraduationCourseSupportVo {
     }
 
     /**
-     * 毕业要求分组(对应树的根节点, 如知识/能力/素质)。
+     * 毕业要求分组(根节点：知识/能力/素质)
      */
     public static class SupportGroupVo {
-
-        /** 根节点id */
         private Long rootId;
-
-        /** 根节点展示名 */
+        /** 根名称(知识/能力/素质)，name 为空时由 graduationType 映射 */
         private String rootName;
-
-        /** 毕业要求类型(1知识/2能力/3素质) */
+        /** 1:知识 2:能力 3:素质 */
         private String graduationType;
-
-        /** 一级指标集合 */
         private List<SupportFirstLevelVo> firstLevels = new ArrayList<>();
 
         public Long getRootId() {
@@ -95,17 +92,11 @@ public class GraduationCourseSupportVo {
     }
 
     /**
-     * 一级指标(根节点的下一级)。
+     * 一级指标(如"政治理论知识")
      */
     public static class SupportFirstLevelVo {
-
-        /** 一级指标id */
         private Long id;
-
-        /** 一级指标名称 */
         private String name;
-
-        /** 该一级指标下的具体毕业要求(叶子)集合 */
         private List<SupportRequirementVo> requirements = new ArrayList<>();
 
         public Long getId() {
@@ -134,17 +125,11 @@ public class GraduationCourseSupportVo {
     }
 
     /**
-     * 具体毕业要求(叶子节点)。
+     * 叶子毕业要求(具体要求，绑定课程)
      */
     public static class SupportRequirementVo {
-
-        /** 毕业要求id */
         private Long id;
-
-        /** 毕业要求名称 */
         private String name;
-
-        /** 支撑该毕业要求的课程集合 */
         private List<SupportCourseVo> courses = new ArrayList<>();
 
         public Long getId() {
@@ -173,17 +158,11 @@ public class GraduationCourseSupportVo {
     }
 
     /**
-     * 支撑课程。
+     * 支撑课程
      */
     public static class SupportCourseVo {
-
-        /** 课程id */
         private Long id;
-
-        /** 课程名称 */
         private String name;
-
-        /** 课程编号 */
         private String code;
 
         public Long getId() {
