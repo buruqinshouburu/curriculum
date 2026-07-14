@@ -607,3 +607,9 @@ DROP VIEW IF EXISTS `view_quote_course`;
 CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_quote_course` AS select `t_csys_course`.`source_id` AS `source_id`,count(distinct `t_csys_course`.`id`) AS `qoute_count`,`t_csys_course`.`version` AS `version` from `t_csys_course` where ((`t_csys_course`.`sysflag` = 0) and (`t_csys_course`.`template_type` = 2) and (`t_csys_course`.`course_Module` = '69a7f32e2dc370362ef3ee6e') and (`t_csys_course`.`source_id` is not null)) group by `t_csys_course`.`source_id`,`t_csys_course`.`version`;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ----------------------------
+-- 教学计划目标表增加专业ID字段(major_id)
+-- ----------------------------
+ALTER TABLE `t_csys_teaching_plan_objective`
+    ADD COLUMN `major_id` bigint DEFAULT NULL COMMENT '专业ID' AFTER `context_id`;
