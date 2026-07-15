@@ -24,6 +24,7 @@ import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
+import com.doinner.file.api.domain.FileInfo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
@@ -78,6 +79,18 @@ public class TeachingPlanController {
     @PostMapping("/save")
     public DataSet<Long> save(@RequestBody TeachingPlanSaveVo saveVo) {
         return DataSet.success(teachingPlanService.saveTeachingPlan(saveVo));
+    }
+
+    /**
+     * 课程教学计划文件生成。
+     * 前端传入 course_id，根据 t_csys_course.type 决定生成哪一套模板文档：
+     * 1课程 / 2实践训练课目 / 3实验课程 / 4实践项目。
+     * 生成后上传文件服务并回写课程表，返回文件信息（fileId/downloadUrl/previewUrl）。
+     */
+    @ApiOperation("课程教学计划文件生成")
+    @GetMapping("/createWord/{courseId}")
+    public DataSet<FileInfo> createWord(@PathVariable("courseId") Long courseId) {
+        return DataSet.success(teachingPlanService.generateTeachingPlanWord(courseId));
     }
 
     // ============ 教员团队 t_csys_teaching_plan_teacher ============

@@ -32,7 +32,7 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
     private String code;
 
     /**
-     * 课程类型(type)  1课程 3 课程含实践  type=2训练课type=4实践课
+     * 课程类型(type)  1课程 3 课程含实践  type=2实践训练课目type=4实践教学
      */
     @Excel(name = "课程类型(type)")
     private String type;
@@ -180,6 +180,26 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
      */
     @Excel(name = "文件名称(file_name)")
     private String fileName;
+
+    /**
+     * 课程教学计划生成文档文件ID(plan_file_id)
+     */
+    private String planFileId;
+
+    /**
+     * 课程教学计划生成文档文件名(plan_file_name)
+     */
+    private String planFileName;
+
+    /**
+     * 课程教学计划生成文档下载地址(plan_download_url)
+     */
+    private String planDownloadUrl;
+
+    /**
+     * 课程教学计划生成文档预览地址(plan_preview_url)
+     */
+    private String planPreviewUrl;
 
     /**
      * 审核状态：0未审核1已审核
@@ -772,5 +792,37 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
 
     public void setCourseScheduleList(List<CourseSchedule> courseScheduleList) {
         this.courseScheduleList = courseScheduleList;
+    }
+
+    public String getPlanFileId() {
+        return planFileId;
+    }
+
+    public void setPlanFileId(String planFileId) {
+        this.planFileId = planFileId;
+    }
+
+    public String getPlanFileName() {
+        return planFileName;
+    }
+
+    public void setPlanFileName(String planFileName) {
+        this.planFileName = planFileName;
+    }
+
+    public String getPlanDownloadUrl() {
+        return planDownloadUrl;
+    }
+
+    public void setPlanDownloadUrl(String planDownloadUrl) {
+        this.planDownloadUrl = planDownloadUrl;
+    }
+
+    public String getPlanPreviewUrl() {
+        return planPreviewUrl;
+    }
+
+    public void setPlanPreviewUrl(String planPreviewUrl) {
+        this.planPreviewUrl = planPreviewUrl;
     }
 }

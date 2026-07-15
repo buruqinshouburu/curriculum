@@ -6,6 +6,7 @@ import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
+import com.doinner.file.api.domain.FileInfo;
 
 import java.util.List;
 
@@ -42,6 +43,17 @@ public interface TeachingPlanService {
      * @return 教学计划id
      */
     Long saveTeachingPlan(TeachingPlanSaveVo saveVo);
+
+    /**
+     * 按总库课程id生成课程教学计划 Word 文档。
+     * 根据 t_csys_course.type 决定生成哪一套模板（课程/实验课程/实践训练课目/实践项目），
+     * 生成后上传文件服务并回写课程表的 plan_file_id/plan_file_name/plan_download_url/plan_preview_url，
+     * 返回文件信息（含 fileId/downloadUrl/previewUrl）。
+     *
+     * @param courseId 总库课程id
+     * @return 文件信息
+     */
+    FileInfo generateTeachingPlanWord(Long courseId);
 
     // ============ 教员团队 t_csys_teaching_plan_teacher ============
 

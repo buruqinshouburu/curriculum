@@ -132,6 +132,29 @@ public interface CourseMapper {
 
     void updateFileById(@Param("fileId") String fileId,@Param("fileName")String fileName,@Param("id")Long id);
 
+    /**
+     * 查询课程教学计划生成文档文件ID（用于生成前清理旧文件）。
+     *
+     * @param id 课程主键
+     * @return plan_file_id，无则 null
+     */
+    String selectPlanFileId(@Param("id") Long id);
+
+    /**
+     * 回写课程教学计划生成文档文件信息（plan_file_id/plan_file_name/plan_download_url/plan_preview_url）。
+     *
+     * @param planFileId     生成文档文件ID
+     * @param planFileName   生成文档文件名
+     * @param planDownloadUrl 下载地址
+     * @param planPreviewUrl  预览地址
+     * @param id             课程主键
+     */
+    void updatePlanFileById(@Param("planFileId") String planFileId,
+                            @Param("planFileName") String planFileName,
+                            @Param("planDownloadUrl") String planDownloadUrl,
+                            @Param("planPreviewUrl") String planPreviewUrl,
+                            @Param("id") Long id);
+
 
     void updateStatusByIds(@Param("ids") List<Long> ids);
 

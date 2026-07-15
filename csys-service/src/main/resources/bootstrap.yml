@@ -47,6 +47,8 @@ mybatis-plus:
 category:
   # 教学大纲分类id
   TeachingProgramme: 0
+  # 课程教学计划生成文档分类id（未配置时回退使用 TeachingProgramme）
+  TeachingPlan: 0
   # 培养方案分类id
   trainingPlan: 69ba4b5da5db953a32ac0c62
 

@@ -1925,6 +1925,19 @@
         where id = #{id}
     </update>
 
+    <select id="selectPlanFileId" resultType="java.lang.String">
+        select plan_file_id from t_csys_course where id = #{id}
+    </select>
+
+    <update id="updatePlanFileById">
+        update t_csys_course
+        set plan_file_id     = #{planFileId},
+            plan_file_name   = #{planFileName},
+            plan_download_url = #{planDownloadUrl},
+            plan_preview_url  = #{planPreviewUrl}
+        where id = #{id}
+    </update>
+
 
     <update id="updateStatusByIds" >
         update t_csys_course
