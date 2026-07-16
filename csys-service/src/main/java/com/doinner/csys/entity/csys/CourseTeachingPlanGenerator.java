@@ -1,0 +1,1013 @@
+package com.doinner.csys.entity.csys;
+
+import com.doinner.csys.domain.StandardGraduation;
+import com.doinner.csys.domain.TeachingPlanAssessment;
+import com.doinner.csys.domain.TeachingPlanCondition;
+import com.doinner.csys.domain.TeachingPlanContent;
+import com.doinner.csys.domain.TeachingPlanObjective;
+import com.doinner.csys.domain.TeachingPlanObjectiveRef;
+import com.doinner.csys.domain.TeachingPlanPracticeItem;
+import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanSection;
+import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTeacher;
+import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
+import com.doinner.csys.utils.WordUtil;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.xwpf.usermodel.TableWidthType;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * 课程教学计划 Word 文档生成器。
+ *
+ * 入口 {@link #generate(CourseTeachingPlanModel)}：按 {@link CourseTeachingPlanModel#getDocType()} 分发到四套模板：
+ * 1=课程教学计划 / 2=实践训练课目教学计划 / 3=实验课程教学计划 / 4=实践项目教学计划。
+ *
+ * 渲染沿用 {@link TrainingPlanGenerator} 的方式：{@link WordUtil} 画表 + 合并单元格 + initTableGrid。
+ * 有数据则填、无数据留空单元格，保证产出文档结构与模板一致。
+ */
+public class CourseTeachingPlanGenerator {
+
+    /** 文档类型常量，与 t_csys_course.type 一致 */
+    public static final int DOC_TYPE_COURSE = 1;
+    public static final int DOC_TYPE_PRACTICE_SUBJECT = 2;
+    public static final int DOC_TYPE_EXPERIMENT_COURSE = 3;
+    public static final int DOC_TYPE_PRACTICE_PROJECT = 4;
+
+    /** 单列宽度(dxa)，合并列时按 span 倍数设置 */
+    private static final int COL_W = 1000;
+
+    /** 目标/达成设计类型关键字（objectiveTypeCode / designTypeCode 为字典编码，按包含匹配） */
+    private static final String KEY_KNOWLEDGE = "知识";
+    private static final String KEY_ABILITY = "能力";
+    private static final String KEY_QUALITY = "素质";
+
+    /** 实验项目明细类型 -> 展示标签 */
+    private static final Map<String, String> DETAIL_LABEL = new LinkedHashMap<String, String>() {{
+        put("purpose_task", "目的与任务");
+        put("ability_point", "训练的能力点");
+        put("principle", "原理");
+        put("content_requirement", "内容及要求");
+        put("result_requirement", "结果及要求");
+        put("teaching_design", "教学设计");
+        put("complex_problem", "拟解决的复杂问题");
+        put("main_task", "主要任务");
+        put("overall_design", "总体设计");
+        put("outcome_requirement", "成果形式及要求");
+    }};
+
+    // ============================ 入口 ============================
+
+    public InputStream generate(CourseTeachingPlanModel model) throws IOException {
+        XWPFDocument document = new XWPFDocument();
+        try {
+            Integer t = model.getDocType();
+            if (t == null) {
+                t = DOC_TYPE_COURSE;
+            }
+            switch (t) {
+                case DOC_TYPE_EXPERIMENT_COURSE:
+                    generateExperimentCourseDoc(model, document);
+                    break;
+                case DOC_TYPE_PRACTICE_SUBJECT:
+                    generatePracticeSubjectDoc(model, document);
+                    break;
+                case DOC_TYPE_PRACTICE_PROJECT:
+                    generatePracticeProjectDoc(model, document);
+                    break;
+                default:
+                    generateCourseDoc(model, document);
+                    break;
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            document.write(out);
+            return new ByteArrayInputStream(out.toByteArray());
+        } finally {
+            document.close();
+        }
+    }
+
+    // ============================ type=1 课程教学计划（9 节） ============================
+
+    private void generateCourseDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》课程教学计划");
+
+        // 一、课程基本信息
+        h1(doc, "一、课程基本信息");
+        courseBasicInfoTable(m, doc);
+
+        // 二、课程教学团队
+        h1(doc, "二、课程教学团队");
+        teacherTable(m.getTeachers(), doc);
+
+        // 三、课程概述
+        h1(doc, "三、课程概述");
+        renderSections(doc, m.getSections());
+
+        // 四、课程目标与支撑毕业要求
+        h1(doc, "四、课程目标与支撑毕业要求");
+        objectiveTable(m, doc);
+
+        // 五、课程教学内容与时间安排
+        h1(doc, "五、课程教学内容与时间安排");
+        contentTable(m.getContents(), doc);
+
+        // 六、课程目标与教学实现设计
+        h1(doc, "六、课程目标与教学实现设计");
+        h2(doc, "（一）知识目标和教学实现设计");
+        targetDesignTable(filterDesign(m.getTargetDesigns(), KEY_KNOWLEDGE), doc);
+        h2(doc, "（二）能力目标和教学实现设计");
+        abilityQualityDesignTable(filterDesign(m.getTargetDesigns(), KEY_ABILITY), doc, "课程能力目标");
+        h2(doc, "（三）素质目标和教学实现设计");
+        abilityQualityDesignTable(filterDesign(m.getTargetDesigns(), KEY_QUALITY), doc, "课程素质目标");
+
+        // 七、实验/实践环节教学设计
+        h1(doc, "七、实验/实践环节教学设计");
+        practiceItemTable(m.getPracticeItems(), m.getItemDetailMap(), doc);
+
+        // 八、考核评价
+        h1(doc, "八、考核评价");
+        assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+
+        // 九、教学条件
+        h1(doc, "九、教学条件");
+        h2(doc, "（一）配套教材");
+        textbookTable(m.getTextbooks(), doc);
+        h2(doc, "（二）教学条件及资源");
+        conditionTable(m.getConditions(), doc);
+    }
+
+    // ============================ type=3 实验课程教学计划（7 节） ============================
+
+    private void generateExperimentCourseDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实验课程教学计划");
+
+        h1(doc, "一、课程基本信息");
+        experimentBasicInfoTable(m, doc);
+
+        h1(doc, "二、课程教学团队");
+        teacherTable(m.getTeachers(), doc);
+
+        h1(doc, "三、任务背景与目标");
+        // 表：任务背景描述 | 技术目标 | 能力目标 | 支撑的毕业要求
+        taskBackgroundTable(m, doc, 4);
+
+        h1(doc, "四、主要内容与基本要求");
+        practiceItemTable(m.getPracticeItems(), m.getItemDetailMap(), doc);
+
+        h1(doc, "五、实施安排");
+        experimentArrangementTable(m.getPracticeItems(), doc);
+
+        h1(doc, "六、考核与评价");
+        assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+
+        h1(doc, "七、实验教材或指导书");
+        textbookTable(m.getTextbooks(), doc);
+    }
+
+    // ============================ type=2 实践训练课目教学计划（7 节） ============================
+
+    private void generatePracticeSubjectDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实践训练课目教学计划");
+
+        h1(doc, "一、课目基本信息");
+        practiceSubjectBasicInfoTable(m, doc);
+
+        h1(doc, "二、训练目的与支撑毕业要求");
+        trainingPurposeTable(m, doc);
+
+        h1(doc, "三、训练任务与总体设计");
+        trainingTaskTable(m, doc);
+
+        h1(doc, "四、训练内容与时间安排");
+        trainingContentTable(m.getContents(), doc);
+
+        h1(doc, "五、组织实施");
+        organizationTable(m, doc);
+
+        h1(doc, "六、考核与评价");
+        assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+
+        h1(doc, "七、训练条件及资源");
+        conditionTable(m.getConditions(), doc);
+    }
+
+    // ============================ type=4 实践项目教学计划（5 节） ============================
+
+    private void generatePracticeProjectDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实践项目教学计划");
+
+        h1(doc, "一、项目基本信息");
+        practiceProjectBasicInfoTable(m, doc);
+
+        h1(doc, "二、任务背景与目标");
+        projectBackgroundTable(m, doc);
+
+        h1(doc, "三、组织与实施");
+        projectOrganizationTable(m, doc);
+
+        h1(doc, "四、成果与评价");
+        projectOutcomeTable(m.getAssessments(), m.getScoreRule(), doc);
+
+        h1(doc, "五、实践条件及资源");
+        conditionTable(m.getConditions(), doc);
+    }
+
+    // ============================ 基本信息表（四套） ============================
+
+    /** 课程基本信息表（type1）：6 列 */
+    private void courseBasicInfoTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 6;
+        int rows = 9;
+        XWPFTable t = createTable(doc, rows, cols);
+        // R0 课程名称
+        labelValue(t, 0, 0, 1, "课程名称", m.getCourseName(), cols - 1);
+        // R1 课程编号
+        labelValue(t, 1, 0, 1, "课程编号", m.getCourseCode(), cols - 1);
+        // R2 课程英文名称
+        labelValue(t, 2, 0, 1, "课程英文名称", m.getCourseEnName(), cols - 1);
+        // R3 启用时间
+        labelValue(t, 3, 0, 1, "启用时间", m.getEnabledTerm(), cols - 1);
+        // R4 学时 | 讲授 | {teachHours} | 学分 | {credit}(合并 4-5)
+        setCell(t, 4, 0, "学时", true);
+        setCell(t, 4, 1, "讲授", true);
+        setCell(t, 4, 2, m.getTeachHours(), false);
+        setCell(t, 4, 3, "学分", true);
+        setCell(t, 4, 4, m.getCredit(), false);
+        WordUtil.mergeCellsHorizontal(t, 4, 4, 5);
+        // R5 | 实践 | {practiceHours} | (3-5 合并空)
+        WordUtil.mergeCellsVertical(t, 0, 4, 5);
+        setCell(t, 5, 1, "实践", true);
+        setCell(t, 5, 2, m.getPracticeHours(), false);
+        WordUtil.mergeCellsHorizontal(t, 5, 3, 5);
+        // R6 适用对象 | 适用专业 | 开课学期 | 课程模块 | 修读性质(合并 4-5)
+        setCell(t, 6, 0, "适用对象", true);
+        setCell(t, 6, 1, "适用专业", true);
+        setCell(t, 6, 2, "开课学期", true);
+        setCell(t, 6, 3, "课程模块", true);
+        setCell(t, 6, 4, "修读性质", true);
+        WordUtil.mergeCellsHorizontal(t, 6, 4, 5);
+        // R7 值
+        setCell(t, 7, 0, m.getEducationLevel(), false);
+        setCell(t, 7, 1, m.getMajorName(), false);
+        setCell(t, 7, 2, m.getTerm(), false);
+        setCell(t, 7, 3, m.getCourseModule(), false);
+        setCell(t, 7, 4, m.getCourseAttr(), false);
+        WordUtil.mergeCellsHorizontal(t, 7, 4, 5);
+        // R8 备注
+        setCell(t, 8, 0, "备注：①如果同1门课程适用于不同培训对象，则每个培训对象生成1条数据 / ②如果同1门课程对不对专业修读性质不一样，则每个专业生成1条数据。", false);
+        WordUtil.mergeCellsHorizontal(t, 8, 0, cols - 1);
+    }
+
+    /** 实验课程基本信息表（type3）：5 列 */
+    private void experimentBasicInfoTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 5;
+        int rows = 8;
+        XWPFTable t = createTable(doc, rows, cols);
+        labelValue(t, 0, 0, 1, "课程名称", m.getCourseName(), cols - 1);
+        labelValue(t, 1, 0, 1, "课程编号", m.getCourseCode(), cols - 1);
+        labelValue(t, 2, 0, 1, "课程英文名称", m.getCourseEnName(), cols - 1);
+        labelValue(t, 3, 0, 1, "课程教学计划启用时间", m.getEnabledTerm(), cols - 1);
+        // R4 学时 | {hours} | 学分 | {credit} | (空)
+        setCell(t, 4, 0, "学时", true);
+        setCell(t, 4, 1, m.getHours(), false);
+        setCell(t, 4, 2, "学分", true);
+        setCell(t, 4, 3, m.getCredit(), false);
+        setCell(t, 4, 4, "", false);
+        // R5 适用对象 | 适用专业 | 开课学期 | 课程模块 | 修读性质
+        setCell(t, 5, 0, "适用对象", true);
+        setCell(t, 5, 1, "适用专业", true);
+        setCell(t, 5, 2, "开课学期", true);
+        setCell(t, 5, 3, "课程模块", true);
+        setCell(t, 5, 4, "修读性质", true);
+        // R6 值
+        setCell(t, 6, 0, m.getEducationLevel(), false);
+        setCell(t, 6, 1, m.getMajorName(), false);
+        setCell(t, 6, 2, m.getTerm(), false);
+        setCell(t, 6, 3, m.getCourseModule(), false);
+        setCell(t, 6, 4, m.getCourseAttr(), false);
+        // R7 备注
+        setCell(t, 7, 0, "备注：①如果同1门课程适用于不同培训对象，则每个培训对象生成1条数据 / ②如果同1门课程对不对专业修读性质不一样，则每个专业生成1条数据。", false);
+        WordUtil.mergeCellsHorizontal(t, 7, 0, cols - 1);
+    }
+
+    /** 实践训练课目基本信息表（type2）：5 列 */
+    private void practiceSubjectBasicInfoTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 5;
+        int rows = 6;
+        XWPFTable t = createTable(doc, rows, cols);
+        labelValue(t, 0, 0, 1, "课目名称", m.getCourseName(), cols - 1);
+        labelValue(t, 1, 0, 1, "课目编号", m.getCourseCode(), cols - 1);
+        labelValue(t, 2, 0, 1, "启用时间", m.getEnabledTerm(), cols - 1);
+        // R3 适用对象 | 适用专业 | 时间安排 | 学期安排 | 修读性质
+        setCell(t, 3, 0, "适用对象", true);
+        setCell(t, 3, 1, "适用专业", true);
+        setCell(t, 3, 2, "时间安排", true);
+        setCell(t, 3, 3, "学期安排", true);
+        setCell(t, 3, 4, "修读性质", true);
+        // R4 值
+        setCell(t, 4, 0, m.getEducationLevel(), false);
+        setCell(t, 4, 1, m.getMajorName(), false);
+        setCell(t, 4, 2, m.getHours(), false);
+        setCell(t, 4, 3, m.getTerm(), false);
+        setCell(t, 4, 4, m.getCourseAttr(), false);
+        // R5 备注
+        setCell(t, 5, 0, "备注：①如果同1课目适用于不同培训对象，则每个培训对象生成1条数据 / ②如果同1门课目对不对专业修读性质不一样，则每个专业生成1条数据。", false);
+        WordUtil.mergeCellsHorizontal(t, 5, 0, cols - 1);
+    }
+
+    /** 实践项目基本信息表（type4）：5 列，含支撑课程行 */
+    private void practiceProjectBasicInfoTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 5;
+        int rows = 7;
+        XWPFTable t = createTable(doc, rows, cols);
+        labelValue(t, 0, 0, 1, "项目名称", m.getCourseName(), cols - 1);
+        labelValue(t, 1, 0, 1, "项目编号", m.getCourseCode(), cols - 1);
+        labelValue(t, 2, 0, 1, "启用时间", m.getEnabledTerm(), cols - 1);
+        setCell(t, 3, 0, "适用对象", true);
+        setCell(t, 3, 1, "适用专业", true);
+        setCell(t, 3, 2, "时间安排", true);
+        setCell(t, 3, 3, "学期安排", true);
+        setCell(t, 3, 4, "修读性质", true);
+        setCell(t, 4, 0, m.getEducationLevel(), false);
+        setCell(t, 4, 1, m.getMajorName(), false);
+        setCell(t, 4, 2, m.getHours(), false);
+        setCell(t, 4, 3, m.getTerm(), false);
+        setCell(t, 4, 4, m.getCourseAttr(), false);
+        // R5 支撑课程或实践训练课目
+        setCell(t, 5, 0, "支撑课程或实践训练课目", true);
+        setCell(t, 5, 1, m.getSupportingCourses(), false);
+        WordUtil.mergeCellsHorizontal(t, 5, 1, cols - 1);
+        // R6 备注
+        setCell(t, 6, 0, "备注：①如果同1门课程适用于不同培训对象，则每个培训对象生成1条数据 / ②如果同1门课程对不对专业修读性质不一样，则每个专业生成1条数据。", false);
+        WordUtil.mergeCellsHorizontal(t, 6, 0, cols - 1);
+    }
+
+    // ============================ 共用表 ============================
+
+    /** 教员团队表：序号 | 教员姓名 | 职称 | 职责 | 主讲内容 */
+    private void teacherTable(List<TeachingPlanTeacher> teachers, XWPFDocument doc) {
+        int cols = 5;
+        int rows = 1 + size(teachers);
+        XWPFTable t = createTable(doc, Math.max(rows, 2), cols);
+        setCell(t, 0, 0, "序号", true);
+        setCell(t, 0, 1, "教员姓名", true);
+        setCell(t, 0, 2, "职称", true);
+        setCell(t, 0, 3, "职责", true);
+        setCell(t, 0, 4, "主讲内容", true);
+        if (ObjectUtils.isNotEmpty(teachers)) {
+            for (int i = 0; i < teachers.size(); i++) {
+                TeachingPlanTeacher tc = teachers.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, String.valueOf(i + 1), false);
+                setCell(t, r, 1, tc.getTeacherName(), false);
+                setCell(t, r, 2, tc.getProfessionalTitle(), false);
+                setCell(t, r, 3, tc.getDuty(), false);
+                setCell(t, r, 4, tc.getLectureContent(), false);
+            }
+        }
+    }
+
+    /**
+     * 课程目标与支撑毕业要求表（type1 四）：目标类型 | 目标内容 | 支撑毕业要求
+     * 按 知识/能力/素质 分组，相同类型连续行合并“目标类型”列。
+     */
+    private void objectiveTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 3;
+        List<TeachingPlanObjective> objs = m.getObjectives();
+        // 按 类型 顺序分组
+        List<List<TeachingPlanObjective>> groups = new ArrayList<>();
+        groups.add(filterObjective(objs, KEY_KNOWLEDGE));
+        groups.add(filterObjective(objs, KEY_ABILITY));
+        groups.add(filterObjective(objs, KEY_QUALITY));
+        int total = groups.stream().mapToInt(List::size).sum();
+        int rows = 1 + Math.max(total, 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "目标类型", true);
+        setCell(t, 0, 1, "目标内容", true);
+        setCell(t, 0, 2, "支撑毕业要求", true);
+        int r = 1;
+        for (List<TeachingPlanObjective> g : groups) {
+            if (g.isEmpty()) {
+                continue;
+            }
+            int start = r;
+            String typeName = g.get(0).getObjectiveTypeName();
+            if (StringUtils.isBlank(typeName)) {
+                typeName = guessTypeName(g.get(0).getObjectiveTypeCode());
+            }
+            for (TeachingPlanObjective o : g) {
+                setCell(t, r, 1, o.getContent(), false);
+                setCell(t, r, 2, joinRefs(m.getObjectiveRefMap(), o.getId()), false);
+                r++;
+            }
+            setCell(t, start, 0, typeName, true);
+            if (r - 1 > start) {
+                WordUtil.mergeCellsVertical(t, 0, start, r - 1);
+            }
+        }
+        if (total == 0) {
+            setCell(t, 1, 0, "", false);
+            setCell(t, 1, 1, "", false);
+            setCell(t, 1, 2, "", false);
+        }
+    }
+
+    /** 教学内容与时间安排表：专题 | 内容 | 学时安排 */
+    private void contentTable(List<TeachingPlanContent> contents, XWPFDocument doc) {
+        int cols = 3;
+        int rows = 1 + Math.max(size(contents), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "专题", true);
+        setCell(t, 0, 1, "内容", true);
+        setCell(t, 0, 2, "学时安排", true);
+        if (ObjectUtils.isNotEmpty(contents)) {
+            for (int i = 0; i < contents.size(); i++) {
+                TeachingPlanContent c = contents.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, c.getTitle(), false);
+                setCell(t, r, 1, c.getContent(), false);
+                setCell(t, r, 2, toStr(c.getHours()), false);
+            }
+        } else {
+            setCell(t, 1, 0, "", false);
+            setCell(t, 1, 1, "", false);
+            setCell(t, 1, 2, "", false);
+        }
+    }
+
+    /**
+     * 知识目标达成设计表（type1 六(一)）：9 列
+     * 序号 | 知识单元 | 知识点 | 支撑的课程知识目标 | 教学内容 | 教学环节 | 教法 | 学法 | 学时
+     */
+    private void targetDesignTable(List<TeachingPlanTargetDesign> designs, XWPFDocument doc) {
+        int cols = 9;
+        int rows = 1 + Math.max(size(designs), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "序号", true);
+        setCell(t, 0, 1, "知识单元", true);
+        setCell(t, 0, 2, "知识点", true);
+        setCell(t, 0, 3, "支撑的课程知识目标", true);
+        setCell(t, 0, 4, "教学内容", true);
+        setCell(t, 0, 5, "教学环节", true);
+        setCell(t, 0, 6, "教法", true);
+        setCell(t, 0, 7, "学法", true);
+        setCell(t, 0, 8, "学时", true);
+        if (ObjectUtils.isNotEmpty(designs)) {
+            for (int i = 0; i < designs.size(); i++) {
+                TeachingPlanTargetDesign d = designs.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, String.valueOf(i + 1), false);
+                setCell(t, r, 1, d.getKnowledgeUnitName(), false);
+                setCell(t, r, 2, d.getKnowledgePointName(), false);
+                setCell(t, r, 3, d.getContentText(), false);
+                setCell(t, r, 4, d.getContentText(), false);
+                setCell(t, r, 5, d.getTeachingLink(), false);
+                setCell(t, r, 6, d.getTeachingMethod(), false);
+                setCell(t, r, 7, d.getLearningMethod(), false);
+                setCell(t, r, 8, toStr(d.getHours()), false);
+            }
+        } else {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
+        }
+    }
+
+    /**
+     * 能力/素质目标达成设计表（type1 六(二)(三)）：5 列
+     * 序号 | 课程能力(素质)目标 | 观测点 | 教学内容 | 教学设计
+     */
+    private void abilityQualityDesignTable(List<TeachingPlanTargetDesign> designs, XWPFDocument doc, String targetColName) {
+        int cols = 5;
+        int rows = 1 + Math.max(size(designs), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "序号", true);
+        setCell(t, 0, 1, targetColName, true);
+        setCell(t, 0, 2, "观测点", true);
+        setCell(t, 0, 3, "教学内容", true);
+        setCell(t, 0, 4, "教学设计", true);
+        if (ObjectUtils.isNotEmpty(designs)) {
+            for (int i = 0; i < designs.size(); i++) {
+                TeachingPlanTargetDesign d = designs.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, String.valueOf(i + 1), false);
+                setCell(t, r, 1, d.getContentText(), false);
+                setCell(t, r, 2, d.getObservationPoint(), false);
+                setCell(t, r, 3, d.getContentText(), false);
+                setCell(t, r, 4, d.getTeachingDesign(), false);
+            }
+        } else {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
+        }
+    }
+
+    /**
+     * 实验/实践环节教学设计表（type1 七、type3 四）：序号 | 项目名称 | 主要内容与教学设计
+     * 每个项目占多行，明细类型作为子行填入“主要内容与教学设计”列。
+     */
+    private void practiceItemTable(List<TeachingPlanPracticeItem> items, Map<Long, List<TeachingPlanPracticeItemDetail>> detailMap, XWPFDocument doc) {
+        int cols = 3;
+        if (ObjectUtils.isEmpty(items)) {
+            XWPFTable t = createTable(doc, 2, cols);
+            setCell(t, 0, 0, "序号", true);
+            setCell(t, 0, 1, "项目名称", true);
+            setCell(t, 0, 2, "主要内容与教学设计", true);
+            setCell(t, 1, 0, "", false);
+            setCell(t, 1, 1, "", false);
+            setCell(t, 1, 2, "", false);
+            return;
+        }
+        // 计算总行数：表头 + 每项目 max(1, 明细数)
+        int rows = 1;
+        for (TeachingPlanPracticeItem it : items) {
+            rows += Math.max(1, size(detailMap == null ? null : detailMap.get(it.getId())));
+        }
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "序号", true);
+        setCell(t, 0, 1, "项目名称", true);
+        setCell(t, 0, 2, "主要内容与教学设计", true);
+        int r = 1;
+        for (int i = 0; i < items.size(); i++) {
+            TeachingPlanPracticeItem it = items.get(i);
+            List<TeachingPlanPracticeItemDetail> details = detailMap == null ? null : detailMap.get(it.getId());
+            int start = r;
+            if (ObjectUtils.isEmpty(details)) {
+                setCell(t, r, 2, "", false);
+                r++;
+            } else {
+                for (TeachingPlanPracticeItemDetail d : details) {
+                    String label = DETAIL_LABEL.getOrDefault(d.getDetailType(), d.getDetailType());
+                    setCell(t, r, 2, label + "：" + str(d.getContent()), false);
+                    r++;
+                }
+            }
+            // 序号 + 项目名称 纵向合并
+            setCell(t, start, 0, String.valueOf(i + 1), false);
+            setCell(t, start, 1, it.getName(), false);
+            if (r - 1 > start) {
+                WordUtil.mergeCellsVertical(t, 0, start, r - 1);
+                WordUtil.mergeCellsVertical(t, 1, start, r - 1);
+            }
+        }
+    }
+
+    /**
+     * 实验实施安排表（type3 五）：序号 | 实验项目名称 | 学时 | 分组情况 | 实验性质 | 修读性质 | 备注
+     */
+    private void experimentArrangementTable(List<TeachingPlanPracticeItem> items, XWPFDocument doc) {
+        int cols = 7;
+        int rows = 1 + Math.max(size(items), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        String[] headers = {"序号", "实验项目名称", "学时", "分组情况", "实验性质", "修读性质", "备注"};
+        for (int c = 0; c < cols; c++) {
+            setCell(t, 0, c, headers[c], true);
+        }
+        if (ObjectUtils.isNotEmpty(items)) {
+            for (int i = 0; i < items.size(); i++) {
+                TeachingPlanPracticeItem it = items.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, String.valueOf(i + 1), false);
+                setCell(t, r, 1, it.getName(), false);
+                setCell(t, r, 2, toStr(it.getHours()), false);
+                setCell(t, r, 3, it.getGroupInfo(), false);
+                setCell(t, r, 4, it.getExperimentNature(), false);
+                setCell(t, r, 5, it.getStudyNature(), false);
+                setCell(t, r, 6, "", false);
+            }
+        } else {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
+        }
+    }
+
+    /**
+     * 考核评价表（type1 八、type3 六、type2 六）：考核项目 | 考核方式 | 评定 / 机制 | 权重 | 评价标准 + 计分规则行
+     */
+    private void assessmentTable(List<TeachingPlanAssessment> assessments, String scoreRule, XWPFDocument doc) {
+        int cols = 5;
+        int rows = 1 + Math.max(size(assessments), 1) + 1;
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "考核项目", true);
+        setCell(t, 0, 1, "考核方式", true);
+        setCell(t, 0, 2, "评定 / 机制", true);
+        setCell(t, 0, 3, "权重", true);
+        setCell(t, 0, 4, "评价标准", true);
+        int r = 1;
+        if (ObjectUtils.isNotEmpty(assessments)) {
+            for (TeachingPlanAssessment a : assessments) {
+                setCell(t, r, 0, a.getAssessmentItem(), false);
+                setCell(t, r, 1, a.getMethod(), false);
+                setCell(t, r, 2, joinStr(a.getMechanism(), a.getScoreSystem()), false);
+                setCell(t, r, 3, toStr(a.getWeight()), false);
+                setCell(t, r, 4, a.getStandard(), false);
+                r++;
+            }
+        } else {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
+            r = 2;
+        }
+        // 计分规则行
+        setCell(t, r, 0, "计分规则", true);
+        setCell(t, r, 1, StringUtils.isBlank(scoreRule) ? "" : scoreRule, false);
+        WordUtil.mergeCellsHorizontal(t, r, 1, cols - 1);
+    }
+
+    /** 教材表：教材性质 | 教材名称 | 第一作者 | 版次 | 出版（颁发）单位 | 出版（颁发）时间 | ISBN号（统一书号） | 出版方式 */
+    private void textbookTable(List<TeachingPlanTextbook> books, XWPFDocument doc) {
+        int cols = 8;
+        int rows = 1 + Math.max(size(books), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        String[] headers = {"教材性质", "教材名称", "第一作者", "版次", "出版（颁发）单位", "出版（颁发）时间", "ISBN号（统一书号）", "出版方式"};
+        for (int c = 0; c < cols; c++) {
+            setCell(t, 0, c, headers[c], true);
+        }
+        if (ObjectUtils.isNotEmpty(books)) {
+            for (int i = 0; i < books.size(); i++) {
+                TeachingPlanTextbook b = books.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, b.getMaterialNature(), false);
+                setCell(t, r, 1, b.getName(), false);
+                setCell(t, r, 2, b.getFirstAuthor(), false);
+                setCell(t, r, 3, b.getEdition(), false);
+                setCell(t, r, 4, b.getPublisher(), false);
+                setCell(t, r, 5, b.getPublishTime(), false);
+                setCell(t, r, 6, b.getIsbn(), false);
+                setCell(t, r, 7, b.getPublishMethod(), false);
+            }
+        } else {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
+        }
+    }
+
+    /** 条件保障表：条件类型 | 有关要求 */
+    private void conditionTable(List<TeachingPlanCondition> conditions, XWPFDocument doc) {
+        int cols = 2;
+        int rows = 1 + Math.max(size(conditions), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "条件类型", true);
+        setCell(t, 0, 1, "有关要求", true);
+        if (ObjectUtils.isNotEmpty(conditions)) {
+            for (int i = 0; i < conditions.size(); i++) {
+                TeachingPlanCondition c = conditions.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, c.getConditionType(), false);
+                setCell(t, r, 1, c.getRequirement(), false);
+            }
+        } else {
+            setCell(t, 1, 0, "", false);
+            setCell(t, 1, 1, "", false);
+        }
+    }
+
+    // ============================ 实践训练课目/项目专属表 ============================
+
+    /** 训练目的与支撑毕业要求表（type2 二）：训练目的 | 支撑毕业要求 */
+    private void trainingPurposeTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 2;
+        List<StandardGraduation> grads = m.getCourseGraduations();
+        int rows = 1 + Math.max(size(grads), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "训练目的", true);
+        setCell(t, 0, 1, "支撑毕业要求", true);
+        if (ObjectUtils.isNotEmpty(grads)) {
+            for (int i = 0; i < grads.size(); i++) {
+                StandardGraduation g = grads.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, "", false);
+                setCell(t, r, 1, g.getName(), false);
+            }
+        } else {
+            setCell(t, 1, 0, "", false);
+            setCell(t, 1, 1, "", false);
+        }
+    }
+
+    /** 训练任务与总体设计表（type2 三）：标签 | 内容（训练任务/总体设计/配套支撑课程） */
+    private void trainingTaskTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 2;
+        int rows = 3;
+        XWPFTable t = createTable(doc, rows, cols);
+        Map<String, String> sec = sectionsMap(m.getSections());
+        setCell(t, 0, 0, "训练任务", true);
+        setCell(t, 0, 1, sec.getOrDefault("训练任务", sec.getOrDefault("task", "")), false);
+        setCell(t, 1, 0, "总体设计", true);
+        setCell(t, 1, 1, sec.getOrDefault("总体设计", sec.getOrDefault("overall_design", "")), false);
+        setCell(t, 2, 0, "配套支撑课程", true);
+        setCell(t, 2, 1, m.getSupportingCourses(), false);
+    }
+
+    /** 训练内容与时间安排表（type2 四）：模块 | 内容 | 目的 | 时间安排 */
+    private void trainingContentTable(List<TeachingPlanContent> contents, XWPFDocument doc) {
+        int cols = 4;
+        int rows = 1 + Math.max(size(contents), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "模块", true);
+        setCell(t, 0, 1, "内容", true);
+        setCell(t, 0, 2, "目的", true);
+        setCell(t, 0, 3, "时间安排", true);
+        if (ObjectUtils.isNotEmpty(contents)) {
+            for (int i = 0; i < contents.size(); i++) {
+                TeachingPlanContent c = contents.get(i);
+                int r = i + 1;
+                setCell(t, r, 0, c.getTitle(), false);
+                setCell(t, r, 1, c.getContent(), false);
+                setCell(t, r, 2, c.getPurpose(), false);
+                setCell(t, r, 3, c.getTimeArrange(), false);
+            }
+        } else {
+            for (int cc = 0; cc < cols; cc++) {
+                setCell(t, 1, cc, "", false);
+            }
+        }
+    }
+
+    /** 组织实施表（type2 五）：组织方式(整行) + 实施步骤表头 + 步骤行。简化为 3 列：实施步骤 | 阶段划分 | 有关要求 */
+    private void organizationTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 3;
+        List<TeachingPlanSection> sections = m.getSections();
+        int rows = 2 + size(sections);
+        XWPFTable t = createTable(doc, Math.max(rows, 3), cols);
+        setCell(t, 0, 0, "组织方式", true);
+        WordUtil.mergeCellsHorizontal(t, 0, 0, cols - 1);
+        setCell(t, 1, 0, "实施步骤", true);
+        setCell(t, 1, 1, "阶段划分", true);
+        setCell(t, 1, 2, "有关要求", true);
+        if (ObjectUtils.isNotEmpty(sections)) {
+            for (int i = 0; i < sections.size(); i++) {
+                TeachingPlanSection s = sections.get(i);
+                int r = i + 2;
+                setCell(t, r, 0, s.getSectionTitle(), false);
+                setCell(t, r, 1, "", false);
+                setCell(t, r, 2, s.getContent(), false);
+            }
+        }
+    }
+
+    /** 实验课程任务背景表（type3 三）：cols 列（任务背景描述 | 技术目标 | 能力目标 | 支撑毕业要求） */
+    private void taskBackgroundTable(CourseTeachingPlanModel m, XWPFDocument doc, int cols) {
+        int rows = 2;
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "任务背景描述", true);
+        setCell(t, 0, 1, "技术目标", true);
+        setCell(t, 0, 2, "能力目标", true);
+        setCell(t, 0, 3, "支撑的毕业要求", true);
+        Map<String, String> sec = sectionsMap(m.getSections());
+        setCell(t, 1, 0, sec.getOrDefault("任务背景", sec.getOrDefault("task_background", "")), false);
+        setCell(t, 1, 1, sec.getOrDefault("技术目标", ""), false);
+        setCell(t, 1, 2, sec.getOrDefault("能力目标", ""), false);
+        setCell(t, 1, 3, joinGraduations(m.getCourseGraduations()), false);
+    }
+
+    /** 实践项目任务背景表（type4 二）：标签 | 内容 */
+    private void projectBackgroundTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 2;
+        int rows = 4;
+        XWPFTable t = createTable(doc, rows, cols);
+        Map<String, String> sec = sectionsMap(m.getSections());
+        setCell(t, 0, 0, "拟解决的复杂问题", true);
+        setCell(t, 0, 1, sec.getOrDefault("拟解决的复杂问题", sec.getOrDefault("complex_problem", "")), false);
+        setCell(t, 1, 0, "主要任务", true);
+        setCell(t, 1, 1, sec.getOrDefault("主要任务", sec.getOrDefault("main_task", "")), false);
+        setCell(t, 2, 0, "支撑的课程目标", true);
+        setCell(t, 2, 1, "从支撑课程或实践训练课目设定的课程目标中选择", false);
+        setCell(t, 3, 0, "涉及的知识体系", true);
+        setCell(t, 3, 1, joinGraduations(m.getCourseGraduations()), false);
+    }
+
+    /** 实践项目组织与实施表（type4 三）：团队组织与管理 | 团队规模 + 项目步骤 | 项目步骤 | 有关要求 */
+    private void projectOrganizationTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        int cols = 3;
+        List<TeachingPlanSection> sections = m.getSections();
+        int rows = 2 + size(sections);
+        XWPFTable t = createTable(doc, Math.max(rows, 3), cols);
+        setCell(t, 0, 0, "团队组织与管理", true);
+        setCell(t, 0, 1, "团队规模", true);
+        setCell(t, 0, 2, "可根据学员数量灵活设置", false);
+        setCell(t, 1, 0, "项目实施", true);
+        setCell(t, 1, 1, "项目步骤", true);
+        setCell(t, 1, 2, "有关要求", true);
+        if (ObjectUtils.isNotEmpty(sections)) {
+            for (int i = 0; i < sections.size(); i++) {
+                TeachingPlanSection s = sections.get(i);
+                int r = i + 2;
+                setCell(t, r, 0, "", false);
+                setCell(t, r, 1, s.getSectionTitle(), false);
+                setCell(t, r, 2, s.getContent(), false);
+            }
+        }
+    }
+
+    /** 实践项目成果与评价表（type4 四）：成果类型 | 成果形式 | 评价的知识和能力 | 权重 | 评价准则 + 项目计分规则行 */
+    private void projectOutcomeTable(List<TeachingPlanAssessment> assessments, String scoreRule, XWPFDocument doc) {
+        int cols = 5;
+        int rows = 1 + Math.max(size(assessments), 2) + 1;
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "成果类型", true);
+        setCell(t, 0, 1, "成果形式", true);
+        setCell(t, 0, 2, "评价的知识和能力", true);
+        setCell(t, 0, 3, "权重", true);
+        setCell(t, 0, 4, "评价准则", true);
+        int r = 1;
+        if (ObjectUtils.isNotEmpty(assessments)) {
+            for (TeachingPlanAssessment a : assessments) {
+                setCell(t, r, 0, a.getAssessmentItem(), false);
+                setCell(t, r, 1, a.getMethod(), false);
+                setCell(t, r, 2, a.getAssessedContent(), false);
+                setCell(t, r, 3, toStr(a.getWeight()), false);
+                setCell(t, r, 4, a.getStandard(), false);
+                r++;
+            }
+        } else {
+            setCell(t, r, 0, "个人成果", false);
+            setCell(t, r, 1, "", false);
+            setCell(t, r, 2, "", false);
+            setCell(t, r, 3, "", false);
+            setCell(t, r, 4, "", false);
+            r++;
+            setCell(t, r, 0, "团队成果", false);
+            setCell(t, r, 1, "", false);
+            setCell(t, r, 2, "", false);
+            setCell(t, r, 3, "", false);
+            setCell(t, r, 4, "", false);
+            r++;
+        }
+        setCell(t, r, 0, "项目计分规则", true);
+        setCell(t, r, 1, StringUtils.isBlank(scoreRule) ? "示例：项目成绩为个人成果40%+团队成果60%加权求和。" : scoreRule, false);
+        WordUtil.mergeCellsHorizontal(t, r, 1, cols - 1);
+    }
+
+    // ============================ 渲染小工具 ============================
+
+    private void h1(XWPFDocument doc, String text) {
+        WordUtil.createHeading(doc, text, 1);
+    }
+
+    private void h2(XWPFDocument doc, String text) {
+        WordUtil.createHeading(doc, text, 2);
+    }
+
+    private void h3(XWPFDocument doc, String text) {
+        WordUtil.createHeading(doc, text, 3);
+    }
+
+    /** 渲染文本章节：每段 h3 标题 + 内容段落（\n 分行） */
+    private void renderSections(XWPFDocument doc, List<TeachingPlanSection> sections) {
+        if (ObjectUtils.isEmpty(sections)) {
+            return;
+        }
+        for (TeachingPlanSection s : sections) {
+            if (StringUtils.isNotBlank(s.getSectionTitle())) {
+                h3(doc, s.getSectionTitle());
+            }
+            if (StringUtils.isNotBlank(s.getContent())) {
+                String[] lines = s.getContent().split("\n", -1);
+                for (String line : lines) {
+                    WordUtil.createParagraph(doc, line, null);
+                }
+            }
+        }
+    }
+
+    private XWPFTable createTable(XWPFDocument doc, int rows, int cols) {
+        XWPFTable table = doc.createTable(rows, cols);
+        WordUtil.initTableGrid(table, cols, COL_W);
+        table.setWidthType(TableWidthType.PCT);
+        table.setWidth("100%");
+        return table;
+    }
+
+    private void setCell(XWPFTable t, int row, int col, String text, boolean bold) {
+        XWPFTableRow r = t.getRow(row);
+        if (r == null) {
+            r = t.createRow();
+        }
+        XWPFTableCell cell = r.getCell(col);
+        WordUtil.setCellText(cell, str(text), bold, w(1));
+    }
+
+    /** 标签列(labelCol) + 值(从 valueCol 起合并到 cols-1) */
+    private void labelValue(XWPFTable t, int row, int labelCol, int valueCol, String label, String value, int lastCol) {
+        setCell(t, row, labelCol, label, true);
+        setCell(t, row, valueCol, value, false);
+        if (lastCol > valueCol) {
+            WordUtil.mergeCellsHorizontal(t, row, valueCol, lastCol);
+        }
+    }
+
+    private String w(int span) {
+        return String.valueOf((long) span * COL_W);
+    }
+
+    private static String str(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static String toStr(Object o) {
+        return o == null ? "" : o.toString();
+    }
+
+    private static int size(List<?> list) {
+        return list == null ? 0 : list.size();
+    }
+
+    private static String joinStr(String... parts) {
+        return Arrays.stream(parts).filter(StringUtils::isNotBlank).collect(Collectors.joining(" / "));
+    }
+
+    /** 拼接目标绑定的毕业要求名称 */
+    private String joinRefs(Map<Long, List<TeachingPlanObjectiveRef>> refMap, Long objectiveId) {
+        if (refMap == null || objectiveId == null) {
+            return "";
+        }
+        List<TeachingPlanObjectiveRef> refs = refMap.get(objectiveId);
+        if (ObjectUtils.isEmpty(refs)) {
+            return "";
+        }
+        return refs.stream().map(TeachingPlanObjectiveRef::getGraduationName).filter(StringUtils::isNotBlank).collect(Collectors.joining("、"));
+    }
+
+    /** 拼接课程毕业要求名称 */
+    private String joinGraduations(List<StandardGraduation> grads) {
+        if (ObjectUtils.isEmpty(grads)) {
+            return "";
+        }
+        return grads.stream().map(StandardGraduation::getName).filter(StringUtils::isNotBlank).collect(Collectors.joining("、"));
+    }
+
+    private List<TeachingPlanObjective> filterObjective(List<TeachingPlanObjective> list, String key) {
+        if (ObjectUtils.isEmpty(list)) {
+            return new ArrayList<>();
+        }
+        return list.stream()
+                .filter(o -> containsAny(o.getObjectiveTypeCode(), key) || containsAny(o.getObjectiveTypeName(), key))
+                .collect(Collectors.toList());
+    }
+
+    private List<TeachingPlanTargetDesign> filterDesign(List<TeachingPlanTargetDesign> list, String key) {
+        if (ObjectUtils.isEmpty(list)) {
+            return new ArrayList<>();
+        }
+        return list.stream()
+                .filter(d -> containsAny(d.getDesignTypeCode(), key))
+                .collect(Collectors.toList());
+    }
+
+    private static boolean containsAny(String text, String key) {
+        return StringUtils.isNotBlank(text) && text.contains(key);
+    }
+
+    private String guessTypeName(String code) {
+        if (containsAny(code, KEY_KNOWLEDGE)) {
+            return "知识目标";
+        }
+        if (containsAny(code, KEY_ABILITY)) {
+            return "能力目标";
+        }
+        if (containsAny(code, KEY_QUALITY)) {
+            return "素质目标";
+        }
+        return str(code);
+    }
+
+    /** sections -> {sectionTitle/sectionCode : content}，便于按标签取大段文本 */
+    private Map<String, String> sectionsMap(List<TeachingPlanSection> sections) {
+        Map<String, String> map = new HashMap<>();
+        if (ObjectUtils.isEmpty(sections)) {
+            return map;
+        }
+        for (TeachingPlanSection s : sections) {
+            if (StringUtils.isNotBlank(s.getSectionTitle())) {
+                map.put(s.getSectionTitle(), s.getContent());
+            }
+            if (StringUtils.isNotBlank(s.getSectionCode())) {
+                map.put(s.getSectionCode(), s.getContent());
+            }
+        }
+        return map;
+    }
+}
