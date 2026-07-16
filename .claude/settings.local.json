@@ -215,7 +215,24 @@
       "Bash(git fetch *)",
       "Bash(git rev-list *)",
       "Bash(sed 's/^?? //')",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(sshpass -V)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=accept-new root@96.44.171.25 'echo CONNECT_OK; hostname; whoami; uname -a')",
+      "Bash(/d/python/python3.10.9/python -c \"import paramiko; print\\('paramiko', paramiko.__version__\\)\")",
+      "Bash(/d/python/python3.10.9/python -c \"import pexpect; print\\('pexpect ok'\\)\")",
+      "Bash(CSYS_SSH_PASS='KddA93a4MoeWd9a8oEVgAwT_-x' /d/python/python3.10.9/python *)",
+      "Bash(ssh *)",
+      "Bash(mvn -v)",
+      "Bash(getent hosts *)",
+      "Bash(nslookup nexus.doinner.com)",
+      "Bash(curl -s -m 8 -o /dev/null -w \"nexus_http=%{http_code}\\\\n\" http://nexus.doinner.com/repository/maven-public/)",
+      "Bash(mvn -s E:/work/csys/ssh_tmp/build-settings.xml -o clean package -DskipTests)",
+      "Read(//f/maven_repository/org/springframework/cloud/spring-cloud-dependencies/**)",
+      "Read(//f/maven_repository/org/springframework/boot/spring-boot-dependencies/**)",
+      "Bash(mvn -s E:/work/csys/ssh_tmp/build-settings.xml clean package -DskipTests)",
+      "Bash(mvn -s E:/work/csys/curriculum/.claude/settings-https.xml clean package -DskipTests)",
+      "Bash(scp -o BatchMode=yes E:/work/csys/curriculum/sql/update_course_teaching_plan_file.sql root@96.44.171.25:/tmp/)",
+      "Bash(/d/python/python3.10.9/python *)"
     ]
   }
 }
