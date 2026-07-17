@@ -171,9 +171,13 @@
         <result column="teach_college_id" property="teachCollegeId" jdbcType="BIGINT"/>
         <result column="education_level" property="educationLevel" jdbcType="VARCHAR"/>
         <result column="course_module" property="courseModule" jdbcType="VARCHAR"/>
-        <result column="course_module_name" property="courseModuleName" jdbcType="VARCHAR"/>
+        <result column="course_module_children" property="courseModuleChildren" jdbcType="VARCHAR"/>
         <result column="course_attr" property="courseAttr" jdbcType="VARCHAR"/>
+        <result column="course_type" property="type" jdbcType="VARCHAR"/>
+        <result column="version" property="version" jdbcType="VARCHAR"/>
+        <result column="program_level" property="programLevel" jdbcType="VARCHAR"/>
         <result column="major_id" property="majorId" jdbcType="BIGINT"/>
+        <result column="sub_major_id" property="subMajorId" jdbcType="BIGINT"/>
         <result column="hours" property="hours" jdbcType="DOUBLE"/>
         <result column="credit" property="credit" jdbcType="DOUBLE"/>
         <result column="teaching_plan_id" property="teachingPlanId" jdbcType="BIGINT"/>
@@ -197,7 +201,11 @@
             course.teach_college_id      AS teach_college_id,
             course.education_level       AS education_level,
             course.course_Module         AS course_module,
-            course.course_Module_Children AS course_module_name,
+            course.course_Module_Children AS course_module_children,
+            course.type                   AS course_type,
+            course.version                AS version,
+            course.program_Level          AS program_level,
+            course.sub_Major_Id           AS sub_major_id,
             course.course_attr           AS course_attr,
             course.major_Id              AS major_id,
             course.hours                 AS hours,
@@ -236,6 +244,16 @@
             </if>
             <if test="courseAttr != null and courseAttr != ''">
                 AND course.course_attr = #{courseAttr}
+            </if>
+            <if test="type != null and type != ''">
+                AND course.type = #{type}
+            </if>
+            <if test="version != null and version != ''">
+                AND course.version = #{version}
+            </if>
+            <if test="quoted != null and quoted == 1">
+                AND EXISTS (SELECT 1 FROM t_csys_course c2
+                            WHERE c2.source_id = course.id AND c2.sysflag = 0)
             </if>
         </where>
         ORDER BY course.id DESC

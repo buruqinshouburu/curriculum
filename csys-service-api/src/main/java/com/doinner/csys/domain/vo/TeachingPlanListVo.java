@@ -36,6 +36,33 @@ public class TeachingPlanListVo {
     /** 修读要求 */
     private String courseAttr;
 
+    /** 课程类型 (1课程 2实践训练课目 3实验课程 4实践项目) -> t_csys_course.type */
+    private String type;
+
+    /** 课程版本 -> t_csys_course.version */
+    private String version;
+
+    /** 项目层级 -> t_csys_course.program_Level */
+    private String programLevel;
+
+    /** 适用专业名称 */
+    private String majorName;
+
+    /** 专业方向id -> t_csys_course.sub_Major_Id */
+    private Long subMajorId;
+
+    /** 专业方向名称 */
+    private String subMajorName;
+
+    /** 开课单位名称 */
+    private String teachCollegeName;
+
+    /** 课程模块子项编码 -> t_csys_course.course_Module_Children */
+    private String courseModuleChildren;
+
+    /** 课程模块子项名称 */
+    private String courseModuleChildrenName;
+
     /** 适用专业id -> t_csys_course.major_Id */
     private Long majorId;
 
@@ -136,6 +163,78 @@ public class TeachingPlanListVo {
 
     public void setCourseAttr(String courseAttr) {
         this.courseAttr = courseAttr;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public String getProgramLevel() {
+        return programLevel;
+    }
+
+    public void setProgramLevel(String programLevel) {
+        this.programLevel = programLevel;
+    }
+
+    public String getMajorName() {
+        return majorName;
+    }
+
+    public void setMajorName(String majorName) {
+        this.majorName = majorName;
+    }
+
+    public Long getSubMajorId() {
+        return subMajorId;
+    }
+
+    public void setSubMajorId(Long subMajorId) {
+        this.subMajorId = subMajorId;
+    }
+
+    public String getSubMajorName() {
+        return subMajorName;
+    }
+
+    public void setSubMajorName(String subMajorName) {
+        this.subMajorName = subMajorName;
+    }
+
+    public String getTeachCollegeName() {
+        return teachCollegeName;
+    }
+
+    public void setTeachCollegeName(String teachCollegeName) {
+        this.teachCollegeName = teachCollegeName;
+    }
+
+    public String getCourseModuleChildren() {
+        return courseModuleChildren;
+    }
+
+    public void setCourseModuleChildren(String courseModuleChildren) {
+        this.courseModuleChildren = courseModuleChildren;
+    }
+
+    public String getCourseModuleChildrenName() {
+        return courseModuleChildrenName;
+    }
+
+    public void setCourseModuleChildrenName(String courseModuleChildrenName) {
+        this.courseModuleChildrenName = courseModuleChildrenName;
     }
 
     public Long getMajorId() {

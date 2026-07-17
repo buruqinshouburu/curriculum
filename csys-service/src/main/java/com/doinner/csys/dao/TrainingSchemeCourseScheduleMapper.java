@@ -4,6 +4,7 @@ import com.doinner.csys.domain.TrainingSchemeCourseSchedule;
 import com.doinner.csys.domain.statisticsVo.StandardCultivationTargetStatisticsVo;
 import com.doinner.csys.domain.statisticsVo.TrainingSchemeCourseScheduleStatisticsVo;
 import com.doinner.csys.domain.vo.CourseChooseStatusVo;
+import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleVo;
 import org.apache.ibatis.annotations.Param;
 
@@ -103,4 +104,15 @@ public interface TrainingSchemeCourseScheduleMapper {
      * @return 课程被选用情况VO集合
      */
     List<CourseChooseStatusVo> selectCourseChooseStatus(@Param("sourceCourseIds") List<Long> sourceCourseIds);
+
+    /**
+     * 按源课程id查询引用该课程的专业类(去重)。
+     * <p>取数逻辑与 {@link #selectCourseChooseStatus} 同源：通过 source_id 定位被选用课程(c2)，
+     * 再经排课表(tcs)关联培养方案(ts)，从培养方案维度取 major_id(专业类) / category_id(门类)。
+     * 门类名取自 t_csys_training_scheme_category，专业类名取自 t_csys_std_major，按 major_id 去重。
+     *
+     * @param sourceCourseId 源课程id
+     * @return 引用该课程的专业类集合(去重)
+     */
+    List<CourseQuoteMajorVo> selectQuoteMajorsBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
 }

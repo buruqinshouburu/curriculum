@@ -5,8 +5,11 @@ import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanSectionMapper;
 import com.doinner.csys.dao.TeachingPlanTeacherMapper;
+import com.doinner.csys.dao.StandardMajorMapper;
+import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
 import com.doinner.csys.domain.Course;
 import com.doinner.csys.domain.StandardGraduation;
+import com.doinner.csys.domain.StandardMajor;
 import com.doinner.csys.domain.TeachingPlan;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
@@ -25,6 +28,7 @@ import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
+import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
 import com.doinner.csys.service.CommonService;
@@ -34,10 +38,18 @@ import com.doinner.csys.utils.UserUtils;
 import com.doinner.file.api.domain.FileInfo;
 import com.doinner.file.api.domain.vo.FileInfoVO;
 import com.doinner.file.api.service.RemoteFileInfoService;
+import com.doinner.kg.domain.Dictionary;
+import com.doinner.kg.service.RemoteKgService;
+import com.doinner.system.domain.custom.CustomDept;
+import com.doinner.system.domain.entity.SysDept;
+import com.doinner.system.service.DoinnerDeptService;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +62,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 课程教学计划 Service 实现。
@@ -86,6 +99,25 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     @Resource
     private RemoteFileInfoService remoteFileInfoService;
 
+    @Autowired
+    private RemoteKgService remoteKgService;
+
+    @Resource
+    private StandardMajorMapper standardMajorMapper;
+
+    @Resource
+    private TrainingSchemeCourseScheduleMapper trainingSchemeCourseScheduleMapper;
+
+    @Resource
+    private DoinnerDeptService doinnerDeptService;
+
+    /** 课程模块字典类型(kg.dictionary.courseModuleType，与课程查询界面同源) */
+    @Value("${kg.dictionary.courseModuleType:69a7f3162dc370362ef3ee6d}")
+    private String kgCourseModuleType;
+
+    /** 课程模块字典 id->name 缓存(单例, 首次远程加载) */
+    private final Map<String, String> courseModuleDictionaryIdToNameMap = new HashMap<>();
+
     /** 教学计划生成文档文件分类ID（bootstrap.yml: category.TeachingPlan，未配置默认0） */
     @Value("${category.TeachingPlan:0}")
     private String teachingPlanCategoryId;
@@ -95,7 +127,50 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (query == null) {
             query = new TeachingPlanQueryVo();
         }
-        return teachingPlanMapper.selectTeachingPlanPage(query);
+        List<TeachingPlanListVo> list = teachingPlanMapper.selectTeachingPlanPage(query);
+
+        // 仿照课程查询界面(CurriculumServiceImpl.selectCourseList)在内存补名称:
+        // 课程模块(远程字典)、适用专业/专业方向(standard_major)、开课单位(sys_dept)。
+        // SQL 只返回编码/id, 名称在此补全, 避免列表 join 多张名称表拖慢查询。
+        Map<String, String> moduleMap = getCourseModuleIdToNameMap();
+        Map<Long, String> majorIdToNameMap = standardMajorMapper.selectStandardMajorList(null).stream()
+                .collect(Collectors.toMap(StandardMajor::getId, StandardMajor::getName, (a, b) -> a));
+        Map<Long, String> deptIdNameMap = doinnerDeptService.list(new CustomDept()).getData().parallelStream()
+                .collect(Collectors.toMap(SysDept::getDeptId, SysDept::getDeptName, (a, b) -> a));
+
+        for (TeachingPlanListVo vo : list) {
+            if (MapUtils.isNotEmpty(moduleMap)) {
+                if (StringUtils.isNotBlank(vo.getCourseModule())) {
+                    vo.setCourseModuleName(moduleMap.get(vo.getCourseModule()));
+                }
+                if (StringUtils.isNotBlank(vo.getCourseModuleChildren())) {
+                    vo.setCourseModuleChildrenName(moduleMap.get(vo.getCourseModuleChildren()));
+                }
+            }
+            if (vo.getMajorId() != null) {
+                vo.setMajorName(majorIdToNameMap.get(vo.getMajorId()));
+            }
+            if (vo.getSubMajorId() != null) {
+                vo.setSubMajorName(majorIdToNameMap.get(vo.getSubMajorId()));
+            }
+            if (vo.getTeachCollegeId() != null) {
+                vo.setTeachCollegeName(deptIdNameMap.get(vo.getTeachCollegeId()));
+            }
+        }
+        return list;
+    }
+
+    /** 课程模块字典 id->name(单例缓存, 首次远程加载, 与课程查询界面同源) */
+    private Map<String, String> getCourseModuleIdToNameMap() {
+        if (MapUtils.isEmpty(courseModuleDictionaryIdToNameMap)) {
+            List<Dictionary> data = remoteKgService.findDictionaryByType(kgCourseModuleType).getData();
+            if (CollectionUtils.isNotEmpty(data)) {
+                for (Dictionary datum : data) {
+                    courseModuleDictionaryIdToNameMap.put(datum.getId().toString(), datum.getName());
+                }
+            }
+        }
+        return courseModuleDictionaryIdToNameMap;
     }
 
     @Override
@@ -342,5 +417,15 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteSection(Long id) {
         teachingPlanSectionMapper.deleteById(id);
+    }
+
+    @Override
+    public List<CourseQuoteMajorVo> listQuoteMajors(Long courseId) {
+        if (courseId == null) {
+            return new ArrayList<>();
+        }
+        // 逻辑参照课程被选用情况(/chooseStatus)：source_id -> 被选用课程 -> 排课 -> 培养方案，
+        // 按培养方案 major_id 去重，返回引用该课程的专业类(学科门类/专业类/专业类ID)。
+        return trainingSchemeCourseScheduleMapper.selectQuoteMajorsBySourceCourseId(courseId);
     }
 }

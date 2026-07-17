@@ -27,6 +27,18 @@ public class TeachingPlanQueryVo {
     /** 修读要求 -> t_csys_course.course_attr */
     private String courseAttr;
 
+    /** 课程类型 -> t_csys_course.type (1课程 2实践训练课目 3实验课程 4实践项目) */
+    private String type;
+
+    /** 课程版本 -> t_csys_course.version */
+    private String version;
+
+    /**
+     * 是否已被培养方案调用: 1=只查已被调用的原课程(存在 source_id 指向该课程的调用课程实例),
+     * 0/空=查全部原课程。该接口仅查询原课程(source_id 为空)。
+     */
+    private Integer quoted;
+
     public String getCourseName() {
         return courseName;
     }
@@ -73,5 +85,29 @@ public class TeachingPlanQueryVo {
 
     public void setCourseAttr(String courseAttr) {
         this.courseAttr = courseAttr;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public Integer getQuoted() {
+        return quoted;
+    }
+
+    public void setQuoted(Integer quoted) {
+        this.quoted = quoted;
     }
 }

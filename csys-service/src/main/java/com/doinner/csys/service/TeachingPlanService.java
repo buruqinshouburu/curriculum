@@ -6,6 +6,7 @@ import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
+import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.file.api.domain.FileInfo;
 
 import java.util.List;
@@ -82,4 +83,14 @@ public interface TeachingPlanService {
 
     /** 删除章节(逻辑删除) */
     void deleteSection(Long id);
+
+    /**
+     * 按源课程id查询引用该课程的专业类(去重)。
+     * 逻辑参照课程被选用情况(/chooseStatus/{sourceCourseId})：通过 source_id 定位被选用课程，
+     * 再经排课表关联培养方案，从培养方案维度取 major_id(专业类)/category_id(门类) 并去重。
+     *
+     * @param courseId 源课程id
+     * @return 引用该课程的专业类集合(学科门类/专业类/专业类ID)
+     */
+    List<CourseQuoteMajorVo> listQuoteMajors(Long courseId);
 }

@@ -21,6 +21,7 @@ import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
+import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
@@ -58,6 +59,18 @@ public class TeachingPlanController {
     public DataTable<TeachingPlanListVo> list(TeachingPlanQueryVo query) {
         PageUtils.startPage();
         return DataTable.success(teachingPlanService.selectTeachingPlanPage(query));
+    }
+
+    /**
+     * 按课程id查询引用该课程的专业类(去重)。
+     * 逻辑参照课程被选用情况(/chooseStatus/{sourceCourseId})：通过 source_id 定位被选用课程，
+     * 经排课表关联培养方案，按培养方案 major_id 去重，返回引用该课程的专业类列表。
+     * 每行含学科门类(categoryName)、专业类(majorName)、专业类ID(majorId)。
+     */
+    @ApiOperation("查询引用课程的专业类")
+    @GetMapping("/quoteMajor/{courseId}")
+    public DataSet<List<CourseQuoteMajorVo>> quoteMajor(@PathVariable("courseId") Long courseId) {
+        return DataSet.success(teachingPlanService.listQuoteMajors(courseId));
     }
 
     /**

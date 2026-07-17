@@ -462,4 +462,32 @@
         and c2.sysflag = 0
         order by c2.source_id, c2.id, tcs.term
     </select>
+
+    <resultMap type="com.doinner.csys.domain.vo.CourseQuoteMajorVo" id="CourseQuoteMajorVoResult">
+        <result property="categoryName" column="category_name"/>
+        <result property="majorName" column="major_name"/>
+        <result property="majorId" column="major_id"/>
+    </resultMap>
+
+    <!--
+        按源课程id查询引用该课程的专业类(去重)。取数逻辑与 selectCourseChooseStatus 同源：
+        source_id -> 被选用课程(c2) -> 排课表(tcs) -> 培养方案(ts)，
+        从培养方案维度取 major_id(专业类) / category_id(门类)，分别关联名称表，按 major_id 去重。
+        门类名取自 t_csys_training_scheme_category，专业类名取自 t_csys_std_major。
+    -->
+    <select id="selectQuoteMajorsBySourceCourseId" resultMap="CourseQuoteMajorVoResult">
+        select ts.major_id          as major_id,
+               sm.name              as major_name,
+               cat.name             as category_name
+        from t_csys_course c2
+        inner join t_csys_training_scheme_course_schedule tcs on tcs.course_id = c2.id
+        inner join t_csys_training_scheme ts on ts.id = tcs.scheme_id and ts.sysflag = 0
+        left join t_csys_std_major sm on sm.id = ts.major_id
+        left join t_csys_training_scheme_category cat on cat.id = ts.category_id
+        where c2.source_id = #{sourceCourseId}
+          and c2.sysflag = 0
+          and ts.major_id is not null
+        group by ts.major_id, sm.name, cat.name
+        order by cat.name, sm.name
+    </select>
 </mapper>
