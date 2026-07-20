@@ -1,12 +1,12 @@
 package com.doinner.csys.service.impl;
 
 import com.doinner.csys.dao.CourseMapper;
+import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
 import com.doinner.csys.dao.CourseRefGraduationMapper;
 import com.doinner.csys.dao.StandardGraduationMapper;
 import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanConditionMapper;
 import com.doinner.csys.dao.TeachingPlanContentMapper;
-import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
@@ -21,7 +21,6 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
-import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
@@ -32,6 +31,7 @@ import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.UserUtils;
@@ -92,10 +92,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     private TeachingPlanRefMapper teachingPlanRefMapper;
 
     @Resource
-    private TeachingPlanContextMapper teachingPlanContextMapper;
+    private CourseMapper courseMapper;
 
     @Resource
-    private CourseMapper courseMapper;
+    private TrainingSchemeCourseScheduleMapper trainingSchemeCourseScheduleMapper;
 
     @Resource
     private CourseRefGraduationMapper courseRefGraduationMapper;
@@ -134,11 +134,22 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         return unboundCount == 0 ? 1 : 0;
     }
 
+
+    @Override
+    public List<TeachingPlanSchemeVo> listSchemes(Long sourceCourseId) {
+        if (sourceCourseId == null) {
+            return new ArrayList<>();
+        }
+        List<TeachingPlanSchemeVo> list =
+                trainingSchemeCourseScheduleMapper.selectQuoteSchemesBySourceCourseId(sourceCourseId);
+        return list == null ? new ArrayList<>() : list;
+    }
+
     // ============ 7. 教学计划目标 ============
 
     @Override
-    public List<TeachingPlanObjective> listObjective(Long planId, Long contextId) {
-        return teachingPlanObjectiveMapper.selectByPlanAndContext(planId, contextId);
+    public List<TeachingPlanObjective> listObjective(Long planId, Long schemeId) {
+        return teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, schemeId);
     }
 
     @Override
@@ -170,16 +181,14 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     }
 
     @Override
-    public List<StandardGraduation> listCourseGraduationByContext(Long courseId, Long contextId) {
-        if (contextId == null) {
+    public List<StandardGraduation> listCourseGraduationByScheme(Long courseId, Long schemeId) {
+        if (schemeId == null) {
             return listCourseGraduation(courseId);
         }
-        TeachingPlanContext ctx = teachingPlanContextMapper.selectById(contextId);
-        if (ctx == null || ctx.getQuoteCourseId() == null) {
-            return new ArrayList<>();
-        }
-        // 仅当前 tab 对应调用课的毕业要求
-        return listGraduationsByQuoteCourseIds(Collections.singletonList(ctx.getQuoteCourseId()));
+        // 该培养方案下引用本源课的全部调用课（同一课可被引用多次）
+        List<Long> quoteIds = trainingSchemeCourseScheduleMapper
+                .selectQuoteCourseIdsBySourceAndScheme(courseId, schemeId);
+        return listGraduationsByQuoteCourseIds(quoteIds);
     }
 
     private List<Long> resolveQuoteCourseIds(Long sourceCourseId) {
@@ -236,8 +245,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 if (ref.getPlanId() == null) {
                     ref.setPlanId(objective.getPlanId());
                 }
-                if (ref.getContextId() == null) {
-                    ref.setContextId(objective.getContextId());
+                if (ref.getSchemeId() == null) {
+                    ref.setSchemeId(objective.getSchemeId());
                 }
                 UserUtils.reflash(ref);
                 teachingPlanObjectiveRefMapper.insert(ref);
@@ -305,8 +314,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     // ============ 11-13. 目标达成设计 ============
 
     @Override
-    public List<TeachingPlanTargetDesign> listTargetDesign(Long planId, Long contextId, String designTypeCode) {
-        return teachingPlanTargetDesignMapper.selectByPlanContextAndType(planId, contextId, designTypeCode);
+    public List<TeachingPlanTargetDesign> listTargetDesign(Long planId, Long schemeId, String designTypeCode) {
+        return teachingPlanTargetDesignMapper.selectByPlanSchemeAndType(planId, schemeId, designTypeCode);
     }
 
     @Override

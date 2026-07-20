@@ -5,7 +5,7 @@
     <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanObjective">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="plan_id" property="planId" jdbcType="BIGINT"/>
-        <result column="context_id" property="contextId" jdbcType="BIGINT"/>
+        <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
         <result column="major_id" property="majorId" jdbcType="BIGINT"/>
         <result column="objective_type_code" property="objectiveTypeCode" jdbcType="VARCHAR"/>
         <result column="objective_type_name" property="objectiveTypeName" jdbcType="VARCHAR"/>
@@ -21,30 +21,30 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, plan_id, context_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
+        id, plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
         creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_objective (
-            plan_id, context_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
+            plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
             creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
-                #{item.planId}, #{item.contextId}, #{item.majorId}, #{item.objectiveTypeCode}, #{item.objectiveTypeName},
+                #{item.planId}, #{item.schemeId}, #{item.majorId}, #{item.objectiveTypeCode}, #{item.objectiveTypeName},
                 #{item.content}, #{item.sourceMode}, #{item.sort}, #{item.creator}, #{item.createTime},
                 #{item.lastModifier}, #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
             )
         </foreach>
     </insert>
 
-    <select id="selectByPlanAndContext" resultMap="BaseResultMap">
+    <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective
         WHERE plan_id = #{planId}
-          AND context_id = #{contextId}
+          AND scheme_id = #{schemeId}
           AND sysflag = 0
         ORDER BY objective_type_code ASC, sort ASC, id ASC
     </select>
@@ -58,7 +58,7 @@
         INSERT INTO t_csys_teaching_plan_objective
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="planId != null">plan_id,</if>
-            <if test="contextId != null">context_id,</if>
+            <if test="schemeId != null">scheme_id,</if>
             <if test="majorId != null">major_id,</if>
             <if test="objectiveTypeCode != null">objective_type_code,</if>
             <if test="objectiveTypeName != null">objective_type_name,</if>
@@ -74,7 +74,7 @@
         </trim>
         <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
             <if test="planId != null">#{planId},</if>
-            <if test="contextId != null">#{contextId},</if>
+            <if test="schemeId != null">#{schemeId},</if>
             <if test="majorId != null">#{majorId},</if>
             <if test="objectiveTypeCode != null">#{objectiveTypeCode},</if>
             <if test="objectiveTypeName != null">#{objectiveTypeName},</if>
@@ -94,7 +94,7 @@
         UPDATE t_csys_teaching_plan_objective
         <trim prefix="SET" suffixOverrides=",">
             <if test="planId != null">plan_id = #{planId},</if>
-            <if test="contextId != null">context_id = #{contextId},</if>
+            <if test="schemeId != null">scheme_id = #{schemeId},</if>
             <if test="majorId != null">major_id = #{majorId},</if>
             <if test="objectiveTypeCode != null">objective_type_code = #{objectiveTypeCode},</if>
             <if test="objectiveTypeName != null">objective_type_name = #{objectiveTypeName},</if>
@@ -110,7 +110,7 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, plan_id, context_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        SELECT id, plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
         FROM t_csys_teaching_plan_objective
         WHERE id = #{id}
           AND sysflag = 0

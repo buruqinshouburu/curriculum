@@ -5,7 +5,6 @@
     <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanObjectiveRef">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="plan_id" property="planId" jdbcType="BIGINT"/>
-        <result column="context_id" property="contextId" jdbcType="BIGINT"/>
         <result column="objective_id" property="objectiveId" jdbcType="BIGINT"/>
         <result column="scheme_course_graduation_id" property="schemeCourseGraduationId" jdbcType="BIGINT"/>
         <result column="quote_course_id" property="quoteCourseId" jdbcType="BIGINT"/>
@@ -26,20 +25,20 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, plan_id, context_id, objective_id, scheme_course_graduation_id, quote_course_id, scheme_id,
+        id, plan_id, objective_id, scheme_course_graduation_id, quote_course_id, scheme_id,
         graduation_id, source_graduation_id, graduation_code, graduation_name, graduation_bind_source,
         support_desc, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_objective_ref (
-            plan_id, context_id, objective_id, scheme_course_graduation_id, quote_course_id, scheme_id,
+            plan_id, objective_id, scheme_course_graduation_id, quote_course_id, scheme_id,
             graduation_id, source_graduation_id, graduation_code, graduation_name, graduation_bind_source,
             support_desc, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
-                #{item.planId}, #{item.contextId}, #{item.objectiveId}, #{item.schemeCourseGraduationId},
+                #{item.planId}, #{item.objectiveId}, #{item.schemeCourseGraduationId},
                 #{item.quoteCourseId}, #{item.schemeId}, #{item.graduationId}, #{item.sourceGraduationId},
                 #{item.graduationCode}, #{item.graduationName}, #{item.graduationBindSource}, #{item.supportDesc},
                 #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
@@ -57,11 +56,11 @@
         ORDER BY sort ASC, id ASC
     </select>
 
-    <select id="selectByContextId" resultMap="BaseResultMap">
+    <select id="selectBySchemeId" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective_ref
-        WHERE context_id = #{contextId}
+        WHERE scheme_id = #{schemeId}
           AND sysflag = 0
         ORDER BY objective_id ASC, sort ASC, id ASC
     </select>
@@ -79,7 +78,6 @@
         INSERT INTO t_csys_teaching_plan_objective_ref
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="planId != null">plan_id,</if>
-            <if test="contextId != null">context_id,</if>
             <if test="objectiveId != null">objective_id,</if>
             <if test="schemeCourseGraduationId != null">scheme_course_graduation_id,</if>
             <if test="quoteCourseId != null">quote_course_id,</if>
@@ -100,7 +98,6 @@
         </trim>
         <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
             <if test="planId != null">#{planId},</if>
-            <if test="contextId != null">#{contextId},</if>
             <if test="objectiveId != null">#{objectiveId},</if>
             <if test="schemeCourseGraduationId != null">#{schemeCourseGraduationId},</if>
             <if test="quoteCourseId != null">#{quoteCourseId},</if>
@@ -125,7 +122,6 @@
         UPDATE t_csys_teaching_plan_objective_ref
         <trim prefix="SET" suffixOverrides=",">
             <if test="planId != null">plan_id = #{planId},</if>
-            <if test="contextId != null">context_id = #{contextId},</if>
             <if test="objectiveId != null">objective_id = #{objectiveId},</if>
             <if test="schemeCourseGraduationId != null">scheme_course_graduation_id = #{schemeCourseGraduationId},</if>
             <if test="quoteCourseId != null">quote_course_id = #{quoteCourseId},</if>
@@ -146,7 +142,8 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, plan_id, context_id, objective_id, scheme_course_graduation_id, quote_course_id, scheme_id, graduation_id, source_graduation_id, graduation_code, graduation_name, graduation_bind_source, support_desc, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        SELECT
+        <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective_ref
         WHERE id = #{id}
           AND sysflag = 0

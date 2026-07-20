@@ -17,12 +17,6 @@ public class TeachingPlanObjectiveRef extends AbstractDoinnerLogicalDelBaseEntit
      * 教学计划ID
      */
     private Long planId;
-
-    /**
-     * 教学计划调用上下文ID，对应页面当前培养方案tab
-     */
-    private Long contextId;
-
     /**
      * 教学计划目标ID
      */
@@ -93,15 +87,6 @@ public class TeachingPlanObjectiveRef extends AbstractDoinnerLogicalDelBaseEntit
     public void setPlanId(Long planId) {
         this.planId = planId;
     }
-
-    public Long getContextId() {
-        return contextId;
-    }
-
-    public void setContextId(Long contextId) {
-        this.contextId = contextId;
-    }
-
     public Long getObjectiveId() {
         return objectiveId;
     }

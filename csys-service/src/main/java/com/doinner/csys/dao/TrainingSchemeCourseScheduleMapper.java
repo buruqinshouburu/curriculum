@@ -5,6 +5,7 @@ import com.doinner.csys.domain.statisticsVo.StandardCultivationTargetStatisticsV
 import com.doinner.csys.domain.statisticsVo.TrainingSchemeCourseScheduleStatisticsVo;
 import com.doinner.csys.domain.vo.CourseChooseStatusVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleVo;
 import org.apache.ibatis.annotations.Param;
 
@@ -115,4 +116,16 @@ public interface TrainingSchemeCourseScheduleMapper {
      * @return 引用该课程的专业类集合(去重)
      */
     List<CourseQuoteMajorVo> selectQuoteMajorsBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
+
+    /**
+     * 教学计划编辑页 tab：源课被哪些培养方案引用（按 scheme 去重）。
+     * 同一方案下源课被引用多次时 quoteCourseCount &gt; 1。
+     */
+    List<TeachingPlanSchemeVo> selectQuoteSchemesBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
+
+    /**
+     * 源课在指定培养方案下的全部调用课 id（同一方案可能引用多次，返回多条 c2.id）。
+     */
+    List<Long> selectQuoteCourseIdsBySourceAndScheme(@Param("sourceCourseId") Long sourceCourseId,
+                                                    @Param("schemeId") Long schemeId);
 }

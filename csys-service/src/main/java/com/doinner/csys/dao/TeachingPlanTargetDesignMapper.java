@@ -37,18 +37,18 @@ public interface TeachingPlanTargetDesignMapper {
     List<TeachingPlanTargetDesign> selectByPlanId(@Param("planId") Long planId);
 
     /**
-     * 按计划与上下文查询目标达成设计
+     * 按计划与培养方案查询目标达成设计
      */
-    List<TeachingPlanTargetDesign> selectByPlanAndContext(@Param("planId") Long planId,
-                                                          @Param("contextId") Long contextId);
+    List<TeachingPlanTargetDesign> selectByPlanAndScheme(@Param("planId") Long planId,
+                                                         @Param("schemeId") Long schemeId);
 
     /**
-     * 按计划、上下文与设计类型查询目标达成设计。
+     * 按计划、培养方案与设计类型查询目标达成设计。
      * 用于知识/能力/素质目标(design_type_code)分tab展示。
      */
-    List<TeachingPlanTargetDesign> selectByPlanContextAndType(@Param("planId") Long planId,
-                                                              @Param("contextId") Long contextId,
-                                                              @Param("designTypeCode") String designTypeCode);
+    List<TeachingPlanTargetDesign> selectByPlanSchemeAndType(@Param("planId") Long planId,
+                                                             @Param("schemeId") Long schemeId,
+                                                             @Param("designTypeCode") String designTypeCode);
 
     /**
      * 知识目标初始化：根据总库课程id查询其调用课程关联的知识单元。

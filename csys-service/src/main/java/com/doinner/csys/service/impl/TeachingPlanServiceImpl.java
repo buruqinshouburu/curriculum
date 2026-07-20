@@ -2,7 +2,6 @@ package com.doinner.csys.service.impl;
 
 import com.doinner.csys.dao.CourseMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
-import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanSectionMapper;
 import com.doinner.csys.dao.TeachingPlanTeacherMapper;
 import com.doinner.csys.dao.StandardMajorMapper;
@@ -14,7 +13,6 @@ import com.doinner.csys.domain.TeachingPlan;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
-import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
@@ -81,10 +79,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Resource
     private TeachingPlanMapper teachingPlanMapper;
-
-    @Resource
-    private TeachingPlanContextMapper teachingPlanContextMapper;
-
     @Resource
     private TeachingPlanTeacherMapper teachingPlanTeacherMapper;
 
@@ -326,16 +320,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             teachingPlanMapper.updateById(plan);
         }
 
-        TeachingPlanContext context = saveVo.getContext();
-        if (context != null) {
-            context.setPlanId(plan.getId());
-            UserUtils.reflash(context);
-            if (context.getId() == null) {
-                teachingPlanContextMapper.insert(context);
-            } else {
-                teachingPlanContextMapper.updateById(context);
-            }
-        }
+        // 不再写入 t_csys_teaching_plan_context；tab 使用培养方案 schemeId
         return plan.getId();
     }
 
@@ -363,18 +348,18 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             plan = teachingPlanMapper.selectBySourceCourseId(courseId);
         }
         Long planId = plan == null ? null : plan.getId();
-        Long contextId = null;
-        if (planId != null) {
-            List<TeachingPlanContext> contexts = teachingPlanContextMapper.selectByPlanId(planId);
-            if (ObjectUtils.isNotEmpty(contexts)) {
-                contextId = contexts.get(0).getId();
-            }
+        // 导出时取该源课被引用的第一个培养方案 schemeId 作为 tab 维度（可为空）
+        Long schemeId = null;
+        List<com.doinner.csys.domain.vo.TeachingPlanSchemeVo> schemes =
+                teachingPlanModuleService.listSchemes(courseId);
+        if (ObjectUtils.isNotEmpty(schemes)) {
+            schemeId = schemes.get(0).getSchemeId();
         }
         TeachingPlanDetailVo detail = (planId != null)
                 ? teachingPlanMapper.selectDetailByPlanId(planId)
                 : teachingPlanMapper.selectDetailByCourseId(courseId);
 
-        CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, contextId);
+        CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, schemeId);
 
         try {
             InputStream stream = new CourseTeachingPlanGenerator().generate(model);
@@ -409,9 +394,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
     }
 
-    /** 组装生成模型：基本信息取自 detail，回退取自 course；模块按 planId/contextId 加载 */
+    /** 组装生成模型：基本信息取自 detail，回退取自 course；模块按 planId/schemeId 加载 */
     private CourseTeachingPlanModel buildModel(CourseVo course, TeachingPlan plan, TeachingPlanDetailVo detail,
-                                               Long planId, Long contextId) {
+                                               Long planId, Long schemeId) {
         CourseTeachingPlanModel m = new CourseTeachingPlanModel();
         m.setDocType(mapDocType(course.getType()));
         m.setCourseName(nz(detail == null ? null : detail.getCourseName(), course.getName()));
@@ -433,8 +418,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             m.setTeachers(listTeacher(planId));
             m.setSections(listSection(planId));
             // 目标 + 支撑毕业要求
-            List<TeachingPlanObjective> objectives = (contextId == null)
-                    ? new ArrayList<>() : teachingPlanModuleService.listObjective(planId, contextId);
+            List<TeachingPlanObjective> objectives = (schemeId == null)
+                    ? new ArrayList<>() : teachingPlanModuleService.listObjective(planId, schemeId);
             m.setObjectives(objectives);
             Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
             if (ObjectUtils.isNotEmpty(objectives)) {
@@ -446,10 +431,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             m.setContents(teachingPlanModuleService.listContent(planId));
             // 目标达成设计：知识/能力/素质 三类合并
             List<TeachingPlanTargetDesign> designs = new ArrayList<>();
-            if (contextId != null) {
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, contextId, "知识目标"));
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, contextId, "能力目标"));
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, contextId, "素质目标"));
+            if (schemeId != null) {
+                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, schemeId, "知识目标"));
+                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, schemeId, "能力目标"));
+                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, schemeId, "素质目标"));
             }
             m.setTargetDesigns(designs);
             // 实验/实践项目 + 明细
@@ -591,61 +576,5 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         teachingPlanMapper.deleteById(planId);
     }
-
-    @Override
-    public List<TeachingPlanContext> listContext(Long planId) {
-        return teachingPlanContextMapper.selectByPlanId(planId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Long addContext(TeachingPlanContext context) {
-        UserUtils.reflash(context);
-        teachingPlanContextMapper.insert(context);
-        return context.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateContext(TeachingPlanContext context) {
-        UserUtils.reflash(context);
-        teachingPlanContextMapper.updateById(context);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteContext(Long id) {
-        teachingPlanContextMapper.deleteById(id);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public List<TeachingPlanContext> syncContexts(Long planId) {
-        if (planId == null) {
-            throw new IllegalArgumentException("教学计划id不能为空");
-        }
-        TeachingPlan plan = teachingPlanMapper.selectById(planId);
-        if (plan == null) {
-            throw new IllegalArgumentException("教学计划不存在: " + planId);
-        }
-        Long sourceCourseId = plan.getSourceCourseId();
-        List<TeachingPlanContext> candidates =
-                teachingPlanContextMapper.selectQuoteContextsBySourceCourseId(sourceCourseId);
-        // 清空旧快照后写入
-        teachingPlanContextMapper.deleteByPlanId(planId);
-        if (CollectionUtils.isEmpty(candidates)) {
-            return new ArrayList<>();
-        }
-        int sort = 1;
-        for (TeachingPlanContext c : candidates) {
-            c.setId(null);
-            c.setPlanId(planId);
-            c.setSourceCourseId(sourceCourseId);
-            c.setSyncFlag(1);
-            c.setSort(sort++);
-            UserUtils.reflash(c);
-            teachingPlanContextMapper.insert(c);
-        }
-        return teachingPlanContextMapper.selectByPlanId(planId);
-    }
 }
+

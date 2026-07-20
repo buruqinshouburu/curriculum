@@ -32,10 +32,10 @@ public interface TeachingPlanObjectiveMapper {
     TeachingPlanObjective selectById(@Param("id") Long id);
 
     /**
-     * 按计划与上下文查询目标内容
+     * 按计划与培养方案查询目标内容
      */
-    List<TeachingPlanObjective> selectByPlanAndContext(@Param("planId") Long planId,
-                                                       @Param("contextId") Long contextId);
+    List<TeachingPlanObjective> selectByPlanAndScheme(@Param("planId") Long planId,
+                                                      @Param("schemeId") Long schemeId);
 
     /**
      * 任务6：根据总库课程id查询专业id与名称。

@@ -1,0 +1,144 @@
+{
+  "info": {
+    "_postman_id": "20260720-153000-teaching-plan-scheme",
+    "name": "TeachingPlan - tab改schemeId(20260720_153000)",
+    "description": "教学计划 tab 去掉 context 表，统一用培养方案 schemeId。\n\n基址 {{baseUrl}} 例 http://host:9219/csys\n\n## 变更要点\n1. 删除 /teachingPlan/context/** 全部接口\n2. 新增 GET /teachingPlan/scheme/list?courseId= 培养方案tab\n3. objective/list、targetDesign/list 参数 contextId → schemeId\n4. courseGraduation 可选 schemeId：汇总该方案下源课全部调用课的毕业要求（同一课引用多次全算）\n5. 保存目标 body 字段 schemeId（必填），不再传 contextId\n6. save 入参仅 plan，不再带 context\n\n## DDL\nsql/update_teaching_plan_context_to_scheme.sql 必须先执行",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9219/csys" },
+    { "key": "courseId", "value": "1001" },
+    { "key": "planId", "value": "55" },
+    { "key": "schemeId", "value": "50" }
+  ],
+  "item": [
+    {
+      "name": "培养方案tab",
+      "item": [
+        {
+          "name": "scheme/list 培养方案tab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/scheme/list?courseId={{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "scheme", "list"],
+              "query": [{ "key": "courseId", "value": "{{courseId}}", "description": "总库源课程id" }]
+            },
+            "description": "返回 TeachingPlanSchemeVo[]：schemeId/schemeName/schemeVersion/educationLevel/majorId/majorName/quoteCourseCount。\n同一培养方案下源课被引用多次时 quoteCourseCount>1，tab 仍只一行。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "目标/毕业要求(schemeId)",
+      "item": [
+        {
+          "name": "目标列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/objective/list?planId={{planId}}&schemeId={{schemeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "objective", "list"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}" },
+                { "key": "schemeId", "value": "{{schemeId}}", "description": "培养方案id（原 contextId）" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "毕业要求可选列表(按方案汇总全部引用课)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/courseGraduation/{{courseId}}?schemeId={{schemeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "courseGraduation", "{{courseId}}"],
+              "query": [
+                { "key": "schemeId", "value": "{{schemeId}}", "description": "可空；有值=该方案下源课全部调用课绑定的毕业要求去重；空=全部方案汇总" }
+              ]
+            },
+            "description": "链路：源课+schemeId → 全部 c2(source_id=源课 且 排课.scheme_id=schemeId) → course_ref_graduation 去重。同一专业课在方案中被引用多次会全部计入。"
+          }
+        },
+        {
+          "name": "目标+支撑毕业要求同事务保存",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": {\n    \"planId\": {{planId}},\n    \"schemeId\": {{schemeId}},\n    \"majorId\": 200,\n    \"objectiveTypeCode\": \"知识目标\",\n    \"objectiveTypeName\": \"知识目标\",\n    \"content\": \"掌握XX基本概念\",\n    \"sourceMode\": 2,\n    \"sort\": 1\n  },\n  \"refs\": [\n    {\n      \"planId\": {{planId}},\n      \"schemeId\": {{schemeId}},\n      \"graduationId\": 3001,\n      \"graduationCode\": \"G1\",\n      \"graduationName\": \"工程知识\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/objective/saveWithRefs",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "objective", "saveWithRefs"]
+            },
+            "description": "objective.schemeId 必填（库 NOT NULL）。refs 可省略 schemeId，后端用 objective.schemeId 回填。"
+          }
+        },
+        {
+          "name": "新增目标",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"majorId\": 200,\n  \"objectiveTypeCode\": \"能力目标\",\n  \"objectiveTypeName\": \"能力目标\",\n  \"content\": \"具备XX能力\",\n  \"sourceMode\": 2,\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/objective",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "objective"]
+            }
+          }
+        },
+        {
+          "name": "目标达成设计列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/targetDesign/list?planId={{planId}}&schemeId={{schemeId}}&designTypeCode=知识目标",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "targetDesign", "list"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}" },
+                { "key": "schemeId", "value": "{{schemeId}}" },
+                { "key": "designTypeCode", "value": "知识目标" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "主计划保存(仅plan)",
+      "item": [
+        {
+          "name": "save 教学计划",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": {\n    \"sourceCourseId\": {{courseId}},\n    \"planType\": 1,\n    \"version\": \"v1.0\",\n    \"status\": 0\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "save"]
+            },
+            "description": "不再接收 context 字段。保存后用 scheme/list 取 tab。"
+          }
+        }
+      ]
+    }
+  ]
+}

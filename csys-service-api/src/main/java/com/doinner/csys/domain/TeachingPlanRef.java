@@ -23,7 +23,7 @@ public class TeachingPlanRef extends AbstractDoinnerLogicalDelBaseEntity {
     /**
      * 调用上下文ID，可为空
      */
-    private Long contextId;
+    private Long schemeId;
 
     /**
      * 引用类型：1支撑总库课程 2支撑调用课程/训练课目 3知识单元 4知识点 5教学目标
@@ -66,12 +66,12 @@ public class TeachingPlanRef extends AbstractDoinnerLogicalDelBaseEntity {
         this.planId = planId;
     }
 
-    public Long getContextId() {
-        return contextId;
+    public Long getSchemeId() {
+        return schemeId;
     }
 
-    public void setContextId(Long contextId) {
-        this.contextId = contextId;
+    public void setSchemeId(Long schemeId) {
+        this.schemeId = schemeId;
     }
 
     public Integer getRefType() {

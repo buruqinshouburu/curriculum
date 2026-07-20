@@ -4,7 +4,7 @@ import com.doinner.common.core.domain.db.AbstractDoinnerLogicalDelBaseEntity;
 
 /**
  * 教学计划目标实体
- * 按 plan_id + context_id + 目标类型字典编码 保存，目标内容手工录入
+ * 按 plan_id + scheme_id + 目标类型字典编码 保存，目标内容手工录入
  */
 public class TeachingPlanObjective extends AbstractDoinnerLogicalDelBaseEntity {
 
@@ -19,9 +19,9 @@ public class TeachingPlanObjective extends AbstractDoinnerLogicalDelBaseEntity {
     private Long planId;
 
     /**
-     * 教学计划调用上下文ID，对应页面当前培养方案tab
+     * 培养方案ID，对应页面当前培养方案tab（t_csys_training_scheme.id）
      */
-    private Long contextId;
+    private Long schemeId;
 
     /**
      * 专业ID
@@ -69,12 +69,12 @@ public class TeachingPlanObjective extends AbstractDoinnerLogicalDelBaseEntity {
         this.planId = planId;
     }
 
-    public Long getContextId() {
-        return contextId;
+    public Long getSchemeId() {
+        return schemeId;
     }
 
-    public void setContextId(Long contextId) {
-        this.contextId = contextId;
+    public void setSchemeId(Long schemeId) {
+        this.schemeId = schemeId;
     }
 
     public Long getMajorId() {

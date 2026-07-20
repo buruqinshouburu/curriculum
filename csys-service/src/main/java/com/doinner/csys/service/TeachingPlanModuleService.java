@@ -14,32 +14,27 @@ import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 
 import java.util.List;
 
 /**
  * 课程教学计划各模块 Service。
- *
- * 承载目标/内容/达成设计/实验/考核/教材/条件/步骤/引用等模块逻辑，
- * 与 {@link TeachingPlanService} 主流程拆开。
- *
- * @author codex
+ * tab 维度使用培养方案 schemeId（不再使用 context 表）。
  */
 public interface TeachingPlanModuleService {
 
-    // ============ 6. 专业查询(教学计划id + 课程id) ============
-
-    /**
-     * 根据教学计划id与课程id查询专业id、name、status。
-     * 专业列表与 /quoteMajor 同源（源课->调用课->排课->培养方案 major_id）；
-     * status：计划+专业下至少有一条目标且每条都绑定毕业要求时为1，否则0。
-     */
+    /** 专业列表（与 quoteMajor 同源）；status 按 plan+major 目标绑定情况 */
     List<TeachingPlanMajorVo> listMajor(Long teachingPlanId, Long courseId);
 
-    // ============ 7. 教学计划目标 t_csys_teaching_plan_objective ============
+    /**
+     * 编辑页培养方案 tab 列表：源课被哪些培养方案引用（scheme 去重）。
+     * 同一方案下源课被引用多次时 quoteCourseCount &gt; 1。
+     */
+    List<TeachingPlanSchemeVo> listSchemes(Long sourceCourseId);
 
-    List<TeachingPlanObjective> listObjective(Long planId, Long contextId);
+    List<TeachingPlanObjective> listObjective(Long planId, Long schemeId);
 
     Long addObjective(TeachingPlanObjective objective);
 
@@ -47,28 +42,18 @@ public interface TeachingPlanModuleService {
 
     void deleteObjective(Long id);
 
-    /**
-     * 目标 + 支撑毕业要求 同事务保存。
-     * 有 objective.id 则更新目标并重建 ref；无则新增目标再插 ref。
-     *
-     * @return 目标 id
-     */
+    /** 目标 + 支撑毕业要求同事务保存；objective.schemeId 必填 */
     Long saveObjectiveWithRefs(TeachingPlanObjectiveSaveVo saveVo);
 
-    // ============ 8. 课程绑定毕业要求 ============
-
-    /**
-     * 根据总库课程id查询绑定的毕业要求（全部调用课汇总，兼容旧调用）。
-     */
+    /** 全部调用课汇总（兼容） */
     List<StandardGraduation> listCourseGraduation(Long courseId);
 
     /**
-     * 按当前 tab 上下文过滤：仅返回该 context 对应调用课(quoteCourseId)已绑定的毕业要求。
-     * contextId 为空时回退为 listCourseGraduation(courseId)。
+     * 按培养方案汇总毕业要求：该 scheme 下引用本源课的**全部**调用课所绑定的毕业要求去重。
+     * 同一专业课在方案中被引用多次时，全部计入。
+     * schemeId 为空时回退 listCourseGraduation(courseId)。
      */
-    List<StandardGraduation> listCourseGraduationByContext(Long courseId, Long contextId);
-
-    // ============ 9. 教学计划目标支撑毕业要求 ============
+    List<StandardGraduation> listCourseGraduationByScheme(Long courseId, Long schemeId);
 
     List<TeachingPlanObjectiveRef> listObjectiveRef(Long objectiveId);
 
@@ -78,8 +63,6 @@ public interface TeachingPlanModuleService {
 
     void deleteObjectiveRef(Long id);
 
-    // ============ 10. 教学内容与学时安排 ============
-
     List<TeachingPlanContent> listContent(Long planId);
 
     Long addContent(TeachingPlanContent content);
@@ -88,9 +71,7 @@ public interface TeachingPlanModuleService {
 
     void deleteContent(Long id);
 
-    // ============ 11-13. 目标达成设计 ============
-
-    List<TeachingPlanTargetDesign> listTargetDesign(Long planId, Long contextId, String designTypeCode);
+    List<TeachingPlanTargetDesign> listTargetDesign(Long planId, Long schemeId, String designTypeCode);
 
     List<CourseKnowledgeUnit> listKnowledgeUnitInit(Long courseId);
 
@@ -99,8 +80,6 @@ public interface TeachingPlanModuleService {
     void updateTargetDesign(TeachingPlanTargetDesign design);
 
     void deleteTargetDesign(Long id);
-
-    // ============ 14. 实验/实践环节 ============
 
     List<TeachingPlanPracticeItem> listPracticeItem(Long planId);
 
@@ -118,8 +97,6 @@ public interface TeachingPlanModuleService {
 
     void deletePracticeItemDetail(Long id);
 
-    // ============ 15. 考核评价 ============
-
     List<TeachingPlanAssessment> listAssessment(Long planId);
 
     Long addAssessment(TeachingPlanAssessment assessment);
@@ -127,8 +104,6 @@ public interface TeachingPlanModuleService {
     void updateAssessment(TeachingPlanAssessment assessment);
 
     void deleteAssessment(Long id);
-
-    // ============ 16. 教材 ============
 
     List<TeachingPlanTextbook> listTextbook(Long planId);
 
@@ -138,8 +113,6 @@ public interface TeachingPlanModuleService {
 
     void deleteTextbook(Long id);
 
-    // ============ 17. 条件保障 ============
-
     List<TeachingPlanCondition> listCondition(Long planId);
 
     Long addCondition(TeachingPlanCondition condition);
@@ -147,8 +120,6 @@ public interface TeachingPlanModuleService {
     void updateCondition(TeachingPlanCondition condition);
 
     void deleteCondition(Long id);
-
-    // ============ 18. 实施步骤 t_csys_teaching_plan_process_step ============
 
     List<TeachingPlanProcessStep> listProcessStep(Long planId);
 
@@ -158,11 +129,6 @@ public interface TeachingPlanModuleService {
 
     void deleteProcessStep(Long id);
 
-    // ============ 19. 通用引用 t_csys_teaching_plan_ref ============
-
-    /**
-     * @param refType 可空；空则返回该计划全部引用
-     */
     List<TeachingPlanRef> listRef(Long planId, Integer refType);
 
     Long addRef(TeachingPlanRef ref);

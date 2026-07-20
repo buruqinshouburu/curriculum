@@ -490,4 +490,33 @@
         group by ts.major_id, sm.name, cat.name
         order by cat.name, sm.name
     </select>
+
+    <!-- 教学计划 tab：按培养方案去重；同一方案下源课可被引用多次，quoteCourseCount 计数 -->
+    <select id="selectQuoteSchemesBySourceCourseId" resultType="com.doinner.csys.domain.vo.TeachingPlanSchemeVo">
+        select ts.id                as schemeId,
+               ts.name              as schemeName,
+               ts.version           as schemeVersion,
+               ts.education_level   as educationLevel,
+               ts.major_id          as majorId,
+               sm.name              as majorName,
+               count(distinct c2.id) as quoteCourseCount
+        from t_csys_course c2
+        inner join t_csys_training_scheme_course_schedule tcs on tcs.course_id = c2.id
+        inner join t_csys_training_scheme ts on ts.id = tcs.scheme_id and ts.sysflag = 0
+        left join t_csys_std_major sm on sm.id = ts.major_id
+        where c2.source_id = #{sourceCourseId}
+          and c2.sysflag = 0
+        group by ts.id, ts.name, ts.version, ts.education_level, ts.major_id, sm.name
+        order by ts.id desc
+    </select>
+
+    <!-- 指定培养方案下，源课的全部调用课 id（含多次引用） -->
+    <select id="selectQuoteCourseIdsBySourceAndScheme" resultType="java.lang.Long">
+        select distinct c2.id
+        from t_csys_course c2
+        inner join t_csys_training_scheme_course_schedule tcs on tcs.course_id = c2.id
+        where c2.source_id = #{sourceCourseId}
+          and c2.sysflag = 0
+          and tcs.scheme_id = #{schemeId}
+    </select>
 </mapper>

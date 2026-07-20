@@ -23,7 +23,7 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
     /**
      * 教学计划调用上下文ID；按tab维护时填写
      */
-    private Long contextId;
+    private Long schemeId;
 
     /**
      * 设计类型字典编码：知识目标/能力目标/素质目标
@@ -116,12 +116,12 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
         this.planId = planId;
     }
 
-    public Long getContextId() {
-        return contextId;
+    public Long getSchemeId() {
+        return schemeId;
     }
 
-    public void setContextId(Long contextId) {
-        this.contextId = contextId;
+    public void setSchemeId(Long schemeId) {
+        this.schemeId = schemeId;
     }
 
     public String getDesignTypeCode() {

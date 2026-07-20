@@ -8,7 +8,6 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
-import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
@@ -23,6 +22,7 @@ import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
@@ -121,41 +121,12 @@ public class TeachingPlanController {
         return Message.success();
     }
 
-    // ============ 调用课程上下文 t_csys_teaching_plan_context（培养方案 tab） ============
+    // ============ 培养方案 tab（scheme） ============
 
-    @ApiOperation("教学计划上下文列表(培养方案tab)")
-    @GetMapping("/context/list")
-    public DataSet<List<TeachingPlanContext>> contextList(@RequestParam("planId") Long planId) {
-        return DataSet.success(teachingPlanService.listContext(planId));
-    }
-
-    @ApiOperation("新增教学计划上下文")
-    @PostMapping("/context")
-    public DataSet<Long> addContext(@RequestBody TeachingPlanContext context) {
-        return DataSet.success(teachingPlanService.addContext(context));
-    }
-
-    @ApiOperation("修改教学计划上下文")
-    @PutMapping("/context")
-    public Message updateContext(@RequestBody TeachingPlanContext context) {
-        teachingPlanService.updateContext(context);
-        return Message.success();
-    }
-
-    @ApiOperation("删除教学计划上下文")
-    @DeleteMapping("/context/{id}")
-    public Message deleteContext(@PathVariable("id") Long id) {
-        teachingPlanService.deleteContext(id);
-        return Message.success();
-    }
-
-    /**
-     * 从总库课程调用关系同步 context 快照（先逻辑删旧再批量插入）。
-     */
-    @ApiOperation("同步教学计划上下文(从调用关系)")
-    @PostMapping("/context/sync/{planId}")
-    public DataSet<List<TeachingPlanContext>> syncContext(@PathVariable("planId") Long planId) {
-        return DataSet.success(teachingPlanService.syncContexts(planId));
+    @ApiOperation("教学计划培养方案tab列表(源课被引用的培养方案)")
+    @GetMapping("/scheme/list")
+    public DataSet<List<TeachingPlanSchemeVo>> schemeList(@RequestParam("courseId") Long courseId) {
+        return DataSet.success(teachingPlanModuleService.listSchemes(courseId));
     }
 
     // ============ 教员团队 t_csys_teaching_plan_teacher ============
@@ -228,8 +199,8 @@ public class TeachingPlanController {
     @ApiOperation("教学计划目标列表")
     @GetMapping("/objective/list")
     public DataSet<List<TeachingPlanObjective>> objectiveList(@RequestParam("planId") Long planId,
-                                                              @RequestParam("contextId") Long contextId) {
-        return DataSet.success(teachingPlanModuleService.listObjective(planId, contextId));
+                                                              @RequestParam("schemeId") Long schemeId) {
+        return DataSet.success(teachingPlanModuleService.listObjective(planId, schemeId));
     }
 
     @ApiOperation("新增教学计划目标")
@@ -263,11 +234,11 @@ public class TeachingPlanController {
 
     // ============ 8. 课程绑定毕业要求(按课程id / 可选context) ============
 
-    @ApiOperation("根据课程id查询课程绑定的毕业要求(可按context过滤)")
+    @ApiOperation("根据课程id查询课程绑定的毕业要求(可按培养方案schemeId过滤)")
     @GetMapping("/courseGraduation/{courseId}")
     public DataSet<List<StandardGraduation>> courseGraduation(@PathVariable("courseId") Long courseId,
-                                                              @RequestParam(value = "contextId", required = false) Long contextId) {
-        return DataSet.success(teachingPlanModuleService.listCourseGraduationByContext(courseId, contextId));
+                                                              @RequestParam(value = "schemeId", required = false) Long schemeId) {
+        return DataSet.success(teachingPlanModuleService.listCourseGraduationByScheme(courseId, schemeId));
     }
 
     // ============ 9. 教学计划目标支撑毕业要求 t_csys_teaching_plan_objective_ref ============
@@ -331,9 +302,9 @@ public class TeachingPlanController {
     @ApiOperation("知识/能力/素质目标达成设计列表(按designTypeCode区分)")
     @GetMapping("/targetDesign/list")
     public DataSet<List<TeachingPlanTargetDesign>> targetDesignList(@RequestParam("planId") Long planId,
-                                                                    @RequestParam("contextId") Long contextId,
+                                                                    @RequestParam("schemeId") Long schemeId,
                                                                     @RequestParam("designTypeCode") String designTypeCode) {
-        return DataSet.success(teachingPlanModuleService.listTargetDesign(planId, contextId, designTypeCode));
+        return DataSet.success(teachingPlanModuleService.listTargetDesign(planId, schemeId, designTypeCode));
     }
 
     @ApiOperation("知识目标初始化：根据课程id查询知识单元")

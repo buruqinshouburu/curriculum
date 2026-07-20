@@ -5,7 +5,7 @@
     <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanRef">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="plan_id" property="planId" jdbcType="BIGINT"/>
-        <result column="context_id" property="contextId" jdbcType="BIGINT"/>
+        <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
         <result column="ref_type" property="refType" jdbcType="TINYINT"/>
         <result column="ref_id" property="refId" jdbcType="BIGINT"/>
         <result column="ref_name" property="refName" jdbcType="VARCHAR"/>
@@ -20,18 +20,18 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, plan_id, context_id, ref_type, ref_id, ref_name, ref_hours, sort,
+        id, plan_id, scheme_id, ref_type, ref_id, ref_name, ref_hours, sort,
         creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_ref (
-            plan_id, context_id, ref_type, ref_id, ref_name, ref_hours, sort,
+            plan_id, scheme_id, ref_type, ref_id, ref_name, ref_hours, sort,
             creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
-                #{item.planId}, #{item.contextId}, #{item.refType}, #{item.refId}, #{item.refName},
+                #{item.planId}, #{item.schemeId}, #{item.refType}, #{item.refId}, #{item.refName},
                 #{item.refHours}, #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier},
                 #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
             )
@@ -66,7 +66,7 @@
         INSERT INTO t_csys_teaching_plan_ref
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="planId != null">plan_id,</if>
-            <if test="contextId != null">context_id,</if>
+            <if test="schemeId != null">scheme_id,</if>
             <if test="refType != null">ref_type,</if>
             <if test="refId != null">ref_id,</if>
             <if test="refName != null">ref_name,</if>
@@ -81,7 +81,7 @@
         </trim>
         <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
             <if test="planId != null">#{planId},</if>
-            <if test="contextId != null">#{contextId},</if>
+            <if test="schemeId != null">#{schemeId},</if>
             <if test="refType != null">#{refType},</if>
             <if test="refId != null">#{refId},</if>
             <if test="refName != null">#{refName},</if>
@@ -100,7 +100,7 @@
         UPDATE t_csys_teaching_plan_ref
         <trim prefix="SET" suffixOverrides=",">
             <if test="planId != null">plan_id = #{planId},</if>
-            <if test="contextId != null">context_id = #{contextId},</if>
+            <if test="schemeId != null">scheme_id = #{schemeId},</if>
             <if test="refType != null">ref_type = #{refType},</if>
             <if test="refId != null">ref_id = #{refId},</if>
             <if test="refName != null">ref_name = #{refName},</if>
@@ -115,7 +115,7 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, plan_id, context_id, ref_type, ref_id, ref_name, ref_hours, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        SELECT id, plan_id, scheme_id, ref_type, ref_id, ref_name, ref_hours, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
         FROM t_csys_teaching_plan_ref
         WHERE id = #{id}
           AND sysflag = 0

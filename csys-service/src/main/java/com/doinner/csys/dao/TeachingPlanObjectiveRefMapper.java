@@ -36,9 +36,9 @@ public interface TeachingPlanObjectiveRefMapper {
     List<TeachingPlanObjectiveRef> selectByObjectiveId(@Param("objectiveId") Long objectiveId);
 
     /**
-     * 按上下文查询绑定的毕业要求
+     * 按培养方案查询绑定的毕业要求
      */
-    List<TeachingPlanObjectiveRef> selectByContextId(@Param("contextId") Long contextId);
+    List<TeachingPlanObjectiveRef> selectBySchemeId(@Param("schemeId") Long schemeId);
 
     /**
      * 按目标ID逻辑删除

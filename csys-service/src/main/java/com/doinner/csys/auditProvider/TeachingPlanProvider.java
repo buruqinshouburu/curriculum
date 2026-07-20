@@ -1,10 +1,9 @@
 package com.doinner.csys.auditProvider;
 
-import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.domain.TeachingPlan;
-import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
+import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
 import org.apache.commons.lang3.ObjectUtils;
@@ -18,21 +17,15 @@ import java.util.Map;
 
 /**
  * 课程教学计划审核内容提供者。
- * <p>
- * 业务类型与流程编码一致：TEACHING_PLAN_AUDIT（与培养方案 TRAINING_SCHEME_AUDIT 同模式）。
- * 审核查看时按教学计划 id 返回详情 + 上下文 tab 列表 + 各模块摘要，供审核页展示。
+ * businessType = TEACHING_PLAN_AUDIT；tab 维度为培养方案 schemeId。
  */
 @Component
 public class TeachingPlanProvider implements AuditContentProvider {
 
-    /** 与 audit_flow.flow_code / audit_instance.business_type 一致 */
     public static final String BUSINESS_TYPE = "TEACHING_PLAN_AUDIT";
 
     @Resource
     private TeachingPlanMapper teachingPlanMapper;
-
-    @Resource
-    private TeachingPlanContextMapper teachingPlanContextMapper;
 
     @Resource
     private TeachingPlanService teachingPlanService;
@@ -52,13 +45,12 @@ public class TeachingPlanProvider implements AuditContentProvider {
             throw new RuntimeException("教学计划不存在：" + businessId);
         }
         TeachingPlanDetailVo detail = teachingPlanService.getDetail(plan.getSourceCourseId(), plan.getId());
-        List<TeachingPlanContext> contexts = teachingPlanContextMapper.selectByPlanId(businessId);
+        List<TeachingPlanSchemeVo> schemes = teachingPlanModuleService.listSchemes(plan.getSourceCourseId());
 
         Map<String, Object> content = new HashMap<>();
         content.put("plan", plan);
         content.put("detail", detail);
-        content.put("contexts", contexts);
-        // 模块摘要，便于审核页一眼看全（不按 context 展开目标时取全部 context 下目标需前端再调）
+        content.put("schemes", schemes);
         content.put("teachers", teachingPlanService.listTeacher(businessId));
         content.put("sections", teachingPlanService.listSection(businessId));
         content.put("contents", teachingPlanModuleService.listContent(businessId));
@@ -68,10 +60,10 @@ public class TeachingPlanProvider implements AuditContentProvider {
         content.put("conditions", teachingPlanModuleService.listCondition(businessId));
         content.put("processSteps", teachingPlanModuleService.listProcessStep(businessId));
         content.put("refs", teachingPlanModuleService.listRef(businessId, null));
-        if (ObjectUtils.isNotEmpty(contexts)) {
-            Long contextId = contexts.get(0).getId();
-            content.put("objectives", teachingPlanModuleService.listObjective(businessId, contextId));
-            content.put("defaultContextId", contextId);
+        if (ObjectUtils.isNotEmpty(schemes)) {
+            Long schemeId = schemes.get(0).getSchemeId();
+            content.put("defaultSchemeId", schemeId);
+            content.put("objectives", teachingPlanModuleService.listObjective(businessId, schemeId));
         }
         return content;
     }
