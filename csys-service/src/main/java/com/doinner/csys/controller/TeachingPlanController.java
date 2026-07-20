@@ -86,7 +86,8 @@ public class TeachingPlanController {
     }
 
     /**
-     * 保存教学计划(含调用课程上下文)。没有教学计划id则新增，有则修改。
+     * 保存教学计划(含调用课程上下文)。
+     * 无 plan.id 时按 (sourceCourseId, planType) 查重：已存在则修改，不存在才新增。
      */
     @ApiOperation("保存教学计划")
     @PostMapping("/save")

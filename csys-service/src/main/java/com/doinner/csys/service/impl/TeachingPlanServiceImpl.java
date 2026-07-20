@@ -302,8 +302,23 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             throw new IllegalArgumentException("教学计划信息不能为空");
         }
         TeachingPlan plan = saveVo.getPlan();
+        if (plan.getSourceCourseId() == null) {
+            throw new IllegalArgumentException("总库课程id不能为空");
+        }
+        if (plan.getPlanType() == null) {
+            throw new IllegalArgumentException("教学计划类型不能为空");
+        }
         // 教学计划类型(plan_type)由前端传入,保留前端值,使单一课程可出现多类型教学计划。
-        // 同一课程同一类型只能一条由 DB 唯一约束 (source_course_id, plan_type) 保证。
+        // 同一课程同一类型只能一条：应用层按 (source_course_id, plan_type) 查重，
+        // 已存在则改为 update，避免前端未带 id 时重复 insert 触发唯一约束异常。
+        // DB 唯一约束 uk_tp_source_course_plan_type 仍作为兜底。
+        if (plan.getId() == null) {
+            TeachingPlan existing = teachingPlanMapper.selectBySourceCourseIdAndPlanType(
+                    plan.getSourceCourseId(), plan.getPlanType());
+            if (existing != null) {
+                plan.setId(existing.getId());
+            }
+        }
         UserUtils.reflash(plan);
         if (plan.getId() == null) {
             teachingPlanMapper.insert(plan);

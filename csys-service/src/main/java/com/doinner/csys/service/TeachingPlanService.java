@@ -38,7 +38,9 @@ public interface TeachingPlanService {
     TeachingPlanDetailVo getDetail(Long courseId, Long teachingPlanId);
 
     /**
-     * 保存教学计划(含调用课程上下文)。没有教学计划id则新增，有则修改。
+     * 保存教学计划(含调用课程上下文)。
+     * plan.id 为空时按 (sourceCourseId, planType) 查重：已存在则修改，不存在才新增；
+     * 保证一门课程同一类型只有一条教学计划。
      *
      * @param saveVo 保存入参
      * @return 教学计划id

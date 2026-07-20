@@ -47,6 +47,17 @@ public interface TeachingPlanMapper {
     TeachingPlan selectBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
 
     /**
+     * 根据总库课程ID + 教学计划类型查询有效记录。
+     * 用于保存时判断「一门课程同一类型只能一条」：已存在则改、不存在才增。
+     *
+     * @param sourceCourseId 总库课程ID
+     * @param planType       教学计划类型
+     * @return 教学计划(可能为空)
+     */
+    TeachingPlan selectBySourceCourseIdAndPlanType(@Param("sourceCourseId") Long sourceCourseId,
+                                                   @Param("planType") Integer planType);
+
+    /**
      * 查询列表
      *
      * @param teachingPlan 查询条件

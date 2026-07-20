@@ -145,6 +145,18 @@
         LIMIT 1
     </select>
 
+    <!-- 同一课程同一 plan_type 唯一(与 uk_tp_source_course_plan_type 一致)，取有效记录 -->
+    <select id="selectBySourceCourseIdAndPlanType" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan
+        WHERE source_course_id = #{sourceCourseId}
+          AND plan_type = #{planType}
+          AND sysflag = 0
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
     <select id="selectList" parameterType="com.doinner.csys.domain.TeachingPlan" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
