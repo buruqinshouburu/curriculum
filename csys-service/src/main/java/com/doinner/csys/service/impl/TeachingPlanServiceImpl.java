@@ -59,6 +59,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,14 +141,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
         for (TeachingPlanListVo vo : list) {
             if (MapUtils.isNotEmpty(moduleMap)) {
+                // courseModule 现为被引用课程c2聚合的多值拼接串(、分隔),需逐个翻译为名称后重新拼接
                 if (StringUtils.isNotBlank(vo.getCourseModule())) {
-                    vo.setCourseModuleName(moduleMap.get(vo.getCourseModule()));
+                    vo.setCourseModuleName(translateJoinedCodes(vo.getCourseModule(), moduleMap));
                 }
                 if (StringUtils.isNotBlank(vo.getCourseModuleChildren())) {
                     vo.setCourseModuleChildrenName(moduleMap.get(vo.getCourseModuleChildren()));
                 }
             }
-            if (vo.getMajorId() != null) {
+            // majorName 已由 SQL 聚合(被引用培养方案major_id->专业名,多值拼接)给出;仅当SQL未取到时按majorId兜底
+            if (StringUtils.isBlank(vo.getMajorName()) && vo.getMajorId() != null) {
                 vo.setMajorName(majorIdToNameMap.get(vo.getMajorId()));
             }
             if (vo.getSubMajorId() != null) {
@@ -173,9 +176,25 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         return courseModuleDictionaryIdToNameMap;
     }
 
+    /**
+     * 将多值拼接的字典编码(、或,分隔)逐个翻译为名称后重新拼接。单值场景等价于直接查map。
+     * 用于课程模块:SQL返回被引用课程c2聚合的多code串,需逐个翻译为名称再拼回展示。
+     */
+    private String translateJoinedCodes(String joinedCodes, Map<String, String> codeToName) {
+        if (StringUtils.isBlank(joinedCodes) || MapUtils.isEmpty(codeToName)) {
+            return null;
+        }
+        return Arrays.stream(joinedCodes.split("[、,]"))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(codeToName::get)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
+    }
+
     @Override
     public TeachingPlanDetailVo getDetail(Long courseId, Long teachingPlanId) {
-        // 教学计划id存在则取教学计划表 + 调用课程上下文；否则从总库课程取
+        // 教学计划id存在则取计划分支(plan基本信息 + c2/ts聚合)；否则从总库课程取
         if (teachingPlanId != null) {
             return teachingPlanMapper.selectDetailByPlanId(teachingPlanId);
         }
@@ -189,6 +208,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             throw new IllegalArgumentException("教学计划信息不能为空");
         }
         TeachingPlan plan = saveVo.getPlan();
+        // 教学计划类型(plan_type)由前端传入,保留前端值,使单一课程可出现多类型教学计划。
+        // 同一课程同一类型只能一条由 DB 唯一约束 (source_course_id, plan_type) 保证。
         UserUtils.reflash(plan);
         if (plan.getId() == null) {
             teachingPlanMapper.insert(plan);
@@ -275,7 +296,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         m.setHours(toStr(detail == null ? null : detail.getHours(), course.getHours()));
         m.setCredit(toStr(detail == null ? null : detail.getCredit(), course.getCredit()));
         m.setEducationLevel(nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel()));
-        m.setMajorName(course.getMajorName());
+        m.setMajorName(nz(detail == null ? null : detail.getMajorName(), course.getMajorName()));
         m.setTerm(nz(detail == null ? null : detail.getTerm(), course.getOpenTerm()));
         m.setCourseModule(nz(detail == null ? null : detail.getCourseModule(), course.getCourseModule()));
         m.setCourseAttr(nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr()));

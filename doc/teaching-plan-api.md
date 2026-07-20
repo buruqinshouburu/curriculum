@@ -20,9 +20,9 @@
 | courseName | String | 否 | 课程名称，模糊查询（`t_csys_course.name` LIKE） |
 | courseCode | String | 否 | 课程编号，模糊查询（`t_csys_course.code` LIKE） |
 | teachCollegeId | Long | 否 | 开课单位 ID，精确（`t_csys_course.teach_college_id`） |
-| educationLevel | String | 否 | 适用对象，精确（`t_csys_course.education_level`） |
-| courseModule | String | 否 | 课程模块编码，精确（`t_csys_course.course_Module`） |
-| courseAttr | String | 否 | 修读要求，精确（`t_csys_course.course_attr`） |
+| educationLevel | String | 否 | 适用对象。精确匹配任一被引用培养方案的 `education_level`，或总库课程自身 `education_level`（回退） |
+| courseModule | String | 否 | 课程模块编码。精确匹配任一被引用课程（`c2.source_id=总库课程.id`）的 `course_Module`，或总库课程自身 `course_Module`（回退） |
+| courseAttr | String | 否 | 修读要求。精确匹配任一被引用课程的 `course_attr`，或总库课程自身 `course_attr`（回退） |
 | type | String | 否 | 课程类型，精确（`t_csys_course.type`）：`1`课程 / `2`实践训练课目 / `3`实验课程 / `4`实践项目 |
 | version | String | 否 | 课程版本，精确（`t_csys_course.version`） |
 | quoted | Integer | 否 | 是否已被培养方案调用：`1`=只查已被调用的原课程；`0` 或不传=查全部 |
@@ -58,14 +58,14 @@
 | programLevel | String | 项目层级（`t_csys_course.program_Level`） |
 | teachCollegeId | Long | 开课单位 ID |
 | teachCollegeName | String | 开课单位名称（后端内存补全，来自 sys_dept） |
-| educationLevel | String | 适用对象（`t_csys_course.education_level`） |
-| courseModule | String | 课程模块编码 |
-| courseModuleName | String | 课程模块名称（后端内存补全，来自远程字典） |
-| courseModuleChildren | String | 课程模块子项编码 |
+| educationLevel | String | 适用对象。取自被引用培养方案 `t_csys_training_scheme.education_level` 去重拼接；无引用时回退 `t_csys_course.education_level`。多值顿号分隔 |
+| courseModule | String | 课程模块编码。取自被引用课程(`c2`,`c2.source_id=总库课程.id`）`course_Module` 去重拼接；无引用时回退 `t_csys_course.course_Module`。多值顿号分隔 |
+| courseModuleName | String | 课程模块名称（后端按顿号拆分编码逐个翻译远程字典后重新拼接） |
+| courseModuleChildren | String | 课程模块子项编码（仍取自总库课程 `course_Module_Children`，单值） |
 | courseModuleChildrenName | String | 课程模块子项名称（后端内存补全，来自远程字典） |
-| courseAttr | String | 修读要求 |
-| majorId | Long | 适用专业 ID（`t_csys_course.major_Id`） |
-| majorName | String | 适用专业名称（后端内存补全，来自 t_csys_std_major） |
+| courseAttr | String | 修读要求/修读性质。取自被引用课程 `c2.course_attr` 去重拼接；无引用时回退 `t_csys_course.course_attr`。多值顿号分隔 |
+| majorId | Long | 适用专业 ID。有被引用培养方案时此字段为回退单值(`t_csys_course.major_Id`)，真实适用专业看 `majorName` |
+| majorName | String | 适用专业名称。取自被引用培养方案 `major_id -> t_csys_std_major.name` 去重拼接；无引用时回退总库课程 `major_Id -> name`。多值顿号分隔 |
 | subMajorId | Long | 专业方向 ID（`t_csys_course.sub_Major_Id`） |
 | subMajorName | String | 专业方向名称（后端内存补全，来自 t_csys_std_major） |
 | hours | Double | 总学时 |
@@ -76,7 +76,7 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | teachingPlanId | Long | 教学计划 ID（`t_csys_teaching_plan.id`），无则为 null |
-| planType | Integer | 计划类型：1普通课程 2实验课程 3实践训练课目 4实践项目 |
+| planType | Integer | 教学计划类型，字典值与课程类型相同（`1`课程 `2`实践训练课目 `3`实验课程 `4`实践项目）。取自 `t_csys_teaching_plan.plan_type`，由前端保存时传入。同一课程可存在多个不同 `planType` 的教学计划，但同一 `planType` 只能一条 |
 | planVersion | String | 教学计划版本 |
 | currentFlag | Integer | 是否当前版本：1是 0否 |
 | enabledTerm | String | 启用时间 |
@@ -217,6 +217,83 @@ GET /flowable-demo/teachingPlan/quoteMajor/1001
 
 ---
 
+## 接口三：查看教学计划详情
+
+- **请求路径**：`GET /teachingPlan/detail`
+- **请求方式**：GET
+- **入参**：`courseId`（总库课程id，必填）、`teachingPlanId`（教学计划id，可空）
+- **取值**：
+  - `teachingPlanId` 为空 → 课程分支，字段取自总库课程 `t_csys_course`
+  - `teachingPlanId` 非空 → 计划分支，基础信息取自 `t_csys_teaching_plan`，学时学分取 `plan.source_*` 快照（回退 course），5 个展示字段同样走 c2/ts 聚合
+- **5 个展示字段**（适用对象 / 适用专业 / 修读性质 / 课程模块 / 开课学期）：均取自被引用课程 `c2` + 被引用培养方案 `ts` 聚合（多值顿号分隔），无引用时回退总库课程自身值。`t_csys_teaching_plan` 表不再承载这 5 个字段（context 表相应列也不再被读取）。
+- **type 字段**：课程类型（`t_csys_course.type`），字典值 1课程 2实践训练课目 3实验课程 4实践项目。与教学计划类型 `planType` 共用同一套字典值，但 `planType` 取自教学计划表（前端保存时传入），`type` 取自课程表。
+- **majorName 字段**：适用专业名称（聚合，多值顿号分隔）。
+
+---
+
+## 接口四：保存教学计划
+
+- **请求路径**：`POST /teachingPlan/save`
+- **请求方式**：POST
+- **Content-Type**：`application/json`
+- **入参**：`TeachingPlanSaveVo`，含 `plan`（教学计划主表 `TeachingPlan`）与 `context`（调用课程上下文 `TeachingPlanContext`，可为空）。
+
+### 1. 请求体
+
+```json
+{
+  "plan": {
+    "id": null,
+    "sourceCourseId": 1001,
+    "planType": 1,
+    "version": "v1.0",
+    "currentFlag": 1,
+    "enabledTerm": "2026年春季学期",
+    "status": 0,
+    "scoreRule": "..."
+  },
+  "context": {
+    "planId": null,
+    "sourceCourseId": 1001,
+    "quoteCourseId": 1002,
+    "schemeId": 50,
+    "educationLevel": "...",
+    "majorId": 200,
+    "courseModule": "...",
+    "term": 3,
+    "courseAttr": "..."
+  }
+}
+```
+
+### 2. 关键字段说明
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| plan.id | Long | 为空=新增，非空=修改 |
+| plan.sourceCourseId | Long | 总库课程 id（必填） |
+| plan.planType | Integer | **教学计划类型，前端传入**，字典值同课程类型（1课程 2实践训练课目 3实验课程 4实践项目）。后端保留前端值不覆盖 |
+| plan.version / currentFlag / enabledTerm / status / scoreRule | - | 见 `TeachingPlan` 实体 |
+| context | TeachingPlanContext | 调用课程上下文，目标/达成设计 tab 用；详情的 5 个展示字段不再读 context（走 c2/ts 聚合），context 仅用于目标/毕业要求绑定的上下文区分 |
+
+### 3. 唯一性约束
+
+DB 层唯一约束 `uk_tp_source_course_plan_type (source_course_id, plan_type, sysflag)`：
+
+- 同一课程（`source_course_id`）下，同一 `planType` 的有效记录（`sysflag=0`）**只能有一条**。
+- 不同 `planType` 可以并存 -- 即单一课程可同时存在「课程」「实验课程」「实践训练课目」「实践项目」等多种类型的教学计划。
+- 违反约束时保存接口会抛 `DuplicateKeyException`（HTTP 500），前端应先判断同类型是否已存在再决定新增/修改。
+
+### 4. 返回
+
+`DataSet<Long>`，data 为教学计划 id。
+
+```json
+{ "code": 200, "msg": "操作成功", "data": 55 }
+```
+
+---
+
 ## 附：字段与数据库列对照
 
 | VO 字段 | 数据库列 | 所属表 |
@@ -228,16 +305,16 @@ GET /flowable-demo/teachingPlan/quoteMajor/1001
 | version | version | t_csys_course |
 | programLevel | program_Level | t_csys_course |
 | teachCollegeId | teach_college_id | t_csys_course |
-| educationLevel | education_level | t_csys_course |
-| courseModule | course_Module | t_csys_course |
+| educationLevel | education_level | ts(被引用培养方案)聚合,回退 t_csys_course |
+| courseModule | course_Module | c2(被引用课程)聚合,回退 t_csys_course |
 | courseModuleChildren | course_Module_Children | t_csys_course |
-| courseAttr | course_attr | t_csys_course |
-| majorId | major_Id | t_csys_course |
+| courseAttr | course_attr | c2(被引用课程)聚合,回退 t_csys_course |
+| majorId | major_Id | t_csys_course(回退单值) |
 | subMajorId | sub_Major_Id | t_csys_course |
 | hours | hours | t_csys_course |
 | credit | credit | t_csys_course |
 | teachingPlanId | id | t_csys_teaching_plan |
-| planType | plan_type | t_csys_teaching_plan |
+| planType | plan_type | t_csys_teaching_plan（前端传入，字典值同课程类型） |
 | planVersion | version | t_csys_teaching_plan |
 | currentFlag | current_flag | t_csys_teaching_plan |
 | enabledTerm | enabled_term | t_csys_teaching_plan |
@@ -246,4 +323,4 @@ GET /flowable-demo/teachingPlan/quoteMajor/1001
 | fileName | file_name | t_csys_teaching_plan |
 | sourceCredit | source_credit | t_csys_teaching_plan |
 | categoryName | name (via category_id) | t_csys_training_scheme_category |
-| majorName | name (via major_id) | t_csys_std_major |
+| majorName | name (via major_id) | ts.major_id->t_csys_std_major 聚合,回退 course.major_Id |

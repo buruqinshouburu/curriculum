@@ -27,6 +27,9 @@ public class TeachingPlanDetailVo {
     /** 课程英文名称 */
     private String courseEnName;
 
+    /** 课程类型(与教学计划类型同一取值)：1课程 2实践训练课目 3实验课程 4实践项目 */
+    private String type;
+
     /** 启用时间 */
     private String enabledTerm;
 
@@ -41,6 +44,9 @@ public class TeachingPlanDetailVo {
 
     /** 适用专业id */
     private Long majorId;
+
+    /** 适用专业名称(被引用培养方案major_id聚合,多值拼接) */
+    private String majorName;
 
     /** 修读性质 */
     private String courseAttr;
@@ -97,6 +103,14 @@ public class TeachingPlanDetailVo {
         this.courseEnName = courseEnName;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
     public String getEnabledTerm() {
         return enabledTerm;
     }
@@ -135,6 +149,14 @@ public class TeachingPlanDetailVo {
 
     public void setMajorId(Long majorId) {
         this.majorId = majorId;
+    }
+
+    public String getMajorName() {
+        return majorName;
+    }
+
+    public void setMajorName(String majorName) {
+        this.majorName = majorName;
     }
 
     public String getCourseAttr() {

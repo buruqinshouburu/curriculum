@@ -2,7 +2,7 @@ CREATE TABLE `t_csys_teaching_plan` (
                                         `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
                                         `root_plan_id` bigint DEFAULT NULL COMMENT '同一教学计划版本根ID',
                                         `source_course_id` bigint NOT NULL COMMENT '总库课程ID，关联t_csys_course.id',
-                                        `plan_type` tinyint NOT NULL COMMENT '计划类型：1普通课程 2实验课程 3实践训练课目 4实践项目',
+                                        `plan_type` tinyint NOT NULL COMMENT '教学计划类型(与课程类型同字典值):1课程 2实践训练课目 3实验课程 4实践项目',
                                         `version` varchar(20) DEFAULT NULL COMMENT '教学计划版本，如2026、V1.0',
                                         `current_flag` tinyint NOT NULL DEFAULT 1 COMMENT '是否当前版本：1是 0否',
                                         `enabled_term` varchar(50) DEFAULT NULL COMMENT '启用时间，如2026年春季学期',
@@ -26,6 +26,7 @@ CREATE TABLE `t_csys_teaching_plan` (
                                         `remark` varchar(500) DEFAULT NULL COMMENT '备注',
                                         `sysflag` tinyint unsigned NOT NULL DEFAULT 0 COMMENT '删除标识：0正常 2删除',
                                         PRIMARY KEY (`id`),
+                                        UNIQUE KEY `uk_tp_source_course_plan_type` (`source_course_id`, `plan_type`, `sysflag`),
                                         KEY `idx_tp_source_course` (`source_course_id`),
                                         KEY `idx_tp_root` (`root_plan_id`),
                                         KEY `idx_tp_type_status` (`plan_type`,`status`)

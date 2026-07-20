@@ -163,6 +163,56 @@
         UPDATE t_csys_teaching_plan SET sysflag = 2 WHERE id = #{id}
     </update>
 
+    <!--
+        被引用课程c2 + 被引用培养方案ts 聚合取数列(适用对象/适用专业/修读性质/课程模块)。
+        三个查询(list/detail课程分支/detail计划分支)统一以 `course` 作为总库课程别名,片段内引用 course.id。
+        - 适用对象 education_level: ts.education_level 去重拼接,回退 course.education_level
+        - 适用专业 major_name: ts.major_id -> t_csys_std_major.name 去重拼接,回退 course.major_Id -> name
+        - 修读性质 course_attr: c2.course_attr 去重拼接,回退 course.course_attr
+        - 课程模块 course_module: c2.course_Module 去重拼接,回退 course.course_Module
+        多值用顿号分隔(与 selectCourseChooseStatus 一致)。无引用时整体回退总库课程自身字段。
+    -->
+    <sql id="quoteAggregateColumns">
+        COALESCE(
+          (SELECT GROUP_CONCAT(DISTINCT ts.education_level SEPARATOR '、')
+             FROM t_csys_course c2
+             INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+             INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+            WHERE c2.source_id = course.id AND c2.sysflag = 0
+              AND ts.education_level IS NOT NULL AND ts.education_level != ''),
+          course.education_level) AS education_level,
+        COALESCE(
+          (SELECT GROUP_CONCAT(DISTINCT sm.name SEPARATOR '、')
+             FROM t_csys_course c2
+             INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+             INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+             LEFT JOIN t_csys_std_major sm ON sm.id = ts.major_id
+            WHERE c2.source_id = course.id AND c2.sysflag = 0 AND ts.major_id IS NOT NULL),
+          (SELECT sm.name FROM t_csys_std_major sm WHERE sm.id = course.major_Id)) AS major_name,
+        COALESCE(
+          (SELECT GROUP_CONCAT(DISTINCT c2.course_attr SEPARATOR '、')
+             FROM t_csys_course c2
+            WHERE c2.source_id = course.id AND c2.sysflag = 0
+              AND c2.course_attr IS NOT NULL AND c2.course_attr != ''),
+          course.course_attr) AS course_attr,
+        COALESCE(
+          (SELECT GROUP_CONCAT(DISTINCT c2.course_Module SEPARATOR '、')
+             FROM t_csys_course c2
+            WHERE c2.source_id = course.id AND c2.sysflag = 0
+              AND c2.course_Module IS NOT NULL AND c2.course_Module != ''),
+          course.course_Module) AS course_module
+    </sql>
+
+    <!-- 开课学期 term: 被引用课程c2.open_term 去重拼接,回退 course.open_term -->
+    <sql id="quoteTermColumn">
+        COALESCE(
+          (SELECT GROUP_CONCAT(DISTINCT c2.open_term SEPARATOR '、')
+             FROM t_csys_course c2
+            WHERE c2.source_id = course.id AND c2.sysflag = 0
+              AND c2.open_term IS NOT NULL AND c2.open_term != ''),
+          course.open_term) AS term
+    </sql>
+
     <!-- 课程教学计划管理列表返回行映射 -->
     <resultMap id="TeachingPlanListResult" type="com.doinner.csys.domain.vo.TeachingPlanListVo">
         <result column="course_id" property="courseId" jdbcType="BIGINT"/>
@@ -177,6 +227,7 @@
         <result column="version" property="version" jdbcType="VARCHAR"/>
         <result column="program_level" property="programLevel" jdbcType="VARCHAR"/>
         <result column="major_id" property="majorId" jdbcType="BIGINT"/>
+        <result column="major_name" property="majorName" jdbcType="VARCHAR"/>
         <result column="sub_major_id" property="subMajorId" jdbcType="BIGINT"/>
         <result column="hours" property="hours" jdbcType="DOUBLE"/>
         <result column="credit" property="credit" jdbcType="DOUBLE"/>
@@ -199,14 +250,12 @@
             course.name                  AS course_name,
             course.code                  AS course_code,
             course.teach_college_id      AS teach_college_id,
-            course.education_level       AS education_level,
-            course.course_Module         AS course_module,
+            <include refid="quoteAggregateColumns"/>,
             course.course_Module_Children AS course_module_children,
             course.type                   AS course_type,
             course.version                AS version,
             course.program_Level          AS program_level,
             course.sub_Major_Id           AS sub_major_id,
-            course.course_attr           AS course_attr,
             course.major_Id              AS major_id,
             course.hours                 AS hours,
             course.credit                AS credit,
@@ -237,13 +286,24 @@
                 AND course.teach_college_id = #{teachCollegeId}
             </if>
             <if test="educationLevel != null and educationLevel != ''">
-                AND course.education_level = #{educationLevel}
+                AND (EXISTS (SELECT 1 FROM t_csys_course c2
+                             INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+                             INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+                             WHERE c2.source_id = course.id AND c2.sysflag = 0
+                               AND ts.education_level = #{educationLevel})
+                     OR course.education_level = #{educationLevel})
             </if>
             <if test="courseModule != null and courseModule != ''">
-                AND course.course_Module = #{courseModule}
+                AND (EXISTS (SELECT 1 FROM t_csys_course c2
+                             WHERE c2.source_id = course.id AND c2.sysflag = 0
+                               AND c2.course_Module = #{courseModule})
+                     OR course.course_Module = #{courseModule})
             </if>
             <if test="courseAttr != null and courseAttr != ''">
-                AND course.course_attr = #{courseAttr}
+                AND (EXISTS (SELECT 1 FROM t_csys_course c2
+                             WHERE c2.source_id = course.id AND c2.sysflag = 0
+                               AND c2.course_attr = #{courseAttr})
+                     OR course.course_attr = #{courseAttr})
             </if>
             <if test="type != null and type != ''">
                 AND course.type = #{type}
@@ -266,11 +326,13 @@
         <result column="course_name" property="courseName" jdbcType="VARCHAR"/>
         <result column="course_code" property="courseCode" jdbcType="VARCHAR"/>
         <result column="course_en_name" property="courseEnName" jdbcType="VARCHAR"/>
+        <result column="course_type" property="type" jdbcType="VARCHAR"/>
         <result column="enabled_term" property="enabledTerm" jdbcType="VARCHAR"/>
         <result column="education_level" property="educationLevel" jdbcType="VARCHAR"/>
         <result column="term" property="term" jdbcType="VARCHAR"/>
         <result column="course_module" property="courseModule" jdbcType="VARCHAR"/>
         <result column="major_id" property="majorId" jdbcType="BIGINT"/>
+        <result column="major_name" property="majorName" jdbcType="VARCHAR"/>
         <result column="course_attr" property="courseAttr" jdbcType="VARCHAR"/>
         <result column="teach_hours" property="teachHours" jdbcType="DECIMAL"/>
         <result column="practice_hours" property="practiceHours" jdbcType="DECIMAL"/>
@@ -286,12 +348,11 @@
             course.name            AS course_name,
             course.code            AS course_code,
             course.en_name         AS course_en_name,
+            course.type            AS course_type,
             NULL                   AS enabled_term,
-            course.education_level AS education_level,
-            course.open_term       AS term,
-            course.course_Module   AS course_module,
+            <include refid="quoteAggregateColumns"/>,
+            <include refid="quoteTermColumn"/>,
             course.major_Id        AS major_id,
-            course.course_attr     AS course_attr,
             course.teach_hours     AS teach_hours,
             course.practice_hours  AS practice_hours,
             course.hours           AS hours,
@@ -309,24 +370,18 @@
             plan.source_course_name AS course_name,
             plan.source_course_code AS course_code,
             plan.source_course_en_name AS course_en_name,
+            course.type            AS course_type,
             plan.enabled_term      AS enabled_term,
-            ctx.education_level    AS education_level,
-            ctx.term               AS term,
-            ctx.course_module      AS course_module,
-            ctx.major_id           AS major_id,
-            ctx.course_attr        AS course_attr,
-            ctx.teach_hours        AS teach_hours,
-            ctx.practice_hours     AS practice_hours,
-            ctx.hours              AS hours,
-            ctx.credits            AS credit
+            <include refid="quoteAggregateColumns"/>,
+            <include refid="quoteTermColumn"/>,
+            course.major_Id        AS major_id,
+            COALESCE(plan.source_teach_hours, course.teach_hours)    AS teach_hours,
+            COALESCE(plan.source_practice_hours, course.practice_hours) AS practice_hours,
+            COALESCE(plan.source_hours, course.hours)              AS hours,
+            COALESCE(plan.source_credit, course.credit)           AS credit
         FROM t_csys_teaching_plan plan
-        LEFT JOIN t_csys_teaching_plan_context ctx
-            ON ctx.plan_id = plan.id
-            AND ctx.sysflag = 0
-            AND ctx.sync_flag = 1
+        INNER JOIN t_csys_course course ON course.id = plan.source_course_id AND course.sysflag = 0
         WHERE plan.id = #{teachingPlanId}
           AND plan.sysflag = 0
-        ORDER BY ctx.sort ASC, ctx.id ASC
-        LIMIT 1
     </select>
 </mapper>
