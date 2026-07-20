@@ -60,6 +60,7 @@
         <result property="maxQuoteCount" column="max_quote_count"/>
         <result property="enableFlag" column="enable_flag"/>
         <result property="educationLevel" column="education_level"/>
+        <result property="buildStatus" column="build_status"/>
         <result property="hasWork" column="has_work"/>
         <result property="collegeName" column="collegeName"/>
         <result property="categoryName" column="categoryName"/>
