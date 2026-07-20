@@ -59,6 +59,7 @@
         <result property="bindStatus" column="bind_Status"/>
         <result property="maxQuoteCount" column="max_quote_count"/>
         <result property="enableFlag" column="enable_flag"/>
+        <result property="buildStatus" column="build_status"/>
         <result property="educationLevel" column="education_level"/>
         <result property="buildStatus" column="build_status"/>
         <result property="hasWork" column="has_work"/>
