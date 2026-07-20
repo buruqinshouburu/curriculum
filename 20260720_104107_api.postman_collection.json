@@ -1,0 +1,234 @@
+{
+  "info": {
+    "_postman_id": "20260720-104107-teaching-plan-api",
+    "name": "TeachingPlan - 课程教学计划接口(分支 feat/teaching-plan-quote-value)",
+    "description": "com.doinner.csys.controller.TeachingPlanController 中,分支 feat/teaching-plan-quote-value 合并到 master 的 4 个接口:\n1. list        -- 课程教学计划管理列表(分页)            GET /teachingPlan/list\n2. quoteMajor  -- 查询引用课程的专业类(去重)            GET /teachingPlan/quoteMajor/{courseId}\n3. detail      -- 查看教学计划详情                       GET /teachingPlan/detail\n4. save        -- 保存教学计划(含调用课程上下文)        POST /teachingPlan/save\n\n对应提交: bd95ccd(列表增强+quoteMajor)、623bf9e(5字段改c2/ts聚合,plan_type保留前端值+唯一约束,详情/保存)。\n\n服务配置: 端口 9219, context-path /csys (取自 bootstrap.yml: server.port=9219, server.servlet.context-path=/csys)。\n控制器 @RequestMapping(\"/teachingPlan\")。详细字段语义见 doc/teaching-plan-api.md。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "服务地址(默认本机)。端口与 context-path 取自 bootstrap.yml: server.port=9219, server.servlet.context-path=/csys"
+    },
+    {
+      "key": "courseId",
+      "value": "1001",
+      "description": "总库课程id(测试占位值,按实际替换)。t_csys_course.id, source_id IS NULL 的原课程"
+    },
+    {
+      "key": "teachingPlanId",
+      "value": "55",
+      "description": "教学计划id(测试占位值,按实际替换)。t_csys_teaching_plan.id;detail 接口可空"
+    },
+    {
+      "key": "pageNum",
+      "value": "1",
+      "description": "页码(PageHelper 约定)"
+    },
+    {
+      "key": "pageSize",
+      "value": "10",
+      "description": "每页条数(PageHelper 约定)"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. 课程教学计划管理列表(分页)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum={{pageNum}}&pageSize={{pageSize}}&courseName=&courseCode=&teachCollegeId=&educationLevel=&courseModule=&courseAttr=&type=1&version=&quoted=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "list"],
+          "query": [
+            { "key": "pageNum", "value": "{{pageNum}}", "description": "Integer, 否, 页码(PageHelper)" },
+            { "key": "pageSize", "value": "{{pageSize}}", "description": "Integer, 否, 每页条数(PageHelper)" },
+            { "key": "courseName", "value": "", "description": "String, 否, 课程名称模糊(t_csys_course.name LIKE)" },
+            { "key": "courseCode", "value": "", "description": "String, 否, 课程编号模糊(t_csys_course.code LIKE)" },
+            { "key": "teachCollegeId", "value": "", "description": "Long, 否, 开课单位id精确(t_csys_course.teach_college_id)" },
+            { "key": "educationLevel", "value": "", "description": "String, 否, 适用对象。精确匹配任一被引用培养方案 education_level,或总库课程自身值(回退)" },
+            { "key": "courseModule", "value": "", "description": "String, 否, 课程模块编码。精确匹配任一被引用课程(c2.source_id=总库课程.id)的 course_Module,或自身值(回退)" },
+            { "key": "courseAttr", "value": "", "description": "String, 否, 修读要求。精确匹配任一被引用课程 c2.course_attr,或自身值(回退)" },
+            { "key": "type", "value": "1", "description": "String, 否, 课程类型精确(t_csys_course.type): 1课程 2实践训练课目 3实验课程 4实践项目" },
+            { "key": "version", "value": "", "description": "String, 否, 课程版本精确(t_csys_course.version)" },
+            { "key": "quoted", "value": "1", "description": "Integer, 否, 1=只查已被培养方案调用的原课程(存在 c2.source_id=原课程.id); 0/空=查全部原课程。本接口仅查原课程(source_id IS NULL)" }
+          ]
+        },
+        "description": "接口: com.doinner.csys.controller.TeachingPlanController#list\n\n@ApiOperation(\"课程教学计划管理列表(分页)\")\n@GetMapping(\"/list\")\npublic DataTable<TeachingPlanListVo> list(TeachingPlanQueryVo query)\n\n入参 TeachingPlanQueryVo (query string 绑定), 并由后端 PageUtils.startPage() 开启 PageHelper 分页。\n数据范围: 仅查询总库原课程(t_csys_course.source_id IS NULL), left join t_csys_teaching_plan。\n\nquoted 语义: 传入 1 时仅返回存在「调用课程实例」的原课程(存在 c2.source_id=原课程.id);传入 0 或不传时不加限制。\n\n5个展示字段(educationLevel/courseModule/courseAttr/majorName/开课学期)取值: 详情/列表均改为从被引用课程 c2 + 被引用培养方案 ts 聚合(GROUP_CONCAT DISTINCT 顿号分隔, 无引用回退总库课程自身值); t_csys_teaching_plan 不再承载这5字段。列表过滤改 EXISTS 精确匹配任一被引用值, 或 course 自身值。\n\n返回外层 DataTable<TeachingPlanListVo>:\n  code/msg/rows/total 为框架通用结构; 业务数据在 rows。\nTeachingPlanListVo 字段(总库课程信息):\n  courseId(Long), courseName, courseCode, type(1课程2实践训练课目3实验课程4实践项目), version,\n  programLevel, teachCollegeId, teachCollegeName(内存补全自 sys_dept),\n  educationLevel(ts聚合,回退course;多值顿号分隔), courseModule(c2聚合,回退course),\n  courseModuleName(按顿号拆分逐个翻译远程字典后重新拼接), courseModuleChildren, courseModuleChildrenName,\n  courseAttr(c2聚合,回退course), majorId(回退单值), majorName(ts.major_id聚合->t_csys_std_major.name,回退course),\n  subMajorId, subMajorName, hours, credit\nTeachingPlanListVo 字段(教学计划信息, LEFT JOIN, 未建教学计划时为 null):\n  teachingPlanId, planType(教学计划类型,前端传入;字典值同课程类型;同一课程同一plan_type只能一条),\n  planVersion, currentFlag(1是0否), enabledTerm, status(0草稿1审核中2通过3退回9停用),\n  fileId, fileName, sourceCredit(总库课程学分快照)"
+      },
+      "response": [
+        {
+          "name": "成功 - 含教学计划的原课程示例",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum=1&pageSize=10&type=1&quoted=1&courseName=数学",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "list"],
+              "query": [
+                { "key": "pageNum", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "type", "value": "1" },
+                { "key": "quoted", "value": "1" },
+                { "key": "courseName", "value": "数学" }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            { "key": "Content-Type", "value": "application/json;charset=UTF-8" }
+          ],
+          "cookie": [],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"rows\": [\n    {\n      \"courseId\": 1001,\n      \"courseName\": \"高等数学\",\n      \"courseCode\": \"MATH001\",\n      \"type\": \"1\",\n      \"version\": \"v1.0\",\n      \"programLevel\": \"本科\",\n      \"teachCollegeId\": 10,\n      \"teachCollegeName\": \"基础教学学院\",\n      \"educationLevel\": \"本科\",\n      \"courseModule\": \"MOD01\",\n      \"courseModuleName\": \"公共基础\",\n      \"courseModuleChildren\": \"MOD0101\",\n      \"courseModuleChildrenName\": \"数学类\",\n      \"courseAttr\": \"必修\",\n      \"majorId\": 200,\n      \"majorName\": \"数学与应用数学、信息与计算科学\",\n      \"subMajorId\": null,\n      \"subMajorName\": null,\n      \"hours\": 64.0,\n      \"credit\": 4.0,\n      \"teachingPlanId\": 55,\n      \"planType\": 1,\n      \"planVersion\": \"v1.0\",\n      \"currentFlag\": 1,\n      \"enabledTerm\": \"2024-2025-1\",\n      \"status\": 2,\n      \"fileId\": \"file-xxx\",\n      \"fileName\": \"高等数学教学计划.docx\",\n      \"sourceCredit\": 4.0\n    }\n  ],\n  \"total\": 1\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. 查询引用课程的专业类(去重)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/quoteMajor/{{courseId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "quoteMajor", "{{courseId}}"]
+        },
+        "description": "接口: com.doinner.csys.controller.TeachingPlanController#quoteMajor\n\n@ApiOperation(\"查询引用课程的专业类\")\n@GetMapping(\"/quoteMajor/{courseId}\")\npublic DataSet<List<CourseQuoteMajorVo>> quoteMajor(@PathVariable(\"courseId\") Long courseId)\n\n用途: 给定源课程id, 查询「引用了该课程的专业类」(按专业类去重), 用于展示该课程被哪些专业类引用。\n\n路径参数:\n  - courseId (path, Long, 必填): 源课程id(总库原课程 t_csys_course.id)\n\n取数逻辑(同源 /course/chooseStatus/{sourceCourseId}):\n  源课程(t_csys_course, id=courseId)\n    -> 调用课程实例 c2 (c2.source_id = courseId)\n    -> 排课表 t_csys_training_scheme_course_schedule (course_id = c2.id)\n    -> 培养方案 t_csys_training_scheme (id = scheme_id)\n  从培养方案维度取 major_id(专业类)/ category_id(门类), 分别关联名称表, 按 major_id 去重后返回。\n  门类名: ts.category_id -> t_csys_training_scheme_category.name\n  专业类名: ts.major_id -> t_csys_std_major.name\n  注: /course/chooseStatus 原始 SQL 把专业类名误命名为 category_name, 本接口已修正--门类与专业类分别取自对应字段, 命名与实体语义一致。\n\n返回 DataSet<List<CourseQuoteMajorVo>>:\n  CourseQuoteMajorVo:\n    - categoryName (String): 学科门类名(t_csys_training_scheme_category.name)\n    - majorName (String): 专业类名(t_csys_std_major.name)\n    - majorId (Long): 专业类id(t_csys_training_scheme.major_id)"
+      },
+      "response": [
+        {
+          "name": "成功 - 被两个专业类引用示例",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/quoteMajor/1001",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "quoteMajor", "1001"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            { "key": "Content-Type", "value": "application/json;charset=UTF-8" }
+          ],
+          "cookie": [],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"categoryName\": \"理学\",\n      \"majorName\": \"数学与应用数学\",\n      \"majorId\": 200\n    },\n    {\n      \"categoryName\": \"工学\",\n      \"majorName\": \"计算机科学与技术\",\n      \"majorId\": 305\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "3. 查看教学计划详情",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/detail?courseId={{courseId}}&teachingPlanId={{teachingPlanId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "detail"],
+          "query": [
+            { "key": "courseId", "value": "{{courseId}}", "description": "Long, 必填, 总库课程id(t_csys_course.id)" },
+            { "key": "teachingPlanId", "value": "{{teachingPlanId}}", "description": "Long, 可空, 教学计划id(t_csys_teaching_plan.id)。为空走课程分支, 非空走计划分支", "disabled": false }
+          ]
+        },
+        "description": "接口: com.doinner.csys.controller.TeachingPlanController#detail\n\n@ApiOperation(\"查看教学计划详情\")\n@GetMapping(\"/detail\")\npublic DataSet<TeachingPlanDetailVo> detail(@RequestParam(\"courseId\") Long courseId,\n                                            @RequestParam(value = \"teachingPlanId\", required = false) Long teachingPlanId)\n\n入参:\n  - courseId (query, Long, 必填): 总库课程id\n  - teachingPlanId (query, Long, 可空): 教学计划id\n\n取值逻辑:\n  - teachingPlanId 为空 -> 课程分支: 字段取自总库课程 t_csys_course\n  - teachingPlanId 非空 -> 计划分支: 基础信息取自 t_csys_teaching_plan, 学时学分取 plan.source_* 快照(回退 course)\n  - 5个展示字段(适用对象 educationLevel / 适用专业 majorName / 修读性质 courseAttr / 课程模块 courseModule / 开课学期 term): 均取自被引用课程 c2 + 被引用培养方案 ts 聚合(多值顿号分隔), 无引用时回退总库课程自身值。t_csys_teaching_plan 不再承载这5字段(其 context 表相应列也不再被读取)。\n  - type: 课程类型(t_csys_course.type), 字典值 1课程 2实践训练课目 3实验课程 4实践项目。与教学计划类型 planType 共用同一套字典值, 但 planType 取自教学计划表(前端保存时传入), type 取自课程表。\n  - majorName: 适用专业名称(聚合, 多值顿号分隔)。\n\n返回 DataSet<TeachingPlanDetailVo>:\n  courseId, teachingPlanId(可空), courseName, courseCode, courseEnName,\n  type(1课程2实践训练课目3实验课程4实践项目), enabledTerm, educationLevel,\n  term(课程分支取 open_term 文本, 计划分支取 context.term), courseModule,\n  majorId, majorName(聚合多值), courseAttr,\n  teachHours, practiceHours, hours, credit"
+      },
+      "response": [
+        {
+          "name": "成功 - 计划分支详情示例",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/detail?courseId=1001&teachingPlanId=55",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "detail"],
+              "query": [
+                { "key": "courseId", "value": "1001" },
+                { "key": "teachingPlanId", "value": "55" }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            { "key": "Content-Type", "value": "application/json;charset=UTF-8" }
+          ],
+          "cookie": [],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"courseId\": 1001,\n    \"teachingPlanId\": 55,\n    \"courseName\": \"高等数学\",\n    \"courseCode\": \"MATH001\",\n    \"courseEnName\": \"Advanced Mathematics\",\n    \"type\": \"1\",\n    \"enabledTerm\": \"2024-2025-1\",\n    \"educationLevel\": \"本科\",\n    \"term\": \"3\",\n    \"courseModule\": \"MOD01\",\n    \"majorId\": 200,\n    \"majorName\": \"数学与应用数学、信息与计算科学\",\n    \"courseAttr\": \"必修\",\n    \"teachHours\": 48.0,\n    \"practiceHours\": 16.0,\n    \"hours\": 64.0,\n    \"credit\": 4.0\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "4. 保存教学计划(含调用课程上下文)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/save",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "save"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plan\": {\n    \"id\": null,\n    \"sourceCourseId\": 1001,\n    \"planType\": 1,\n    \"version\": \"v1.0\",\n    \"currentFlag\": 1,\n    \"enabledTerm\": \"2024-2025-1\",\n    \"status\": 0,\n    \"scoreRule\": \"平时30%+期末70%\"\n  },\n  \"context\": {\n    \"planId\": null,\n    \"sourceCourseId\": 1001,\n    \"quoteCourseId\": 1002,\n    \"schemeId\": 50,\n    \"educationLevel\": \"本科\",\n    \"majorId\": 200,\n    \"courseModule\": \"MOD01\",\n    \"term\": 3,\n    \"courseAttr\": \"必修\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "接口: com.doinner.csys.controller.TeachingPlanController#save\n\n@ApiOperation(\"保存教学计划\")\n@PostMapping(\"/save\")\npublic DataSet<Long> save(@RequestBody TeachingPlanSaveVo saveVo)\n\n入参 TeachingPlanSaveVo (application/json):\n  - plan (TeachingPlan, 必填): 教学计划主表 t_csys_teaching_plan\n      - id (Long): 为空=新增, 非空=修改\n      - sourceCourseId (Long, 必填): 总库课程id\n      - planType (Integer, 前端传入): 教学计划类型, 字典值同课程类型(1课程 2实践训练课目 3实验课程 4实践项目)。后端保留前端值不覆盖\n      - version / currentFlag / enabledTerm / status / scoreRule 等: 见 TeachingPlan 实体\n  - context (TeachingPlanContext, 可空): 调用课程上下文 t_csys_teaching_plan_context, 目标/达成设计 tab 用\n      - planId / sourceCourseId / quoteCourseId / schemeId / educationLevel / majorId / courseModule / term / courseAttr 等: 见 TeachingPlanContext 实体\n      注: 详情的5个展示字段不再读 context(走 c2/ts 聚合), context 仅用于目标/毕业要求绑定的上下文区分。\n\n唯一性约束(DB层): uk_tp_source_course_plan_type (source_course_id, plan_type, sysflag)\n  - 同一课程(source_course_id)下, 同一 planType 的有效记录(sysflag=0)只能有一条。\n  - 不同 planType 可并存 -- 单一课程可同时存在「课程」「实验课程」「实践训练课目」「实践项目」等多种类型的教学计划。\n  - 违反约束时保存接口抛 DuplicateKeyException(HTTP 500), 前端应先判断同类型是否已存在再决定新增/修改。\n\n返回 DataSet<Long>: data 为教学计划id。"
+      },
+      "response": [
+        {
+          "name": "成功 - 返回教学计划id",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "save"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": { \"id\": null, \"sourceCourseId\": 1001, \"planType\": 1, \"version\": \"v1.0\", \"currentFlag\": 1, \"enabledTerm\": \"2024-2025-1\", \"status\": 0, \"scoreRule\": \"平时30%+期末70%\" },\n  \"context\": { \"planId\": null, \"sourceCourseId\": 1001, \"quoteCourseId\": 1002, \"schemeId\": 50, \"educationLevel\": \"本科\", \"majorId\": 200, \"courseModule\": \"MOD01\", \"term\": 3, \"courseAttr\": \"必修\" }\n}"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            { "key": "Content-Type", "value": "application/json;charset=UTF-8" }
+          ],
+          "cookie": [],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": 55\n}"
+        }
+      ]
+    }
+  ]
+}
