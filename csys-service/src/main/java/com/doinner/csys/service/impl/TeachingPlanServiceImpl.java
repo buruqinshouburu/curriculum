@@ -27,6 +27,7 @@ import com.doinner.csys.domain.vo.CourseVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
+import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
@@ -60,9 +61,11 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -119,6 +122,12 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     /** 课程模块字典 id->name 缓存(单例, 首次远程加载) */
     private final Map<String, String> courseModuleDictionaryIdToNameMap = new HashMap<>();
 
+    /** 专业 id->name 缓存(单例, 首次加载; 专业字典变更极少, 列表场景足够) */
+    private volatile Map<Long, String> majorIdToNameCache;
+
+    /** 部门 id->name 缓存(单例, 首次远程加载) */
+    private volatile Map<Long, String> deptIdToNameCache;
+
     /** 教学计划生成文档文件分类ID（bootstrap.yml: category.TeachingPlan，未配置默认0） */
     @Value("${category.TeachingPlan:0}")
     private String teachingPlanCategoryId;
@@ -128,20 +137,23 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (query == null) {
             query = new TeachingPlanQueryVo();
         }
+        // 1) 主查询：总库课程 + left join 教学计划；被引用聚合字段不在 SQL 里做相关子查询
         List<TeachingPlanListVo> list = teachingPlanMapper.selectTeachingPlanPage(query);
+        if (CollectionUtils.isEmpty(list)) {
+            return list;
+        }
 
-        // 仿照课程查询界面(CurriculumServiceImpl.selectCourseList)在内存补名称:
-        // 课程模块(远程字典)、适用专业/专业方向(standard_major)、开课单位(sys_dept)。
-        // SQL 只返回编码/id, 名称在此补全, 避免列表 join 多张名称表拖慢查询。
+        // 2) 仅对当前页 courseId 批量聚合被引用侧字段，覆盖主查询的总库回退值
+        fillQuoteAggregate(list);
+
+        // 3) 名称补全：课程模块(远程字典缓存)、适用专业/专业方向(本地专业缓存)、开课单位(部门远程缓存)
         Map<String, String> moduleMap = getCourseModuleIdToNameMap();
-        Map<Long, String> majorIdToNameMap = standardMajorMapper.selectStandardMajorList(null).stream()
-                .collect(Collectors.toMap(StandardMajor::getId, StandardMajor::getName, (a, b) -> a));
-        Map<Long, String> deptIdNameMap = doinnerDeptService.list(new CustomDept()).getData().parallelStream()
-                .collect(Collectors.toMap(SysDept::getDeptId, SysDept::getDeptName, (a, b) -> a));
+        Map<Long, String> majorIdToNameMap = getMajorIdToNameMap();
+        Map<Long, String> deptIdNameMap = getDeptIdToNameMap();
 
         for (TeachingPlanListVo vo : list) {
             if (MapUtils.isNotEmpty(moduleMap)) {
-                // courseModule 现为被引用课程c2聚合的多值拼接串(、分隔),需逐个翻译为名称后重新拼接
+                // courseModule 可能为被引用课程c2聚合的多值拼接串(、分隔),需逐个翻译为名称后重新拼接
                 if (StringUtils.isNotBlank(vo.getCourseModule())) {
                     vo.setCourseModuleName(translateJoinedCodes(vo.getCourseModule(), moduleMap));
                 }
@@ -149,7 +161,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     vo.setCourseModuleChildrenName(moduleMap.get(vo.getCourseModuleChildren()));
                 }
             }
-            // majorName 已由 SQL 聚合(被引用培养方案major_id->专业名,多值拼接)给出;仅当SQL未取到时按majorId兜底
+            // majorName 优先取被引用培养方案聚合; 无引用时按 majorId 兜底翻译
             if (StringUtils.isBlank(vo.getMajorName()) && vo.getMajorId() != null) {
                 vo.setMajorName(majorIdToNameMap.get(vo.getMajorId()));
             }
@@ -163,6 +175,46 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         return list;
     }
 
+    /**
+     * 对当前页列表批量回填被引用侧聚合字段。
+     * 有引用则用聚合值覆盖；无引用保留主查询给出的总库课程自身字段。
+     */
+    private void fillQuoteAggregate(List<TeachingPlanListVo> list) {
+        List<Long> courseIds = list.stream()
+                .map(TeachingPlanListVo::getCourseId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(courseIds)) {
+            return;
+        }
+        List<TeachingPlanQuoteAggVo> aggList = teachingPlanMapper.selectQuoteAggByCourseIds(courseIds);
+        if (CollectionUtils.isEmpty(aggList)) {
+            return;
+        }
+        Map<Long, TeachingPlanQuoteAggVo> aggMap = aggList.stream()
+                .filter(a -> a.getCourseId() != null)
+                .collect(Collectors.toMap(TeachingPlanQuoteAggVo::getCourseId, a -> a, (a, b) -> a));
+        for (TeachingPlanListVo vo : list) {
+            TeachingPlanQuoteAggVo agg = aggMap.get(vo.getCourseId());
+            if (agg == null) {
+                continue;
+            }
+            if (StringUtils.isNotBlank(agg.getEducationLevel())) {
+                vo.setEducationLevel(agg.getEducationLevel());
+            }
+            if (StringUtils.isNotBlank(agg.getMajorName())) {
+                vo.setMajorName(agg.getMajorName());
+            }
+            if (StringUtils.isNotBlank(agg.getCourseAttr())) {
+                vo.setCourseAttr(agg.getCourseAttr());
+            }
+            if (StringUtils.isNotBlank(agg.getCourseModule())) {
+                vo.setCourseModule(agg.getCourseModule());
+            }
+        }
+    }
+
     /** 课程模块字典 id->name(单例缓存, 首次远程加载, 与课程查询界面同源) */
     private Map<String, String> getCourseModuleIdToNameMap() {
         if (MapUtils.isEmpty(courseModuleDictionaryIdToNameMap)) {
@@ -174,6 +226,48 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
         }
         return courseModuleDictionaryIdToNameMap;
+    }
+
+    /** 专业 id->name(单例缓存, 首次本地加载) */
+    private Map<Long, String> getMajorIdToNameMap() {
+        Map<Long, String> local = majorIdToNameCache;
+        if (local != null) {
+            return local;
+        }
+        synchronized (this) {
+            if (majorIdToNameCache == null) {
+                List<StandardMajor> majors = standardMajorMapper.selectStandardMajorList(null);
+                if (CollectionUtils.isEmpty(majors)) {
+                    majorIdToNameCache = Collections.emptyMap();
+                } else {
+                    majorIdToNameCache = majors.stream()
+                            .filter(m -> m.getId() != null)
+                            .collect(Collectors.toMap(StandardMajor::getId, StandardMajor::getName, (a, b) -> a));
+                }
+            }
+            return majorIdToNameCache;
+        }
+    }
+
+    /** 部门 id->name(单例缓存, 首次远程加载) */
+    private Map<Long, String> getDeptIdToNameMap() {
+        Map<Long, String> local = deptIdToNameCache;
+        if (local != null) {
+            return local;
+        }
+        synchronized (this) {
+            if (deptIdToNameCache == null) {
+                List<SysDept> depts = doinnerDeptService.list(new CustomDept()).getData();
+                if (CollectionUtils.isEmpty(depts)) {
+                    deptIdToNameCache = Collections.emptyMap();
+                } else {
+                    deptIdToNameCache = depts.parallelStream()
+                            .filter(d -> d.getDeptId() != null)
+                            .collect(Collectors.toMap(SysDept::getDeptId, SysDept::getDeptName, (a, b) -> a));
+                }
+            }
+            return deptIdToNameCache;
+        }
     }
 
     /**

@@ -242,7 +242,12 @@
         <result column="source_credit" property="sourceCredit" jdbcType="DECIMAL"/>
     </resultMap>
 
-    <!-- 课程教学计划管理列表：以总库课程为主表(source_id is null)，left join 教学计划表 -->
+    <!--
+        课程教学计划管理列表：以总库课程为主表(source_id is null)，left join 教学计划表。
+        列表主查询只取总库课程自身字段(education_level/course_attr/course_module/major_id)，
+        被引用侧聚合由 selectQuoteAggByCourseIds 对当前页批量补全，避免相关子查询拖慢分页。
+        过滤条件仍支持「被引用侧 OR 总库自身」语义，用 EXISTS（半连接）不放大行数。
+    -->
     <select id="selectTeachingPlanPage" parameterType="com.doinner.csys.domain.vo.TeachingPlanQueryVo"
             resultMap="TeachingPlanListResult">
         SELECT
@@ -250,13 +255,16 @@
             course.name                  AS course_name,
             course.code                  AS course_code,
             course.teach_college_id      AS teach_college_id,
-            <include refid="quoteAggregateColumns"/>,
+            course.education_level       AS education_level,
+            course.course_Module         AS course_module,
             course.course_Module_Children AS course_module_children,
-            course.type                   AS course_type,
-            course.version                AS version,
-            course.program_Level          AS program_level,
-            course.sub_Major_Id           AS sub_major_id,
+            course.course_attr           AS course_attr,
+            course.type                  AS course_type,
+            course.version               AS version,
+            course.program_Level         AS program_level,
+            course.sub_Major_Id          AS sub_major_id,
             course.major_Id              AS major_id,
+            NULL                         AS major_name,
             course.hours                 AS hours,
             course.credit                AS credit,
             plan.id                      AS teaching_plan_id,
@@ -317,6 +325,29 @@
             </if>
         </where>
         ORDER BY course.id DESC
+    </select>
+
+    <!--
+        当前页课程被引用侧聚合：一次查出 education_level/major_name/course_attr/course_module。
+        入参为当前页 courseIds；无引用的源课程不会出现在结果中，Service 层保留主查询的总库回退值。
+    -->
+    <select id="selectQuoteAggByCourseIds" resultType="com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo">
+        SELECT
+            c2.source_id AS courseId,
+            GROUP_CONCAT(DISTINCT NULLIF(ts.education_level, '') SEPARATOR '、') AS educationLevel,
+            GROUP_CONCAT(DISTINCT sm.name SEPARATOR '、') AS majorName,
+            GROUP_CONCAT(DISTINCT NULLIF(c2.course_attr, '') SEPARATOR '、') AS courseAttr,
+            GROUP_CONCAT(DISTINCT NULLIF(c2.course_Module, '') SEPARATOR '、') AS courseModule
+        FROM t_csys_course c2
+        LEFT JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+        LEFT JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+        LEFT JOIN t_csys_std_major sm ON sm.id = ts.major_id
+        WHERE c2.sysflag = 0
+          AND c2.source_id IN
+        <foreach collection="courseIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY c2.source_id
     </select>
 
     <!-- 教学计划详情返回行映射 -->
