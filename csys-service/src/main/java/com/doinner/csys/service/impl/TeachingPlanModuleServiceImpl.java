@@ -6,10 +6,13 @@ import com.doinner.csys.dao.StandardGraduationMapper;
 import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanConditionMapper;
 import com.doinner.csys.dao.TeachingPlanContentMapper;
+import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
+import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
+import com.doinner.csys.dao.TeachingPlanRefMapper;
 import com.doinner.csys.dao.TeachingPlanTargetDesignMapper;
 import com.doinner.csys.dao.TeachingPlanTextbookMapper;
 import com.doinner.csys.domain.Course;
@@ -18,13 +21,17 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
+import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
+import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.UserUtils;
@@ -34,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -76,6 +84,15 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TeachingPlanConditionMapper teachingPlanConditionMapper;
+
+    @Resource
+    private TeachingPlanProcessStepMapper teachingPlanProcessStepMapper;
+
+    @Resource
+    private TeachingPlanRefMapper teachingPlanRefMapper;
+
+    @Resource
+    private TeachingPlanContextMapper teachingPlanContextMapper;
 
     @Resource
     private CourseMapper courseMapper;
@@ -149,15 +166,39 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     public List<StandardGraduation> listCourseGraduation(Long courseId) {
-        // 1. 先查 source_id = 课程id 的所有调用课程
-        List<Course> courses = courseMapper.selectCourseBySourceId(courseId);
+        return listGraduationsByQuoteCourseIds(resolveQuoteCourseIds(courseId));
+    }
+
+    @Override
+    public List<StandardGraduation> listCourseGraduationByContext(Long courseId, Long contextId) {
+        if (contextId == null) {
+            return listCourseGraduation(courseId);
+        }
+        TeachingPlanContext ctx = teachingPlanContextMapper.selectById(contextId);
+        if (ctx == null || ctx.getQuoteCourseId() == null) {
+            return new ArrayList<>();
+        }
+        // 仅当前 tab 对应调用课的毕业要求
+        return listGraduationsByQuoteCourseIds(Collections.singletonList(ctx.getQuoteCourseId()));
+    }
+
+    private List<Long> resolveQuoteCourseIds(Long sourceCourseId) {
+        if (sourceCourseId == null) {
+            return new ArrayList<>();
+        }
+        List<Course> courses = courseMapper.selectCourseBySourceId(sourceCourseId);
         if (ObjectUtils.isEmpty(courses)) {
             return new ArrayList<>();
         }
-        List<Long> courseIds = courses.stream().map(Course::getId).collect(Collectors.toList());
-        // 2. 再查这些调用课程绑定的毕业要求
+        return courses.stream().map(Course::getId).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    private List<StandardGraduation> listGraduationsByQuoteCourseIds(List<Long> quoteCourseIds) {
+        if (ObjectUtils.isEmpty(quoteCourseIds)) {
+            return new ArrayList<>();
+        }
         List<CourseRefGraduation> refs =
-                courseRefGraduationMapper.selectCourseTargetRefGraduationByCourseIds(courseIds);
+                courseRefGraduationMapper.selectCourseTargetRefGraduationByCourseIds(quoteCourseIds);
         if (ObjectUtils.isEmpty(refs)) {
             return new ArrayList<>();
         }
@@ -170,6 +211,39 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             return new ArrayList<>();
         }
         return standardGraduationMapper.selectStandardGraduationByIds(graduationIds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long saveObjectiveWithRefs(TeachingPlanObjectiveSaveVo saveVo) {
+        if (saveVo == null || saveVo.getObjective() == null) {
+            throw new IllegalArgumentException("教学目标不能为空");
+        }
+        TeachingPlanObjective objective = saveVo.getObjective();
+        UserUtils.reflash(objective);
+        if (objective.getId() == null) {
+            teachingPlanObjectiveMapper.insert(objective);
+        } else {
+            teachingPlanObjectiveMapper.updateById(objective);
+            // 重建绑定：先逻辑删除旧 ref
+            teachingPlanObjectiveRefMapper.deleteByObjectiveId(objective.getId());
+        }
+        List<TeachingPlanObjectiveRef> refs = saveVo.getRefs();
+        if (ObjectUtils.isNotEmpty(refs)) {
+            for (TeachingPlanObjectiveRef ref : refs) {
+                ref.setId(null);
+                ref.setObjectiveId(objective.getId());
+                if (ref.getPlanId() == null) {
+                    ref.setPlanId(objective.getPlanId());
+                }
+                if (ref.getContextId() == null) {
+                    ref.setContextId(objective.getContextId());
+                }
+                UserUtils.reflash(ref);
+                teachingPlanObjectiveRefMapper.insert(ref);
+            }
+        }
+        return objective.getId();
     }
 
     // ============ 9. 教学计划目标支撑毕业要求 ============
@@ -398,5 +472,64 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Transactional(rollbackFor = Exception.class)
     public void deleteCondition(Long id) {
         teachingPlanConditionMapper.deleteById(id);
+    }
+
+    // ============ 18. 实施步骤 ============
+
+    @Override
+    public List<TeachingPlanProcessStep> listProcessStep(Long planId) {
+        return teachingPlanProcessStepMapper.selectByPlanId(planId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addProcessStep(TeachingPlanProcessStep step) {
+        UserUtils.reflash(step);
+        teachingPlanProcessStepMapper.insert(step);
+        return step.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateProcessStep(TeachingPlanProcessStep step) {
+        UserUtils.reflash(step);
+        teachingPlanProcessStepMapper.updateById(step);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteProcessStep(Long id) {
+        teachingPlanProcessStepMapper.deleteById(id);
+    }
+
+    // ============ 19. 通用引用 ============
+
+    @Override
+    public List<TeachingPlanRef> listRef(Long planId, Integer refType) {
+        if (refType != null) {
+            return teachingPlanRefMapper.selectByPlanAndType(planId, refType);
+        }
+        return teachingPlanRefMapper.selectByPlanId(planId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addRef(TeachingPlanRef ref) {
+        UserUtils.reflash(ref);
+        teachingPlanRefMapper.insert(ref);
+        return ref.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateRef(TeachingPlanRef ref) {
+        UserUtils.reflash(ref);
+        teachingPlanRefMapper.updateById(ref);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteRef(Long id) {
+        teachingPlanRefMapper.deleteById(id);
     }
 }

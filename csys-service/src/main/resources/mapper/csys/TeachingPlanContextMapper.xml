@@ -217,4 +217,56 @@
     <update id="deleteById">
         UPDATE t_csys_teaching_plan_context SET sysflag = 2 WHERE id = #{id}
     </update>
+
+    <!--
+        从总库课程调用关系实时生成 context 候选（不落库）。
+        源课 id -> 调用课 c2 -> 排课 tcs -> 培养方案 ts。
+        同一调用课可能对应多条排课(多学期)，每条生成一行 context。
+    -->
+    <select id="selectQuoteContextsBySourceCourseId" resultMap="BaseResultMap">
+        SELECT
+            NULL                    AS id,
+            NULL                    AS plan_id,
+            c2.source_id            AS source_course_id,
+            c2.id                   AS quote_course_id,
+            ts.id                   AS scheme_id,
+            tcs.id                  AS schedule_id,
+            ts.name                 AS scheme_name,
+            ts.version              AS scheme_version,
+            ts.education_level      AS education_level,
+            ts.object_type          AS object_type,
+            ts.education            AS education,
+            ts.academic_type        AS academic_type,
+            ts.duration_type        AS duration_type,
+            ts.degree               AS degree,
+            ts.college_id           AS college_id,
+            ts.category_id          AS category_id,
+            ts.major_id             AS major_id,
+            ts.sub_major_id         AS sub_major_id,
+            c2.course_Module        AS course_module,
+            c2.course_Module_Children AS course_module_children,
+            c2.semester_Schedule    AS semester_schedule,
+            tcs.term                AS term,
+            COALESCE(tcs.course_attr, c2.course_attr) AS course_attr,
+            NULL                    AS time_arrange,
+            tcs.hours               AS hours,
+            tcs.teach_hours         AS teach_hours,
+            tcs.practice_hours      AS practice_hours,
+            tcs.credits             AS credits,
+            NULL                    AS sync_time,
+            1                       AS sync_flag,
+            0                       AS sort,
+            NULL                    AS creator,
+            NULL                    AS create_time,
+            NULL                    AS last_modifier,
+            NULL                    AS last_modified_time,
+            NULL                    AS remark,
+            0                       AS sysflag
+        FROM t_csys_course c2
+        INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+        INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+        WHERE c2.source_id = #{sourceCourseId}
+          AND c2.sysflag = 0
+        ORDER BY ts.id, tcs.term, c2.id
+    </select>
 </mapper>

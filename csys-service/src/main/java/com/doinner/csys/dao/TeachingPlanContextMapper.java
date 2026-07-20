@@ -44,4 +44,10 @@ public interface TeachingPlanContextMapper {
      * 根据主键逻辑删除
      */
     int deleteById(@Param("id") Long id);
+
+    /**
+     * 从总库课程的调用关系实时查询上下文候选（用于 sync）。
+     * 链路：源课 -> c2(source_id) -> 排课 tcs -> 培养方案 ts。
+     */
+    List<TeachingPlanContext> selectQuoteContextsBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
 }

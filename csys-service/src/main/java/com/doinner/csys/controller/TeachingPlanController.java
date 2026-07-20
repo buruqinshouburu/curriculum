@@ -8,10 +8,13 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
+import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
+import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.TeachingPlanSection;
@@ -19,6 +22,7 @@ import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
@@ -97,14 +101,61 @@ public class TeachingPlanController {
 
     /**
      * 课程教学计划文件生成。
-     * 前端传入 course_id，根据 t_csys_course.type 决定生成哪一套模板文档：
-     * 1课程 / 2实践训练课目 / 3实验课程 / 4实践项目。
-     * 生成后上传文件服务并回写课程表，返回文件信息（fileId/downloadUrl/previewUrl）。
+     * courseId 必填；planId 可选（指定某条教学计划，多类型时用）。
+     * 根据 t_csys_course.type 决定模板：1课程/2实践训练课目/3实验课程/4实践项目。
      */
     @ApiOperation("课程教学计划文件生成")
     @GetMapping("/createWord/{courseId}")
-    public DataSet<FileInfo> createWord(@PathVariable("courseId") Long courseId) {
-        return DataSet.success(teachingPlanService.generateTeachingPlanWord(courseId));
+    public DataSet<FileInfo> createWord(@PathVariable("courseId") Long courseId,
+                                        @RequestParam(value = "planId", required = false) Long planId) {
+        return DataSet.success(teachingPlanService.generateTeachingPlanWord(courseId, planId));
+    }
+
+    /**
+     * 逻辑删除教学计划（审核中/已通过不可删）。
+     */
+    @ApiOperation("删除教学计划")
+    @DeleteMapping("/{planId}")
+    public Message deletePlan(@PathVariable("planId") Long planId) {
+        teachingPlanService.deleteTeachingPlan(planId);
+        return Message.success();
+    }
+
+    // ============ 调用课程上下文 t_csys_teaching_plan_context（培养方案 tab） ============
+
+    @ApiOperation("教学计划上下文列表(培养方案tab)")
+    @GetMapping("/context/list")
+    public DataSet<List<TeachingPlanContext>> contextList(@RequestParam("planId") Long planId) {
+        return DataSet.success(teachingPlanService.listContext(planId));
+    }
+
+    @ApiOperation("新增教学计划上下文")
+    @PostMapping("/context")
+    public DataSet<Long> addContext(@RequestBody TeachingPlanContext context) {
+        return DataSet.success(teachingPlanService.addContext(context));
+    }
+
+    @ApiOperation("修改教学计划上下文")
+    @PutMapping("/context")
+    public Message updateContext(@RequestBody TeachingPlanContext context) {
+        teachingPlanService.updateContext(context);
+        return Message.success();
+    }
+
+    @ApiOperation("删除教学计划上下文")
+    @DeleteMapping("/context/{id}")
+    public Message deleteContext(@PathVariable("id") Long id) {
+        teachingPlanService.deleteContext(id);
+        return Message.success();
+    }
+
+    /**
+     * 从总库课程调用关系同步 context 快照（先逻辑删旧再批量插入）。
+     */
+    @ApiOperation("同步教学计划上下文(从调用关系)")
+    @PostMapping("/context/sync/{planId}")
+    public DataSet<List<TeachingPlanContext>> syncContext(@PathVariable("planId") Long planId) {
+        return DataSet.success(teachingPlanService.syncContexts(planId));
     }
 
     // ============ 教员团队 t_csys_teaching_plan_teacher ============
@@ -201,12 +252,22 @@ public class TeachingPlanController {
         return Message.success();
     }
 
-    // ============ 8. 课程绑定毕业要求(按课程id) ============
+    /**
+     * 目标 + 支撑毕业要求同事务保存（弹框一次提交）。
+     */
+    @ApiOperation("保存教学目标及支撑毕业要求")
+    @PostMapping("/objective/saveWithRefs")
+    public DataSet<Long> saveObjectiveWithRefs(@RequestBody TeachingPlanObjectiveSaveVo saveVo) {
+        return DataSet.success(teachingPlanModuleService.saveObjectiveWithRefs(saveVo));
+    }
 
-    @ApiOperation("根据课程id查询课程绑定的毕业要求")
+    // ============ 8. 课程绑定毕业要求(按课程id / 可选context) ============
+
+    @ApiOperation("根据课程id查询课程绑定的毕业要求(可按context过滤)")
     @GetMapping("/courseGraduation/{courseId}")
-    public DataSet<List<StandardGraduation>> courseGraduation(@PathVariable("courseId") Long courseId) {
-        return DataSet.success(teachingPlanModuleService.listCourseGraduation(courseId));
+    public DataSet<List<StandardGraduation>> courseGraduation(@PathVariable("courseId") Long courseId,
+                                                              @RequestParam(value = "contextId", required = false) Long contextId) {
+        return DataSet.success(teachingPlanModuleService.listCourseGraduationByContext(courseId, contextId));
     }
 
     // ============ 9. 教学计划目标支撑毕业要求 t_csys_teaching_plan_objective_ref ============
@@ -436,6 +497,63 @@ public class TeachingPlanController {
     @DeleteMapping("/condition/{id}")
     public Message deleteCondition(@PathVariable("id") Long id) {
         teachingPlanModuleService.deleteCondition(id);
+        return Message.success();
+    }
+
+    // ============ 18. 实施步骤 t_csys_teaching_plan_process_step ============
+
+    @ApiOperation("实施步骤列表")
+    @GetMapping("/processStep/list")
+    public DataSet<List<TeachingPlanProcessStep>> processStepList(@RequestParam("planId") Long planId) {
+        return DataSet.success(teachingPlanModuleService.listProcessStep(planId));
+    }
+
+    @ApiOperation("新增实施步骤")
+    @PostMapping("/processStep")
+    public DataSet<Long> addProcessStep(@RequestBody TeachingPlanProcessStep step) {
+        return DataSet.success(teachingPlanModuleService.addProcessStep(step));
+    }
+
+    @ApiOperation("修改实施步骤")
+    @PutMapping("/processStep")
+    public Message updateProcessStep(@RequestBody TeachingPlanProcessStep step) {
+        teachingPlanModuleService.updateProcessStep(step);
+        return Message.success();
+    }
+
+    @ApiOperation("删除实施步骤")
+    @DeleteMapping("/processStep/{id}")
+    public Message deleteProcessStep(@PathVariable("id") Long id) {
+        teachingPlanModuleService.deleteProcessStep(id);
+        return Message.success();
+    }
+
+    // ============ 19. 通用引用 t_csys_teaching_plan_ref ============
+
+    @ApiOperation("通用引用列表(可选refType过滤)")
+    @GetMapping("/ref/list")
+    public DataSet<List<TeachingPlanRef>> refList(@RequestParam("planId") Long planId,
+                                                  @RequestParam(value = "refType", required = false) Integer refType) {
+        return DataSet.success(teachingPlanModuleService.listRef(planId, refType));
+    }
+
+    @ApiOperation("新增通用引用")
+    @PostMapping("/ref")
+    public DataSet<Long> addRef(@RequestBody TeachingPlanRef ref) {
+        return DataSet.success(teachingPlanModuleService.addRef(ref));
+    }
+
+    @ApiOperation("修改通用引用")
+    @PutMapping("/ref")
+    public Message updateRef(@RequestBody TeachingPlanRef ref) {
+        teachingPlanModuleService.updateRef(ref);
+        return Message.success();
+    }
+
+    @ApiOperation("删除通用引用")
+    @DeleteMapping("/ref/{id}")
+    public Message deleteRef(@PathVariable("id") Long id) {
+        teachingPlanModuleService.deleteRef(id);
         return Message.success();
     }
 }

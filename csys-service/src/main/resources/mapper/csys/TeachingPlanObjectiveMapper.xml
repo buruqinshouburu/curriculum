@@ -120,14 +120,22 @@
         UPDATE t_csys_teaching_plan_objective SET sysflag = 2 WHERE id = #{id}
     </update>
 
+    <!--
+        与 /quoteMajor 同源：源课 -> 调用课 c2 -> 排课 tcs -> 培养方案 ts.major_id -> 专业名。
+        修复原 SQL 错误地将 course.id 与 scheme_ref_major.major_id 关联。
+    -->
     <select id="selectMajorByCourseId" resultType="com.doinner.csys.domain.vo.TeachingPlanMajorVo">
-        SELECT DISTINCT major.id AS id, major.name AS name
-        FROM t_csys_course source
-        LEFT JOIN t_csys_course course ON source.id = course.source_id
-        LEFT JOIN t_csys_scheme_ref_major schemeRefMajor ON course.id = schemeRefMajor.major_id
-        LEFT JOIN t_csys_std_major major ON schemeRefMajor.major_id = major.id
-        WHERE source.id = #{courseId}
-          AND major.id IS NOT NULL
+        SELECT ts.major_id AS id,
+               sm.name     AS name
+        FROM t_csys_course c2
+        INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+        INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+        LEFT JOIN t_csys_std_major sm ON sm.id = ts.major_id
+        WHERE c2.source_id = #{courseId}
+          AND c2.sysflag = 0
+          AND ts.major_id IS NOT NULL
+        GROUP BY ts.major_id, sm.name
+        ORDER BY sm.name
     </select>
 
     <select id="countByPlanAndMajor" resultType="int">

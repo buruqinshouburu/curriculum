@@ -1,0 +1,347 @@
+{
+  "info": {
+    "_postman_id": "20260720-134242-teaching-plan-complete",
+    "name": "TeachingPlan - 接口补齐与审核(20260720_134242)",
+    "description": "课程教学计划接口补齐（相对既有 /list/detail/save/模块CRUD）本次新增/变更接口。\n\n基址：{{baseUrl}} 例 http://localhost:8080/flowable-demo\nController：com.doinner.csys.controller.TeachingPlanController\n审核 businessType/flowCode：TEACHING_PLAN_AUDIT（Provider: TeachingPlanProvider）\n\n## 本次变更摘要\n1. context 培养方案tab：list/add/update/delete/sync\n2. major/list SQL 修复（与 quoteMajor 同源）\n3. courseGraduation 支持 contextId 过滤\n4. objective/saveWithRefs 目标+毕业要求同事务\n5. processStep / ref CRUD\n6. 删除教学计划 DELETE /{planId}\n7. createWord 支持 planId 参数\n8. 审核内容查看：通用审核接口 + TEACHING_PLAN_AUDIT Provider\n\n## 审核说明\n- 提交流程：POST /audit/instance/submit，flowCode=TEACHING_PLAN_AUDIT，businessId=教学计划id\n- 需在 audit_flow 配置 target_table=t_csys_teaching_plan, target_id_field=id, target_status_field=status\n- 审核查看内容：GET /audit/content?businessType=TEACHING_PLAN_AUDIT&businessId={planId}\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/flowable-demo" },
+    { "key": "courseId", "value": "1001" },
+    { "key": "planId", "value": "55" },
+    { "key": "contextId", "value": "1" },
+    { "key": "objectiveId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "1-上下文 context（培养方案tab）",
+      "item": [
+        {
+          "name": "上下文列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/context/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "context", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "返回 t_csys_teaching_plan_context 列表，作为编辑页培养方案 tab。"
+          }
+        },
+        {
+          "name": "同步上下文(从调用关系)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/context/sync/{{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "context", "sync", "{{planId}}"]
+            },
+            "description": "源课->调用课c2->排课tcs->培养方案ts 实时查询，逻辑删除旧 context 后批量插入。返回同步后列表。"
+          }
+        },
+        {
+          "name": "新增上下文",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"sourceCourseId\": {{courseId}},\n  \"quoteCourseId\": 1002,\n  \"schemeId\": 50,\n  \"educationLevel\": \"本科\",\n  \"majorId\": 200,\n  \"courseModule\": \"MOD01\",\n  \"term\": 3,\n  \"courseAttr\": \"必修\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/context",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "context"]
+            }
+          }
+        },
+        {
+          "name": "修改上下文",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{contextId}},\n  \"planId\": {{planId}},\n  \"schemeName\": \"计算机科学与技术2024\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/context",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "context"]
+            }
+          }
+        },
+        {
+          "name": "删除上下文",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/context/{{contextId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "context", "{{contextId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2-专业/毕业要求/目标组合",
+      "item": [
+        {
+          "name": "专业列表(major/list) 已修复",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/major/list?courseId={{courseId}}&teachingPlanId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "major", "list"],
+              "query": [
+                { "key": "courseId", "value": "{{courseId}}" },
+                { "key": "teachingPlanId", "value": "{{planId}}", "description": "可空；空则 status 全为0" }
+              ]
+            },
+            "description": "与 /quoteMajor 同源：源课->c2->排课->ts.major_id。status：计划+专业下目标均绑定毕业要求为1，否则0。"
+          }
+        },
+        {
+          "name": "课程绑定毕业要求(按context过滤)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/courseGraduation/{{courseId}}?contextId={{contextId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "courseGraduation", "{{courseId}}"],
+              "query": [
+                { "key": "contextId", "value": "{{contextId}}", "description": "可空；空=全部调用课汇总；有值=仅该 tab 调用课" }
+              ]
+            },
+            "description": "设计要求：支撑毕业要求只能选当前 tab 下调用课已绑定的毕业标准。"
+          }
+        },
+        {
+          "name": "目标+支撑毕业要求同事务保存",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": {\n    \"id\": null,\n    \"planId\": {{planId}},\n    \"contextId\": {{contextId}},\n    \"majorId\": 200,\n    \"objectiveTypeCode\": \"知识目标\",\n    \"objectiveTypeName\": \"知识目标\",\n    \"content\": \"掌握XX基本概念\",\n    \"sourceMode\": 2,\n    \"sort\": 1\n  },\n  \"refs\": [\n    {\n      \"planId\": {{planId}},\n      \"contextId\": {{contextId}},\n      \"quoteCourseId\": 1002,\n      \"schemeId\": 50,\n      \"graduationId\": 3001,\n      \"graduationCode\": \"G1\",\n      \"graduationName\": \"工程知识\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/objective/saveWithRefs",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "objective", "saveWithRefs"]
+            },
+            "description": "有 objective.id 则 update 目标并重建 ref；无 id 则 insert 目标再 insert refs。返回目标id。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3-实施步骤 processStep",
+      "item": [
+        {
+          "name": "实施步骤列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/processStep/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "processStep", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            }
+          }
+        },
+        {
+          "name": "新增实施步骤",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"itemId\": null,\n  \"stageName\": \"准备阶段\",\n  \"stepName\": \"下达任务\",\n  \"requirement\": \"明确目标与分工\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/processStep",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "processStep"]
+            }
+          }
+        },
+        {
+          "name": "修改实施步骤",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"planId\": {{planId}},\n  \"stageName\": \"准备阶段\",\n  \"stepName\": \"下达任务(修订)\",\n  \"requirement\": \"...\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/processStep",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "processStep"]
+            }
+          }
+        },
+        {
+          "name": "删除实施步骤",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/processStep/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "processStep", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4-通用引用 ref",
+      "item": [
+        {
+          "name": "引用列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/ref/list?planId={{planId}}&refType=",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "ref", "list"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}" },
+                { "key": "refType", "value": "", "description": "可空；1支撑总库课程 2调用课程/训练课目 3知识单元 4知识点 5教学目标" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "新增引用",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"contextId\": {{contextId}},\n  \"refType\": 1,\n  \"refId\": 2001,\n  \"refName\": \"高等数学\",\n  \"refHours\": 64,\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/ref",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "ref"]
+            }
+          }
+        },
+        {
+          "name": "修改引用",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"planId\": {{planId}},\n  \"refType\": 1,\n  \"refId\": 2001,\n  \"refName\": \"高等数学(修订)\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/ref",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "ref"]
+            }
+          }
+        },
+        {
+          "name": "删除引用",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/ref/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "ref", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5-主计划删除/生成Word",
+      "item": [
+        {
+          "name": "删除教学计划",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/{{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "{{planId}}"]
+            },
+            "description": "逻辑删除。status=1审核中 或 2已通过 时拒绝删除。"
+          }
+        },
+        {
+          "name": "生成Word(可选planId)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teachingPlan/createWord/{{courseId}}?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teachingPlan", "createWord", "{{courseId}}"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}", "description": "可空；指定某条教学计划导出（多类型场景）" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6-审核(通用流程 + Provider)",
+      "item": [
+        {
+          "name": "提交审核(通用)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flowCode\": \"TEACHING_PLAN_AUDIT\",\n  \"businessId\": {{planId}},\n  \"businessTitle\": \"高等数学教学计划\",\n  \"submitterId\": 1,\n  \"submitterName\": \"张三\",\n  \"auditorId\": 2,\n  \"auditorName\": \"李四\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/audit/instance/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit", "instance", "submit"]
+            },
+            "description": "通用审核提交。businessType 与 flowCode 相同=TEACHING_PLAN_AUDIT。\n需先在 audit_flow 配置：\n- code=TEACHING_PLAN_AUDIT\n- target_table=t_csys_teaching_plan\n- target_id_field=id\n- target_status_field=status\n提交后业务表 status 会被更新为 1(审核中)。"
+          }
+        },
+        {
+          "name": "审核内容查看(Provider)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audit/content?businessType=TEACHING_PLAN_AUDIT&businessId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit", "content"],
+              "query": [
+                { "key": "businessType", "value": "TEACHING_PLAN_AUDIT" },
+                { "key": "businessId", "value": "{{planId}}" }
+              ]
+            },
+            "description": "TeachingPlanProvider 返回 plan/detail/contexts/teachers/sections/contents/practiceItems/assessments/textbooks/conditions/processSteps/refs/objectives 等，供审核页查看。"
+          }
+        }
+      ]
+    }
+  ]
+}

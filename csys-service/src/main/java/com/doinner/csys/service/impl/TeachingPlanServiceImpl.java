@@ -342,17 +342,27 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FileInfo generateTeachingPlanWord(Long courseId) {
+        return generateTeachingPlanWord(courseId, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FileInfo generateTeachingPlanWord(Long courseId, Long planIdParam) {
         CourseVo course = courseMapper.selectCourseById(courseId);
         if (course == null) {
             throw new IllegalArgumentException("课程不存在: " + courseId);
         }
-        // 文档类型：t_csys_course.type -> 模板（1课程 2实践训练课目 3实验课程 4实践项目）
-        Integer docType = mapDocType(course.getType());
-
-        // 教学计划（可能不存在，不存在则仅渲染基本信息+空模板表）
-        TeachingPlan plan = teachingPlanMapper.selectBySourceCourseId(courseId);
+        // 优先使用指定 planId；否则取该课程 current 一条
+        TeachingPlan plan;
+        if (planIdParam != null) {
+            plan = teachingPlanMapper.selectById(planIdParam);
+            if (plan == null) {
+                throw new IllegalArgumentException("教学计划不存在: " + planIdParam);
+            }
+        } else {
+            plan = teachingPlanMapper.selectBySourceCourseId(courseId);
+        }
         Long planId = plan == null ? null : plan.getId();
-        // 取一个上下文（tab）用于目标/达成设计查询；无上下文则这些表为空
         Long contextId = null;
         if (planId != null) {
             List<TeachingPlanContext> contexts = teachingPlanContextMapper.selectByPlanId(planId);
@@ -360,14 +370,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 contextId = contexts.get(0).getId();
             }
         }
-        TeachingPlanDetailVo detail = teachingPlanMapper.selectDetailByCourseId(courseId);
+        TeachingPlanDetailVo detail = (planId != null)
+                ? teachingPlanMapper.selectDetailByPlanId(planId)
+                : teachingPlanMapper.selectDetailByCourseId(courseId);
 
-        // 组装模型
         CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, contextId);
 
         try {
             InputStream stream = new CourseTeachingPlanGenerator().generate(model);
-            // 清理旧文档（失败不阻断生成）
             String oldFileId = courseMapper.selectPlanFileId(courseId);
             if (StringUtils.isNotBlank(oldFileId)) {
                 try {
@@ -381,10 +391,18 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
             String fileName = nz(course.getName(), "课程") + "教学计划.docx";
             String fileId = commonService.uploadFile(stream, fileName, teachingPlanCategoryId);
-            // 取下载/预览地址，fileId 以文件 id 为准（沿用 TeachingProgrammeServiceImpl.setUrl 约定）
             FileInfo info = fetchFileInfo(fileId);
             String storeId = (info.getId() != null) ? info.getId().toString() : fileId;
             courseMapper.updatePlanFileById(storeId, fileName, info.getDownloadUrl(), info.getPreviewUrl(), courseId);
+            // 同步回写教学计划表文件字段（有计划时）
+            if (plan != null && plan.getId() != null) {
+                plan.setFileId(storeId);
+                plan.setFileName(fileName);
+                plan.setDownloadUrl(info.getDownloadUrl());
+                plan.setPreviewUrl(info.getPreviewUrl());
+                UserUtils.reflash(plan);
+                teachingPlanMapper.updateById(plan);
+            }
             return info;
         } catch (IOException e) {
             throw new RuntimeException("生成课程教学计划文档失败: " + e.getMessage(), e);
@@ -554,8 +572,80 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (courseId == null) {
             return new ArrayList<>();
         }
-        // 逻辑参照课程被选用情况(/chooseStatus)：source_id -> 被选用课程 -> 排课 -> 培养方案，
-        // 按培养方案 major_id 去重，返回引用该课程的专业类(学科门类/专业类/专业类ID)。
         return trainingSchemeCourseScheduleMapper.selectQuoteMajorsBySourceCourseId(courseId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTeachingPlan(Long planId) {
+        if (planId == null) {
+            throw new IllegalArgumentException("教学计划id不能为空");
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + planId);
+        }
+        // status: 0草稿 1审核中 2通过 3退回 9停用 —— 审核中/通过不允许删（与培养方案一致）
+        if (plan.getStatus() != null && (plan.getStatus() == 1 || plan.getStatus() == 2)) {
+            throw new RuntimeException("教学计划审核中或已通过，无法删除");
+        }
+        teachingPlanMapper.deleteById(planId);
+    }
+
+    @Override
+    public List<TeachingPlanContext> listContext(Long planId) {
+        return teachingPlanContextMapper.selectByPlanId(planId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addContext(TeachingPlanContext context) {
+        UserUtils.reflash(context);
+        teachingPlanContextMapper.insert(context);
+        return context.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateContext(TeachingPlanContext context) {
+        UserUtils.reflash(context);
+        teachingPlanContextMapper.updateById(context);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteContext(Long id) {
+        teachingPlanContextMapper.deleteById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<TeachingPlanContext> syncContexts(Long planId) {
+        if (planId == null) {
+            throw new IllegalArgumentException("教学计划id不能为空");
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + planId);
+        }
+        Long sourceCourseId = plan.getSourceCourseId();
+        List<TeachingPlanContext> candidates =
+                teachingPlanContextMapper.selectQuoteContextsBySourceCourseId(sourceCourseId);
+        // 清空旧快照后写入
+        teachingPlanContextMapper.deleteByPlanId(planId);
+        if (CollectionUtils.isEmpty(candidates)) {
+            return new ArrayList<>();
+        }
+        int sort = 1;
+        for (TeachingPlanContext c : candidates) {
+            c.setId(null);
+            c.setPlanId(planId);
+            c.setSourceCourseId(sourceCourseId);
+            c.setSyncFlag(1);
+            c.setSort(sort++);
+            UserUtils.reflash(c);
+            teachingPlanContextMapper.insert(c);
+        }
+        return teachingPlanContextMapper.selectByPlanId(planId);
     }
 }

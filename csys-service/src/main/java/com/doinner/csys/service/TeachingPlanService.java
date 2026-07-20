@@ -1,5 +1,6 @@
 package com.doinner.csys.service;
 
+import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
@@ -88,11 +89,39 @@ public interface TeachingPlanService {
 
     /**
      * 按源课程id查询引用该课程的专业类(去重)。
-     * 逻辑参照课程被选用情况(/chooseStatus/{sourceCourseId})：通过 source_id 定位被选用课程，
-     * 再经排课表关联培养方案，从培养方案维度取 major_id(专业类)/category_id(门类) 并去重。
-     *
-     * @param courseId 源课程id
-     * @return 引用该课程的专业类集合(学科门类/专业类/专业类ID)
      */
     List<CourseQuoteMajorVo> listQuoteMajors(Long courseId);
+
+    /**
+     * 逻辑删除教学计划主表（sysflag=2）。
+     * 审核中/已通过的计划不允许删除。
+     */
+    void deleteTeachingPlan(Long planId);
+
+    // ============ 调用课程上下文 t_csys_teaching_plan_context ============
+
+    /** 按教学计划id查询上下文列表（页面 tab） */
+    List<TeachingPlanContext> listContext(Long planId);
+
+    /** 新增上下文，返回主键id */
+    Long addContext(TeachingPlanContext context);
+
+    /** 修改上下文 */
+    void updateContext(TeachingPlanContext context);
+
+    /** 逻辑删除上下文 */
+    void deleteContext(Long id);
+
+    /**
+     * 按总库课程调用关系同步上下文：
+     * 从 c2+排课+培养方案实时查询，逻辑删除原 plan 下 context 后批量写入新快照。
+     *
+     * @return 同步后的 context 列表
+     */
+    List<TeachingPlanContext> syncContexts(Long planId);
+
+    /**
+     * 按 planId（优先）或 courseId 生成 Word；planId 指定时按该计划导出。
+     */
+    FileInfo generateTeachingPlanWord(Long courseId, Long planId);
 }
