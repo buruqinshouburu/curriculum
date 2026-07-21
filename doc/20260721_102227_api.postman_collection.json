@@ -1,0 +1,93 @@
+{
+  "info": {
+    "_postman_id": "20260721-102227-teaching-plan-college-id",
+    "name": "TeachingPlan - 列表开课单位字段对齐 collegeId (20260721)",
+    "description": "变更摘要（前端必改）\n\n接口: GET {{baseUrl}}/csys/teachingPlan/list\nController: com.doinner.csys.controller.TeachingPlanController#list\n\n【行为变更】开课单位与 /course/list 对齐，改用 t_csys_course.college_id（所属学院），不再用 teach_college_id（施教学院）。\n\n字段迁移（破坏性）:\n  入参: teachCollegeId  → collegeId\n  出参: teachCollegeId  → collegeId\n        teachCollegeName → collegeName\n\n前端联调注意:\n  1. 列表筛选条件参数名改为 collegeId\n  2. 表格/详情展示读 collegeId、collegeName\n  3. 语义与课程管理列表 /course/list 的 collegeId/collegeName 一致\n\n仅收录本次有行为变更的接口。服务: port 9219, context-path /csys。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "服务基址(默认本机)。bootstrap.yml: server.port=9219, server.servlet.context-path=/csys"
+    },
+    {
+      "key": "pageNum",
+      "value": "1",
+      "description": "页码(PageHelper)"
+    },
+    {
+      "key": "pageSize",
+      "value": "10",
+      "description": "每页条数(PageHelper)"
+    },
+    {
+      "key": "collegeId",
+      "value": "",
+      "description": "开课单位id(t_csys_course.college_id)，可空"
+    }
+  ],
+  "item": [
+    {
+      "name": "课程教学计划管理列表(分页) - 开课单位改为collegeId",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum={{pageNum}}&pageSize={{pageSize}}&courseName=&courseCode=&collegeId={{collegeId}}&educationLevel=&courseModule=&courseAttr=&type=1&version=&quoted=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "list"],
+          "query": [
+            { "key": "pageNum", "value": "{{pageNum}}", "description": "Integer, 否, 页码(PageHelper)" },
+            { "key": "pageSize", "value": "{{pageSize}}", "description": "Integer, 否, 每页条数(PageHelper)" },
+            { "key": "courseName", "value": "", "description": "String, 否, 课程名称模糊(t_csys_course.name LIKE)" },
+            { "key": "courseCode", "value": "", "description": "String, 否, 课程编号模糊(t_csys_course.code LIKE)" },
+            { "key": "collegeId", "value": "{{collegeId}}", "description": "Long, 否, 开课单位id精确(t_csys_course.college_id)。【本次变更】原 teachCollegeId 已废弃，与 /course/list 一致" },
+            { "key": "educationLevel", "value": "", "description": "String, 否, 适用对象(被引用培养方案 education_level 或自身回退)" },
+            { "key": "courseModule", "value": "", "description": "String, 否, 课程模块编码" },
+            { "key": "courseAttr", "value": "", "description": "String, 否, 修读要求" },
+            { "key": "type", "value": "1", "description": "String, 否, 课程类型: 1课程 2实践训练课目 3实验课程 4实践项目" },
+            { "key": "version", "value": "", "description": "String, 否, 课程版本" },
+            { "key": "quoted", "value": "1", "description": "Integer, 否, 1=仅已被培养方案调用的原课程; 0/空=全部" }
+          ]
+        },
+        "description": "GET /teachingPlan/list\n\n返回 DataTable<TeachingPlanListVo>:\n  code / msg / rows / total\n\n【本次变更字段】rows[]:\n  collegeId   (Long)   开课单位id，来自 t_csys_course.college_id\n  collegeName (String) 开课单位名称，后端按 collegeId 翻译 sys_dept.deptName\n\n【已废弃字段】勿再使用:\n  teachCollegeId / teachCollegeName\n\n其余字段未变，示例见 response。"
+      },
+      "response": [
+        {
+          "name": "成功 - 开课单位为 collegeId/collegeName",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum=1&pageSize=10&type=1&quoted=1&collegeId=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "list"],
+              "query": [
+                { "key": "pageNum", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "type", "value": "1" },
+                { "key": "quoted", "value": "1" },
+                { "key": "collegeId", "value": "10" }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            { "key": "Content-Type", "value": "application/json;charset=UTF-8" }
+          ],
+          "cookie": [],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"rows\": [\n    {\n      \"courseId\": 1001,\n      \"courseName\": \"高等数学\",\n      \"courseCode\": \"MATH001\",\n      \"type\": \"1\",\n      \"version\": \"v1.0\",\n      \"programLevel\": \"本科\",\n      \"collegeId\": 10,\n      \"collegeName\": \"基础教学学院\",\n      \"educationLevel\": \"本科\",\n      \"courseModule\": \"MOD01\",\n      \"courseModuleName\": \"公共基础\",\n      \"courseModuleChildren\": \"MOD0101\",\n      \"courseModuleChildrenName\": \"数学类\",\n      \"courseAttr\": \"必修\",\n      \"majorId\": 200,\n      \"majorName\": \"数学与应用数学\",\n      \"subMajorId\": null,\n      \"subMajorName\": null,\n      \"hours\": 64.0,\n      \"credit\": 4.0,\n      \"teachingPlanId\": 55,\n      \"planType\": 1,\n      \"planVersion\": \"v1.0\",\n      \"currentFlag\": 1,\n      \"enabledTerm\": \"2024-2025-1\",\n      \"status\": 2,\n      \"fileId\": \"file-xxx\",\n      \"fileName\": \"高等数学教学计划.docx\",\n      \"sourceCredit\": 4.0\n    }\n  ],\n  \"total\": 1\n}"
+        }
+      ]
+    }
+  ]
+}
