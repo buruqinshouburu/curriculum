@@ -252,6 +252,7 @@
         <result column="file_id" property="fileId" jdbcType="VARCHAR"/>
         <result column="file_name" property="fileName" jdbcType="VARCHAR"/>
         <result column="source_credit" property="sourceCredit" jdbcType="DECIMAL"/>
+        <result column="score_rule" property="scoreRule" jdbcType="LONGVARCHAR"/>
     </resultMap>
 
     <!--
@@ -287,7 +288,8 @@
             plan.status                  AS status,
             plan.file_id                 AS file_id,
             plan.file_name               AS file_name,
-            plan.source_credit           AS source_credit
+            plan.source_credit           AS source_credit,
+            plan.score_rule              AS score_rule
         FROM t_csys_course course
         LEFT JOIN t_csys_teaching_plan plan
             ON course.id = plan.source_course_id
@@ -381,6 +383,7 @@
         <result column="practice_hours" property="practiceHours" jdbcType="DECIMAL"/>
         <result column="hours" property="hours" jdbcType="DECIMAL"/>
         <result column="credit" property="credit" jdbcType="DECIMAL"/>
+        <result column="score_rule" property="scoreRule" jdbcType="LONGVARCHAR"/>
     </resultMap>
 
     <!-- 详情-课程分支：教学计划id为空时，全部取自总库课程 -->
@@ -399,7 +402,8 @@
             course.teach_hours     AS teach_hours,
             course.practice_hours  AS practice_hours,
             course.hours           AS hours,
-            course.credit          AS credit
+            course.credit          AS credit,
+            NULL                   AS score_rule
         FROM t_csys_course course
         WHERE course.id = #{courseId}
           AND course.sysflag = 0
@@ -421,7 +425,8 @@
             COALESCE(plan.source_teach_hours, course.teach_hours)    AS teach_hours,
             COALESCE(plan.source_practice_hours, course.practice_hours) AS practice_hours,
             COALESCE(plan.source_hours, course.hours)              AS hours,
-            COALESCE(plan.source_credit, course.credit)           AS credit
+            COALESCE(plan.source_credit, course.credit)           AS credit,
+            plan.score_rule        AS score_rule
         FROM t_csys_teaching_plan plan
         INNER JOIN t_csys_course course ON course.id = plan.source_course_id AND course.sysflag = 0
         WHERE plan.id = #{teachingPlanId}

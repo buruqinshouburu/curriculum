@@ -7,6 +7,7 @@ import com.doinner.csys.dao.StandardGraduationMapper;
 import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanConditionMapper;
 import com.doinner.csys.dao.TeachingPlanContentMapper;
+import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
@@ -18,6 +19,7 @@ import com.doinner.csys.dao.TeachingPlanTextbookMapper;
 import com.doinner.csys.domain.Course;
 import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.StandardGraduation;
+import com.doinner.csys.domain.TeachingPlan;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
@@ -78,6 +80,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TeachingPlanAssessmentMapper teachingPlanAssessmentMapper;
+
+    @Resource
+    private TeachingPlanMapper teachingPlanMapper;
 
     @Resource
     private TeachingPlanTextbookMapper teachingPlanTextbookMapper;
@@ -403,7 +408,17 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     public List<TeachingPlanAssessment> listAssessment(Long planId) {
-        return teachingPlanAssessmentMapper.selectByPlanId(planId);
+        List<TeachingPlanAssessment> list = teachingPlanAssessmentMapper.selectByPlanId(planId);
+        // 列表回传主表计分规则（非 assessment 表字段，便于考核页回显）
+        if (planId != null && ObjectUtils.isNotEmpty(list)) {
+            TeachingPlan plan = teachingPlanMapper.selectById(planId);
+            if (plan != null && plan.getScoreRule() != null) {
+                for (TeachingPlanAssessment a : list) {
+                    a.setScoreRule(plan.getScoreRule());
+                }
+            }
+        }
+        return list;
     }
 
     @Override
@@ -411,6 +426,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     public Long addAssessment(TeachingPlanAssessment assessment) {
         UserUtils.reflash(assessment);
         teachingPlanAssessmentMapper.insert(assessment);
+        // scoreRule 为非本表透传字段：有值时回写主表 t_csys_teaching_plan.score_rule
+        writeBackScoreRule(assessment.getPlanId(), assessment.getScoreRule());
         return assessment.getId();
     }
 
@@ -419,12 +436,29 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     public void updateAssessment(TeachingPlanAssessment assessment) {
         UserUtils.reflash(assessment);
         teachingPlanAssessmentMapper.updateById(assessment);
+        // scoreRule 为非本表透传字段：有值时回写主表；planId 未传时无法定位主表则跳过
+        writeBackScoreRule(assessment.getPlanId(), assessment.getScoreRule());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteAssessment(Long id) {
         teachingPlanAssessmentMapper.deleteById(id);
+    }
+
+    /**
+     * 将考核评价请求中的计分规则回写主表。
+     * scoreRule == null 表示本次不改主表计分规则；空串允许清空。
+     */
+    private void writeBackScoreRule(Long planId, String scoreRule) {
+        if (planId == null || scoreRule == null) {
+            return;
+        }
+        TeachingPlan plan = new TeachingPlan();
+        plan.setId(planId);
+        plan.setScoreRule(scoreRule);
+        UserUtils.reflash(plan);
+        teachingPlanMapper.updateById(plan);
     }
 
     // ============ 16. 教材 ============

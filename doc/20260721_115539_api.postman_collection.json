@@ -1,0 +1,984 @@
+{
+  "info": {
+    "_postman_id": "20260721-115539-teaching-plan-modules-crud",
+    "name": "TeachingPlan - 子模块完整CRUD总览 (20260721)",
+    "description": "TeachingPlanController 子模块 CRUD 总体接口文档（前端联调）。\n\n基址: {{baseUrl}} + context-path /csys\n控制器: @RequestMapping(\"/teachingPlan\")\n统一返回:\n  - DataSet: { code, msg, data }\n  - Message: { code, msg }\n  - DataTable(仅列表页): { code, msg, rows, total }\n\n【CRUD 完整性结论】用户点名的 8 块均已具备完整 CRUD：\n1. 教员团队 teacher\n2. 课程概述 section\n3. 课程目标 objective + 支撑毕业要求 objectiveRef（另有 saveWithRefs 组合保存）\n4. 教学内容 content\n5. 目标达成设计 targetDesign\n6. 实验/实践 practiceItem + practiceItemDetail\n7. 考核评价 assessment\n8. 教学条件 condition（教材 textbook 另有独立 CRUD）\n\n【计分规则 scoreRule 特别说明】（20260721 更新）\n- 落库位置: 主表 t_csys_teaching_plan.score_rule（不是 assessment 表字段）\n- 保存方式（二选一或并用）:\n  1) POST/PUT /teachingPlan/assessment  body 可选 scoreRule：有值则顺带回写主表\n  2) POST /teachingPlan/save  body.plan.scoreRule\n- 回传:\n  GET /list → TeachingPlanListVo.scoreRule\n  GET /detail → TeachingPlanDetailVo.scoreRule\n  GET /assessment/list → 每条 assessment.scoreRule 填充同一主表值\n- scoreSystem 是「成绩评定制」(百分制/五级制/两级制)，与 scoreRule 不同\n- 详细示例见 doc/20260721_125900_api.postman_collection.json\n\n关联辅助接口: /scheme/list, /major/list, /courseGraduation/{courseId}, /targetDesign/knowledgeUnitInit/{courseId}",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9219", "description": "服务地址。bootstrap: port=9219, context-path=/csys" },
+    { "key": "planId", "value": "55", "description": "教学计划id t_csys_teaching_plan.id" },
+    { "key": "courseId", "value": "1001", "description": "总库课程id t_csys_course.id" },
+    { "key": "schemeId", "value": "200", "description": "培养方案id t_csys_training_scheme.id" },
+    { "key": "objectiveId", "value": "301", "description": "教学目标id" },
+    { "key": "itemId", "value": "401", "description": "实验/实践项目id" },
+    { "key": "id", "value": "1", "description": "通用子表主键，删除用" }
+  ],
+  "item": [
+    {
+      "name": "0. 主表/辅助",
+      "item": [
+        {
+          "name": "0.1 保存教学计划主表(含计分规则scoreRule)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": {\n    \"id\": null,\n    \"sourceCourseId\": {{courseId}},\n    \"planType\": 1,\n    \"version\": \"v1.0\",\n    \"currentFlag\": 1,\n    \"enabledTerm\": \"2026年春季学期\",\n    \"status\": 0,\n    \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。形成性考核含平时作业、实验报告；终结性考核为期末闭卷考试。\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "save"]
+            },
+            "description": "POST /teachingPlan/save\n\n入参 TeachingPlanSaveVo { plan: TeachingPlan }\n\n【计分规则保存】\nplan.scoreRule (String/text) → t_csys_teaching_plan.score_rule\n- 亦可在 POST/PUT /assessment body.scoreRule 顺带回写主表（推荐考核页用）\n- assessment.scoreSystem 是成绩评定制，与 scoreRule 不同\n- id 为空时按 (sourceCourseId, planType) 查重：已存在则 update，否则 insert\n- planType 必填，前端传入不覆盖\n\n回传: /list、/detail、/assessment/list 均返回 scoreRule\n返回 DataSet<Long> data=planId"
+          },
+          "response": [
+            {
+              "name": "成功 - 返回planId",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": 55\n}"
+            }
+          ]
+        },
+        {
+          "name": "0.2 培养方案tab列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/scheme/list?courseId={{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "scheme", "list"],
+              "query": [
+                { "key": "courseId", "value": "{{courseId}}", "description": "Long, 必填, 总库源课程id" }
+              ]
+            },
+            "description": "GET /teachingPlan/scheme/list\n返回源课被引用的培养方案 tab 列表 TeachingPlanSchemeVo[]\n字段: schemeId, schemeName, schemeVersion, educationLevel, majorId, majorName, quoteCourseCount\n目标/目标达成设计/毕业要求等 tab 维度接口均依赖 schemeId"
+          }
+        },
+        {
+          "name": "0.3 专业查询",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/major/list?courseId={{courseId}}&teachingPlanId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "major", "list"],
+              "query": [
+                { "key": "courseId", "value": "{{courseId}}", "description": "Long, 必填" },
+                { "key": "teachingPlanId", "value": "{{planId}}", "description": "Long, 否" }
+              ]
+            },
+            "description": "GET /teachingPlan/major/list\n返回 TeachingPlanMajorVo[]: id, name, status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. 教员团队 teacher (CRUD完整)",
+      "item": [
+        {
+          "name": "列表 GET /teacher/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/teacher/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "teacher", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}", "description": "Long, 必填" }]
+            },
+            "description": "表 t_csys_teaching_plan_teacher\n字段: id, planId, teacherId, teacherName, professionalTitle, duty, lectureContent, sort"
+          }
+        },
+        {
+          "name": "新增 POST /teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"teacherId\": 10001,\n  \"teacherName\": \"张三\",\n  \"professionalTitle\": \"教授\",\n  \"duty\": \"主讲\",\n  \"lectureContent\": \"第1-8章\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/teacher",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "teacher"]
+            },
+            "description": "返回 DataSet<Long> 新id"
+          }
+        },
+        {
+          "name": "修改 PUT /teacher",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"teacherName\": \"张三\",\n  \"professionalTitle\": \"教授\",\n  \"duty\": \"主讲/负责人\",\n  \"lectureContent\": \"第1-10章\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/teacher",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "teacher"]
+            }
+          }
+        },
+        {
+          "name": "删除 DELETE /teacher/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/teacher/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "teacher", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. 课程概述 section (CRUD完整)",
+      "item": [
+        {
+          "name": "列表 GET /section/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/section/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "section", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_section\n大段文本章节: 任务背景、总体设计、组织方式、团队管理等\n字段: id, planId, sectionCode, sectionTitle, content, sort\nsectionCode 示例: task_background / overall_design / org_mode / team_manage 等"
+          }
+        },
+        {
+          "name": "新增 POST /section",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"sectionCode\": \"task_background\",\n  \"sectionTitle\": \"任务背景\",\n  \"content\": \"本课程面向……\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/section",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "section"]
+            }
+          }
+        },
+        {
+          "name": "修改 PUT /section",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"sectionCode\": \"task_background\",\n  \"sectionTitle\": \"任务背景\",\n  \"content\": \"更新后的内容……\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/section",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "section"]
+            }
+          }
+        },
+        {
+          "name": "删除 DELETE /section/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/section/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "section", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. 课程目标与支撑毕业要求 (CRUD完整)",
+      "item": [
+        {
+          "name": "3.1 目标列表 GET /objective/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/list?planId={{planId}}&schemeId={{schemeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "list"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}", "description": "Long, 必填" },
+                { "key": "schemeId", "value": "{{schemeId}}", "description": "Long, 必填, 培养方案tab" }
+              ]
+            },
+            "description": "表 t_csys_teaching_plan_objective\n字段: id, planId, schemeId, majorId, objectiveTypeCode, objectiveTypeName, content, sourceMode, sort\nobjectiveTypeCode: 知识目标/能力目标/素质目标 字典编码"
+          }
+        },
+        {
+          "name": "3.2 新增目标 POST /objective",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"majorId\": 10,\n  \"objectiveTypeCode\": \"knowledge\",\n  \"objectiveTypeName\": \"知识目标\",\n  \"content\": \"掌握……\",\n  \"sourceMode\": 2,\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective"]
+            }
+          }
+        },
+        {
+          "name": "3.3 修改目标 PUT /objective",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{objectiveId}},\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"objectiveTypeCode\": \"knowledge\",\n  \"objectiveTypeName\": \"知识目标\",\n  \"content\": \"更新后的目标内容\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective"]
+            }
+          }
+        },
+        {
+          "name": "3.4 删除目标 DELETE /objective/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/{{objectiveId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "{{objectiveId}}"]
+            }
+          }
+        },
+        {
+          "name": "3.5 目标+支撑毕业要求同事务保存 POST /objective/saveWithRefs",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": {\n    \"id\": null,\n    \"planId\": {{planId}},\n    \"schemeId\": {{schemeId}},\n    \"majorId\": 10,\n    \"objectiveTypeCode\": \"knowledge\",\n    \"objectiveTypeName\": \"知识目标\",\n    \"content\": \"掌握基础理论……\",\n    \"sourceMode\": 2,\n    \"sort\": 1\n  },\n  \"refs\": [\n    {\n      \"planId\": {{planId}},\n      \"schemeId\": {{schemeId}},\n      \"graduationId\": 501,\n      \"sourceGraduationId\": 5001,\n      \"graduationCode\": \"GR-01\",\n      \"graduationName\": \"工程知识\",\n      \"graduationBindSource\": \"scheme_course_ref\",\n      \"supportDesc\": \"支撑指标点1.1\",\n      \"sort\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/saveWithRefs",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "saveWithRefs"]
+            },
+            "description": "弹框一次提交：目标 + 多条支撑毕业要求同事务。\n- objective.id 为空: insert 目标再 insert refs\n- objective.id 有值: 更新目标, 先逻辑删除该目标旧 refs 再按本列表重建\n返回 DataSet<Long> 目标id"
+          }
+        },
+        {
+          "name": "3.6 课程绑定毕业要求候选 GET /courseGraduation/{courseId}",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/courseGraduation/{{courseId}}?schemeId={{schemeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "courseGraduation", "{{courseId}}"],
+              "query": [
+                { "key": "schemeId", "value": "{{schemeId}}", "description": "Long, 否, 按培养方案过滤" }
+              ]
+            },
+            "description": "返回当前课程在指定培养方案下可绑定的毕业要求列表 StandardGraduation[]，供支撑关系弹框勾选"
+          }
+        },
+        {
+          "name": "3.7 支撑关系列表 GET /objectiveRef/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef/list?objectiveId={{objectiveId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objectiveRef", "list"],
+              "query": [{ "key": "objectiveId", "value": "{{objectiveId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_objective_ref\n字段: id, planId, objectiveId, schemeCourseGraduationId, quoteCourseId, schemeId, graduationId, sourceGraduationId, graduationCode, graduationName, graduationBindSource, supportDesc, sort"
+          }
+        },
+        {
+          "name": "3.8 新增支撑关系 POST /objectiveRef",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"objectiveId\": {{objectiveId}},\n  \"schemeId\": {{schemeId}},\n  \"graduationId\": 501,\n  \"graduationCode\": \"GR-01\",\n  \"graduationName\": \"工程知识\",\n  \"supportDesc\": \"支撑说明\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objectiveRef"]
+            }
+          }
+        },
+        {
+          "name": "3.9 修改支撑关系 PUT /objectiveRef",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"objectiveId\": {{objectiveId}},\n  \"supportDesc\": \"更新支撑说明\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objectiveRef"]
+            }
+          }
+        },
+        {
+          "name": "3.10 删除支撑关系 DELETE /objectiveRef/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objectiveRef", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. 教学内容与时间安排 content (CRUD完整)",
+      "item": [
+        {
+          "name": "列表 GET /content/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/content/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "content", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_content\n字段: id, planId, parentId, contentType, title, content, purpose, hours, timeArrange, sort\ncontentType: 1专题 2课程项目 3实验 4大作业 5训练模块 6模块内容"
+          }
+        },
+        {
+          "name": "新增 POST /content",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"parentId\": null,\n  \"contentType\": 1,\n  \"title\": \"专题一 基础理论\",\n  \"content\": \"主要内容……\",\n  \"purpose\": \"建立基础\",\n  \"hours\": 8,\n  \"timeArrange\": \"第1-2周\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/content",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "content"]
+            }
+          }
+        },
+        {
+          "name": "修改 PUT /content",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"contentType\": 1,\n  \"title\": \"专题一 基础理论(修订)\",\n  \"hours\": 10,\n  \"timeArrange\": \"第1-3周\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/content",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "content"]
+            }
+          }
+        },
+        {
+          "name": "删除 DELETE /content/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/content/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "content", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. 目标达成/教学实现设计 targetDesign (CRUD完整)",
+      "item": [
+        {
+          "name": "列表 GET /targetDesign/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign/list?planId={{planId}}&schemeId={{schemeId}}&designTypeCode=knowledge",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "targetDesign", "list"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}" },
+                { "key": "schemeId", "value": "{{schemeId}}" },
+                { "key": "designTypeCode", "value": "knowledge", "description": "知识/能力/素质 字典编码，区分三张表" }
+              ]
+            },
+            "description": "表 t_csys_teaching_plan_target_design\n字段: id, planId, schemeId, designTypeCode, objectiveId, knowledgeUnitId, knowledgeUnitName, knowledgePointId, knowledgePointName, observationPoint, contentIds(JSON串), contentText, teachingLink, teachingMethod, learningMethod, hours, teachingDesign, sort"
+          }
+        },
+        {
+          "name": "知识单元初始化 GET /targetDesign/knowledgeUnitInit/{courseId}",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign/knowledgeUnitInit/{{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "targetDesign", "knowledgeUnitInit", "{{courseId}}"]
+            },
+            "description": "知识目标初始化: 根据课程id查知识单元 CourseKnowledgeUnit[]"
+          }
+        },
+        {
+          "name": "新增 POST /targetDesign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"designTypeCode\": \"knowledge\",\n  \"objectiveId\": {{objectiveId}},\n  \"knowledgeUnitId\": 11,\n  \"knowledgeUnitName\": \"微积分\",\n  \"knowledgePointId\": 1101,\n  \"knowledgePointName\": \"极限\",\n  \"observationPoint\": \"能计算常见极限\",\n  \"contentIds\": \"[1,2]\",\n  \"contentText\": \"专题一\",\n  \"teachingLink\": \"讲授\",\n  \"teachingMethod\": \"讲授法\",\n  \"learningMethod\": \"练习\",\n  \"hours\": 2,\n  \"teachingDesign\": \"……\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "targetDesign"]
+            }
+          }
+        },
+        {
+          "name": "修改 PUT /targetDesign",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"designTypeCode\": \"knowledge\",\n  \"hours\": 3,\n  \"teachingDesign\": \"更新后的教学设计\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "targetDesign"]
+            }
+          }
+        },
+        {
+          "name": "删除 DELETE /targetDesign/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "targetDesign", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. 实验/实践环节 practiceItem+Detail (CRUD完整)",
+      "item": [
+        {
+          "name": "6.1 项目列表 GET /practiceItem/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItem/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItem", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_practice_item\n字段: id, planId, itemType, name, hours, groupInfo, experimentNature, studyNature, sort\nitemType: 1实验 2实践项目 3设计实验 4验证实验"
+          }
+        },
+        {
+          "name": "6.2 新增项目 POST /practiceItem",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"itemType\": 1,\n  \"name\": \"实验一 基础操作\",\n  \"hours\": 4,\n  \"groupInfo\": \"2人/组\",\n  \"experimentNature\": \"验证\",\n  \"studyNature\": \"必修\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItem",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItem"]
+            }
+          }
+        },
+        {
+          "name": "6.3 修改项目 PUT /practiceItem",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{itemId}},\n  \"planId\": {{planId}},\n  \"name\": \"实验一 基础操作(修订)\",\n  \"hours\": 6,\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItem",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItem"]
+            }
+          }
+        },
+        {
+          "name": "6.4 删除项目(级联明细) DELETE /practiceItem/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItem/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItem", "{{itemId}}"]
+            },
+            "description": "删除项目时级联删除其明细"
+          }
+        },
+        {
+          "name": "6.5 明细列表 GET /practiceItemDetail/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItemDetail/list?itemId={{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItemDetail", "list"],
+              "query": [{ "key": "itemId", "value": "{{itemId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_practice_item_detail\n字段: id, itemId, detailType, objectiveId, content, sort\ndetailType 示例: purpose_task / ability_point / principle / content_requirement / result_requirement / teaching_design / complex_problem / main_task / overall_design / outcome_requirement"
+          }
+        },
+        {
+          "name": "6.6 新增明细 POST /practiceItemDetail",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": {{itemId}},\n  \"detailType\": \"purpose_task\",\n  \"objectiveId\": {{objectiveId}},\n  \"content\": \"实验目的与任务……\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItemDetail",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItemDetail"]
+            }
+          }
+        },
+        {
+          "name": "6.7 修改明细 PUT /practiceItemDetail",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"itemId\": {{itemId}},\n  \"detailType\": \"purpose_task\",\n  \"content\": \"更新后的明细\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItemDetail",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItemDetail"]
+            }
+          }
+        },
+        {
+          "name": "6.8 删除明细 DELETE /practiceItemDetail/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceItemDetail/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "practiceItemDetail", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. 考核评价 assessment (CRUD完整) + 计分规则",
+      "item": [
+        {
+          "name": "7.1 考核项目列表 GET /assessment/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/assessment/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "assessment", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_assessment（考核项目行）\n字段:\n  id, planId, itemId(可关联实验/实践项目),\n  assessmentCategory(1终结性 2形成性 3实验项目 4训练课目 5成果评价),\n  assessmentItem(考核项目或成果形式),\n  method(考核方式), mechanism(评定机制),\n  scoreSystem(成绩评定:百分制/五级制/两级制) ← 不是计分规则,\n  outcomeType(0无 1个人成果 2团队成果),\n  assessedContent, weight, standard, sort,\n  scoreRule(透传: 列表从主表填充，便于考核页回显)\n\n【计分规则】落库在主表 score_rule；列表每条 assessment 会带上同一 scoreRule 值"
+          }
+        },
+        {
+          "name": "7.2 新增考核项目 POST /assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"itemId\": null,\n  \"assessmentCategory\": 2,\n  \"assessmentItem\": \"平时作业\",\n  \"method\": \"批改\",\n  \"mechanism\": \"任课教员\",\n  \"scoreSystem\": \"百分制\",\n  \"outcomeType\": 0,\n  \"assessedContent\": \"基础知识掌握\",\n  \"weight\": 20,\n  \"standard\": \"按时提交、正确率≥60% 合格\",\n  \"sort\": 1,\n  \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/assessment",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "assessment"]
+            },
+            "description": "保存考核项目行；body.scoreRule 有值时顺带回写主表 t_csys_teaching_plan.score_rule（null 不更新主表）"
+          }
+        },
+        {
+          "name": "7.3 修改考核项目 PUT /assessment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"assessmentCategory\": 2,\n  \"assessmentItem\": \"平时作业\",\n  \"weight\": 25,\n  \"standard\": \"更新评价标准\",\n  \"sort\": 1,\n  \"scoreRule\": \"总评成绩 = 形成性×50% + 终结性×50%。\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/assessment",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "assessment"]
+            }
+          }
+        },
+        {
+          "name": "7.4 删除考核项目 DELETE /assessment/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/assessment/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "assessment", "{{id}}"]
+            }
+          }
+        },
+        {
+          "name": "7.5 (可选)主表单独保存scoreRule POST /save",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": {\n    \"id\": {{planId}},\n    \"sourceCourseId\": {{courseId}},\n    \"planType\": 1,\n    \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "save"]
+            },
+            "description": "库字段: t_csys_teaching_plan.score_rule\n推荐优先用 assessment POST/PUT 顺带 scoreRule；本接口仍可单独改主表计分规则。\n回传: /list、/detail、/assessment/list 均已返回 scoreRule。"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. 教学条件 condition (CRUD完整)",
+      "item": [
+        {
+          "name": "列表 GET /condition/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/condition/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "condition", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "表 t_csys_teaching_plan_condition\n字段: id, planId, conditionType(教室/平台/实验室/场地/装备等), requirement, sort"
+          }
+        },
+        {
+          "name": "新增 POST /condition",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"conditionType\": \"多媒体教室\",\n  \"requirement\": \"可容纳60人，具备投影与网络\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/condition",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "condition"]
+            }
+          }
+        },
+        {
+          "name": "修改 PUT /condition",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"conditionType\": \"多媒体教室\",\n  \"requirement\": \"更新要求\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/condition",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "condition"]
+            }
+          }
+        },
+        {
+          "name": "删除 DELETE /condition/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/condition/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "condition", "{{id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "附. 教材 textbook / 实施步骤 processStep / 通用引用 ref (均CRUD完整)",
+      "item": [
+        {
+          "name": "教材 列表 GET /textbook/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/textbook/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "textbook", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "字段: id, planId, materialNature, name, firstAuthor, edition, publisher, publishTime, isbn, publishMethod, sort\n另有 POST/PUT /textbook, DELETE /textbook/{id}"
+          }
+        },
+        {
+          "name": "教材 新增 POST /textbook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"materialNature\": \"主教材\",\n  \"name\": \"高等数学\",\n  \"firstAuthor\": \"同济大学\",\n  \"edition\": \"第7版\",\n  \"publisher\": \"高等教育出版社\",\n  \"publishTime\": \"2014\",\n  \"isbn\": \"978-7-04-039663-8\",\n  \"publishMethod\": \"公开出版\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/textbook",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "textbook"]
+            }
+          }
+        },
+        {
+          "name": "教材 修改 PUT /textbook",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"name\": \"高等数学(修订)\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/textbook",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "textbook"]
+            }
+          }
+        },
+        {
+          "name": "教材 删除 DELETE /textbook/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/textbook/{{id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "textbook", "{{id}}"]
+            }
+          }
+        },
+        {
+          "name": "实施步骤 列表 GET /processStep/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/processStep/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "processStep", "list"],
+              "query": [{ "key": "planId", "value": "{{planId}}" }]
+            },
+            "description": "字段: id, planId, itemId, stageName, stepName, requirement, sort\n另有 POST/PUT /processStep, DELETE /processStep/{id}"
+          }
+        },
+        {
+          "name": "实施步骤 新增 POST /processStep",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"itemId\": {{itemId}},\n  \"stageName\": \"准备阶段\",\n  \"stepName\": \"任务分解\",\n  \"requirement\": \"完成分工与计划\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/processStep",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "processStep"]
+            }
+          }
+        },
+        {
+          "name": "通用引用 列表 GET /ref/list",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/ref/list?planId={{planId}}&refType=",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "ref", "list"],
+              "query": [
+                { "key": "planId", "value": "{{planId}}" },
+                { "key": "refType", "value": "", "description": "Integer, 否, 1支撑总库课程 2支撑调用课程/训练课目 3知识单元 4知识点 5教学目标" }
+              ]
+            },
+            "description": "字段: id, planId, schemeId, refType, refId, refName, refHours, sort\n另有 POST/PUT /ref, DELETE /ref/{id}"
+          }
+        },
+        {
+          "name": "通用引用 新增 POST /ref",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"refType\": 1,\n  \"refId\": 1001,\n  \"refName\": \"高等数学\",\n  \"refHours\": 64,\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/ref",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "ref"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

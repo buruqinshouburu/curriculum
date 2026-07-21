@@ -1,0 +1,167 @@
+{
+  "info": {
+    "_postman_id": "20260721-125900-teaching-plan-scorerule",
+    "name": "TeachingPlan - scoreRule 回写与回传 (20260721)",
+    "description": "变更摘要（前端必看）\n\n【1】考核评价 POST/PUT /assessment 可顺带回写主表计分规则\n  请求体增加可选字段 scoreRule (String)\n  - 有值(含空串) → 回写 t_csys_teaching_plan.score_rule\n  - 不传 / null → 不改主表计分规则\n  - planId 必填(新增时必带；修改时建议带，否则无法定位主表)\n  注意: scoreRule 不是 assessment 表字段，与 scoreSystem(成绩评定制) 不同\n\n【2】回传 scoreRule\n  GET /teachingPlan/list           → TeachingPlanListVo.scoreRule\n  GET /teachingPlan/detail         → TeachingPlanDetailVo.scoreRule\n  GET /teachingPlan/assessment/list → 每条 assessment.scoreRule 均填充同一主表值(便于考核页回显)\n\n【3】仍可通过 POST /teachingPlan/save  body.plan.scoreRule 单独保存\n\n服务: {{baseUrl}}/csys , port 9219",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9219" },
+    { "key": "planId", "value": "55" },
+    { "key": "courseId", "value": "1001" },
+    { "key": "id", "value": "1" },
+    { "key": "pageNum", "value": "1" },
+    { "key": "pageSize", "value": "10" }
+  ],
+  "item": [
+    {
+      "name": "1. 新增考核项目并回写计分规则 POST /assessment",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": {{planId}},\n  \"itemId\": null,\n  \"assessmentCategory\": 2,\n  \"assessmentItem\": \"平时作业\",\n  \"method\": \"批改\",\n  \"mechanism\": \"任课教员\",\n  \"scoreSystem\": \"百分制\",\n  \"outcomeType\": 0,\n  \"assessedContent\": \"基础知识掌握\",\n  \"weight\": 20,\n  \"standard\": \"按时提交、正确率≥60% 合格\",\n  \"sort\": 1,\n  \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。形成性含平时作业、实验报告；终结性为期末闭卷考试。\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/assessment",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "assessment"]
+        },
+        "description": "POST /teachingPlan/assessment\n\n【本次变更】body 可带 scoreRule：\n- 先 insert t_csys_teaching_plan_assessment 行\n- 若 scoreRule != null 且 planId != null，再 UPDATE t_csys_teaching_plan SET score_rule=?\n- scoreRule 不落 assessment 表\n\n返回 DataSet<Long> 新 assessment id"
+      },
+      "response": [
+        {
+          "name": "成功",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": 901\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. 修改考核项目并回写计分规则 PUT /assessment",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"assessmentCategory\": 2,\n  \"assessmentItem\": \"平时作业\",\n  \"weight\": 25,\n  \"standard\": \"更新评价标准\",\n  \"sort\": 1,\n  \"scoreRule\": \"总评成绩 = 形成性×50% + 终结性×50%。\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/assessment",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "assessment"]
+        },
+        "description": "PUT /teachingPlan/assessment\n\n【本次变更】body.scoreRule 有值时回写主表。\n建议始终带 planId，否则无法定位主表。\n不传 scoreRule 或传 null = 只改考核行，不动主表计分规则。"
+      }
+    },
+    {
+      "name": "3. 考核项目列表(含scoreRule回显) GET /assessment/list",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/assessment/list?planId={{planId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "assessment", "list"],
+          "query": [{ "key": "planId", "value": "{{planId}}" }]
+        },
+        "description": "【本次变更】列表每条 assessment 额外带 scoreRule，值来自主表 t_csys_teaching_plan.score_rule（各行相同）。\n前端考核页可直接取 data[0].scoreRule 回显计分规则文本框。"
+      },
+      "response": [
+        {
+          "name": "成功示例",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 901,\n      \"planId\": 55,\n      \"assessmentCategory\": 2,\n      \"assessmentItem\": \"平时作业\",\n      \"method\": \"批改\",\n      \"scoreSystem\": \"百分制\",\n      \"weight\": 20,\n      \"standard\": \"按时提交\",\n      \"sort\": 1,\n      \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "4. 管理列表回传scoreRule GET /list",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum={{pageNum}}&pageSize={{pageSize}}&quoted=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "list"],
+          "query": [
+            { "key": "pageNum", "value": "{{pageNum}}" },
+            { "key": "pageSize", "value": "{{pageSize}}" },
+            { "key": "quoted", "value": "1" }
+          ]
+        },
+        "description": "【本次变更】TeachingPlanListVo 新增 scoreRule（来自 left join 的 plan.score_rule，未建计划时 null）"
+      },
+      "response": [
+        {
+          "name": "成功示例片段",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"rows\": [\n    {\n      \"courseId\": 1001,\n      \"courseName\": \"高等数学\",\n      \"teachingPlanId\": 55,\n      \"collegeId\": 10,\n      \"collegeName\": \"基础教学学院\",\n      \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。\"\n    }\n  ],\n  \"total\": 1\n}"
+        }
+      ]
+    },
+    {
+      "name": "5. 详情回传scoreRule GET /detail",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/detail?courseId={{courseId}}&teachingPlanId={{planId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "detail"],
+          "query": [
+            { "key": "courseId", "value": "{{courseId}}", "description": "Long, 必填" },
+            { "key": "teachingPlanId", "value": "{{planId}}", "description": "Long, 否；有则取计划分支(含scoreRule)" }
+          ]
+        },
+        "description": "【本次变更】TeachingPlanDetailVo 新增 scoreRule。\n- teachingPlanId 有值: 取 plan.score_rule\n- teachingPlanId 空: scoreRule 为 null（无计划）"
+      },
+      "response": [
+        {
+          "name": "成功示例",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"courseId\": 1001,\n    \"teachingPlanId\": 55,\n    \"courseName\": \"高等数学\",\n    \"courseCode\": \"MATH001\",\n    \"enabledTerm\": \"2026年春季学期\",\n    \"hours\": 64,\n    \"credit\": 4,\n    \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "6. (可选)主表单独保存scoreRule POST /save",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plan\": {\n    \"id\": {{planId}},\n    \"sourceCourseId\": {{courseId}},\n    \"planType\": 1,\n    \"scoreRule\": \"总评成绩 = 形成性×40% + 终结性×60%。\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/save",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "save"]
+        },
+        "description": "原有主表保存入口仍可用。考核页推荐直接用 assessment POST/PUT 顺带回写，减少一次请求。"
+      }
+    }
+  ]
+}

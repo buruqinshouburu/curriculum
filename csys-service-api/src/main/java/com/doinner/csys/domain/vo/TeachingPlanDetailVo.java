@@ -63,6 +63,9 @@ public class TeachingPlanDetailVo {
     /** 学分 */
     private BigDecimal credit;
 
+    /** 计分规则 -> t_csys_teaching_plan.score_rule（无教学计划时为 null） */
+    private String scoreRule;
+
     public Long getCourseId() {
         return courseId;
     }
@@ -197,5 +200,13 @@ public class TeachingPlanDetailVo {
 
     public void setCredit(BigDecimal credit) {
         this.credit = credit;
+    }
+
+    public String getScoreRule() {
+        return scoreRule;
+    }
+
+    public void setScoreRule(String scoreRule) {
+        this.scoreRule = scoreRule;
     }
 }

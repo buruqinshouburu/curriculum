@@ -101,6 +101,9 @@ public class TeachingPlanListVo {
     /** 总库课程学分快照 */
     private BigDecimal sourceCredit;
 
+    /** 计分规则 -> t_csys_teaching_plan.score_rule（未建教学计划时为 null） */
+    private String scoreRule;
+
     public Long getCourseId() {
         return courseId;
     }
@@ -331,5 +334,13 @@ public class TeachingPlanListVo {
 
     public void setSourceCredit(BigDecimal sourceCredit) {
         this.sourceCredit = sourceCredit;
+    }
+
+    public String getScoreRule() {
+        return scoreRule;
+    }
+
+    public void setScoreRule(String scoreRule) {
+        this.scoreRule = scoreRule;
     }
 }

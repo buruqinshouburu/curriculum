@@ -75,6 +75,13 @@ public class TeachingPlanAssessment extends AbstractDoinnerLogicalDelBaseEntity 
      */
     private Integer sort;
 
+    /**
+     * 计分规则（非本表字段，仅新增/修改时透传）。
+     * 有值时回写主表 t_csys_teaching_plan.score_rule；null 表示不更新主表计分规则。
+     * 与 scoreSystem（成绩评定制）不同。
+     */
+    private String scoreRule;
+
     public Long getId() {
         return id;
     }
@@ -177,5 +184,13 @@ public class TeachingPlanAssessment extends AbstractDoinnerLogicalDelBaseEntity 
 
     public void setSort(Integer sort) {
         this.sort = sort;
+    }
+
+    public String getScoreRule() {
+        return scoreRule;
+    }
+
+    public void setScoreRule(String scoreRule) {
+        this.scoreRule = scoreRule;
     }
 }
