@@ -45,7 +45,7 @@
           }
         ],
         "url": {
-          "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum={{pageNum}}&pageSize={{pageSize}}&courseName=&courseCode=&teachCollegeId=&educationLevel=&courseModule=&courseAttr=&type=1&version=&quoted=1",
+          "raw": "{{baseUrl}}/csys/teachingPlan/list?pageNum={{pageNum}}&pageSize={{pageSize}}&courseName=&courseCode=&collegeId=&educationLevel=&courseModule=&courseAttr=&type=1&version=&quoted=1",
           "host": ["{{baseUrl}}"],
           "path": ["csys", "teachingPlan", "list"],
           "query": [
@@ -53,7 +53,7 @@
             { "key": "pageSize", "value": "{{pageSize}}", "description": "Integer, 否, 每页条数(PageHelper)" },
             { "key": "courseName", "value": "", "description": "String, 否, 课程名称模糊(t_csys_course.name LIKE)" },
             { "key": "courseCode", "value": "", "description": "String, 否, 课程编号模糊(t_csys_course.code LIKE)" },
-            { "key": "teachCollegeId", "value": "", "description": "Long, 否, 开课单位id精确(t_csys_course.teach_college_id)" },
+            { "key": "collegeId", "value": "", "description": "Long, 否, 开课单位id精确(t_csys_course.college_id, 与/course/list一致)" },
             { "key": "educationLevel", "value": "", "description": "String, 否, 适用对象。精确匹配任一被引用培养方案 education_level,或总库课程自身值(回退)" },
             { "key": "courseModule", "value": "", "description": "String, 否, 课程模块编码。精确匹配任一被引用课程(c2.source_id=总库课程.id)的 course_Module,或自身值(回退)" },
             { "key": "courseAttr", "value": "", "description": "String, 否, 修读要求。精确匹配任一被引用课程 c2.course_attr,或自身值(回退)" },
@@ -62,7 +62,7 @@
             { "key": "quoted", "value": "1", "description": "Integer, 否, 1=只查已被培养方案调用的原课程(存在 c2.source_id=原课程.id); 0/空=查全部原课程。本接口仅查原课程(source_id IS NULL)" }
           ]
         },
-        "description": "接口: com.doinner.csys.controller.TeachingPlanController#list\n\n@ApiOperation(\"课程教学计划管理列表(分页)\")\n@GetMapping(\"/list\")\npublic DataTable<TeachingPlanListVo> list(TeachingPlanQueryVo query)\n\n入参 TeachingPlanQueryVo (query string 绑定), 并由后端 PageUtils.startPage() 开启 PageHelper 分页。\n数据范围: 仅查询总库原课程(t_csys_course.source_id IS NULL), left join t_csys_teaching_plan。\n\nquoted 语义: 传入 1 时仅返回存在「调用课程实例」的原课程(存在 c2.source_id=原课程.id);传入 0 或不传时不加限制。\n\n5个展示字段(educationLevel/courseModule/courseAttr/majorName/开课学期)取值: 详情/列表均改为从被引用课程 c2 + 被引用培养方案 ts 聚合(GROUP_CONCAT DISTINCT 顿号分隔, 无引用回退总库课程自身值); t_csys_teaching_plan 不再承载这5字段。列表过滤改 EXISTS 精确匹配任一被引用值, 或 course 自身值。\n\n返回外层 DataTable<TeachingPlanListVo>:\n  code/msg/rows/total 为框架通用结构; 业务数据在 rows。\nTeachingPlanListVo 字段(总库课程信息):\n  courseId(Long), courseName, courseCode, type(1课程2实践训练课目3实验课程4实践项目), version,\n  programLevel, teachCollegeId, teachCollegeName(内存补全自 sys_dept),\n  educationLevel(ts聚合,回退course;多值顿号分隔), courseModule(c2聚合,回退course),\n  courseModuleName(按顿号拆分逐个翻译远程字典后重新拼接), courseModuleChildren, courseModuleChildrenName,\n  courseAttr(c2聚合,回退course), majorId(回退单值), majorName(ts.major_id聚合->t_csys_std_major.name,回退course),\n  subMajorId, subMajorName, hours, credit\nTeachingPlanListVo 字段(教学计划信息, LEFT JOIN, 未建教学计划时为 null):\n  teachingPlanId, planType(教学计划类型,前端传入;字典值同课程类型;同一课程同一plan_type只能一条),\n  planVersion, currentFlag(1是0否), enabledTerm, status(0草稿1审核中2通过3退回9停用),\n  fileId, fileName, sourceCredit(总库课程学分快照)"
+        "description": "接口: com.doinner.csys.controller.TeachingPlanController#list\n\n@ApiOperation(\"课程教学计划管理列表(分页)\")\n@GetMapping(\"/list\")\npublic DataTable<TeachingPlanListVo> list(TeachingPlanQueryVo query)\n\n入参 TeachingPlanQueryVo (query string 绑定), 并由后端 PageUtils.startPage() 开启 PageHelper 分页。\n数据范围: 仅查询总库原课程(t_csys_course.source_id IS NULL), left join t_csys_teaching_plan。\n\nquoted 语义: 传入 1 时仅返回存在「调用课程实例」的原课程(存在 c2.source_id=原课程.id);传入 0 或不传时不加限制。\n\n5个展示字段(educationLevel/courseModule/courseAttr/majorName/开课学期)取值: 详情/列表均改为从被引用课程 c2 + 被引用培养方案 ts 聚合(GROUP_CONCAT DISTINCT 顿号分隔, 无引用回退总库课程自身值); t_csys_teaching_plan 不再承载这5字段。列表过滤改 EXISTS 精确匹配任一被引用值, 或 course 自身值。\n\n返回外层 DataTable<TeachingPlanListVo>:\n  code/msg/rows/total 为框架通用结构; 业务数据在 rows。\nTeachingPlanListVo 字段(总库课程信息):\n  courseId(Long), courseName, courseCode, type(1课程2实践训练课目3实验课程4实践项目), version,\n  programLevel, collegeId(t_csys_course.college_id, 与/course/list一致), collegeName(内存补全自 sys_dept),\n  educationLevel(ts聚合,回退course;多值顿号分隔), courseModule(c2聚合,回退course),\n  courseModuleName(按顿号拆分逐个翻译远程字典后重新拼接), courseModuleChildren, courseModuleChildrenName,\n  courseAttr(c2聚合,回退course), majorId(回退单值), majorName(ts.major_id聚合->t_csys_std_major.name,回退course),\n  subMajorId, subMajorName, hours, credit\nTeachingPlanListVo 字段(教学计划信息, LEFT JOIN, 未建教学计划时为 null):\n  teachingPlanId, planType(教学计划类型,前端传入;字典值同课程类型;同一课程同一plan_type只能一条),\n  planVersion, currentFlag(1是0否), enabledTerm, status(0草稿1审核中2通过3退回9停用),\n  fileId, fileName, sourceCredit(总库课程学分快照)"
       },
       "response": [
         {
@@ -90,7 +90,7 @@
             { "key": "Content-Type", "value": "application/json;charset=UTF-8" }
           ],
           "cookie": [],
-          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"rows\": [\n    {\n      \"courseId\": 1001,\n      \"courseName\": \"高等数学\",\n      \"courseCode\": \"MATH001\",\n      \"type\": \"1\",\n      \"version\": \"v1.0\",\n      \"programLevel\": \"本科\",\n      \"teachCollegeId\": 10,\n      \"teachCollegeName\": \"基础教学学院\",\n      \"educationLevel\": \"本科\",\n      \"courseModule\": \"MOD01\",\n      \"courseModuleName\": \"公共基础\",\n      \"courseModuleChildren\": \"MOD0101\",\n      \"courseModuleChildrenName\": \"数学类\",\n      \"courseAttr\": \"必修\",\n      \"majorId\": 200,\n      \"majorName\": \"数学与应用数学、信息与计算科学\",\n      \"subMajorId\": null,\n      \"subMajorName\": null,\n      \"hours\": 64.0,\n      \"credit\": 4.0,\n      \"teachingPlanId\": 55,\n      \"planType\": 1,\n      \"planVersion\": \"v1.0\",\n      \"currentFlag\": 1,\n      \"enabledTerm\": \"2024-2025-1\",\n      \"status\": 2,\n      \"fileId\": \"file-xxx\",\n      \"fileName\": \"高等数学教学计划.docx\",\n      \"sourceCredit\": 4.0\n    }\n  ],\n  \"total\": 1\n}"
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"rows\": [\n    {\n      \"courseId\": 1001,\n      \"courseName\": \"高等数学\",\n      \"courseCode\": \"MATH001\",\n      \"type\": \"1\",\n      \"version\": \"v1.0\",\n      \"programLevel\": \"本科\",\n      \"collegeId\": 10,\n      \"collegeName\": \"基础教学学院\",\n      \"educationLevel\": \"本科\",\n      \"courseModule\": \"MOD01\",\n      \"courseModuleName\": \"公共基础\",\n      \"courseModuleChildren\": \"MOD0101\",\n      \"courseModuleChildrenName\": \"数学类\",\n      \"courseAttr\": \"必修\",\n      \"majorId\": 200,\n      \"majorName\": \"数学与应用数学、信息与计算科学\",\n      \"subMajorId\": null,\n      \"subMajorName\": null,\n      \"hours\": 64.0,\n      \"credit\": 4.0,\n      \"teachingPlanId\": 55,\n      \"planType\": 1,\n      \"planVersion\": \"v1.0\",\n      \"currentFlag\": 1,\n      \"enabledTerm\": \"2024-2025-1\",\n      \"status\": 2,\n      \"fileId\": \"file-xxx\",\n      \"fileName\": \"高等数学教学计划.docx\",\n      \"sourceCredit\": 4.0\n    }\n  ],\n  \"total\": 1\n}"
         }
       ]
     },

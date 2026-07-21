@@ -21,8 +21,8 @@ public class TeachingPlanListVo {
     /** 课程编号 */
     private String courseCode;
 
-    /** 开课单位id */
-    private Long teachCollegeId;
+    /** 开课单位id -> t_csys_course.college_id（与 /course/list 一致） */
+    private Long collegeId;
 
     /** 适用对象 */
     private String educationLevel;
@@ -54,8 +54,8 @@ public class TeachingPlanListVo {
     /** 专业方向名称 */
     private String subMajorName;
 
-    /** 开课单位名称 */
-    private String teachCollegeName;
+    /** 开课单位名称（由 collegeId 翻译） */
+    private String collegeName;
 
     /** 课程模块子项编码 -> t_csys_course.course_Module_Children */
     private String courseModuleChildren;
@@ -125,12 +125,12 @@ public class TeachingPlanListVo {
         this.courseCode = courseCode;
     }
 
-    public Long getTeachCollegeId() {
-        return teachCollegeId;
+    public Long getCollegeId() {
+        return collegeId;
     }
 
-    public void setTeachCollegeId(Long teachCollegeId) {
-        this.teachCollegeId = teachCollegeId;
+    public void setCollegeId(Long collegeId) {
+        this.collegeId = collegeId;
     }
 
     public String getEducationLevel() {
@@ -213,12 +213,12 @@ public class TeachingPlanListVo {
         this.subMajorName = subMajorName;
     }
 
-    public String getTeachCollegeName() {
-        return teachCollegeName;
+    public String getCollegeName() {
+        return collegeName;
     }
 
-    public void setTeachCollegeName(String teachCollegeName) {
-        this.teachCollegeName = teachCollegeName;
+    public void setCollegeName(String collegeName) {
+        this.collegeName = collegeName;
     }
 
     public String getCourseModuleChildren() {

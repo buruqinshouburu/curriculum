@@ -162,8 +162,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             if (vo.getSubMajorId() != null) {
                 vo.setSubMajorName(majorIdToNameMap.get(vo.getSubMajorId()));
             }
-            if (vo.getTeachCollegeId() != null) {
-                vo.setTeachCollegeName(deptIdNameMap.get(vo.getTeachCollegeId()));
+            // 开课单位：与 /course/list 一致，用 college_id 翻译部门名称
+            if (vo.getCollegeId() != null) {
+                vo.setCollegeName(deptIdNameMap.get(vo.getCollegeId()));
             }
         }
         return list;

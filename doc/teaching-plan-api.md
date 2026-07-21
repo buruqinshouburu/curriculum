@@ -19,7 +19,7 @@
 |---|---|---|---|
 | courseName | String | 否 | 课程名称，模糊查询（`t_csys_course.name` LIKE） |
 | courseCode | String | 否 | 课程编号，模糊查询（`t_csys_course.code` LIKE） |
-| teachCollegeId | Long | 否 | 开课单位 ID，精确（`t_csys_course.teach_college_id`） |
+| collegeId | Long | 否 | 开课单位 ID，精确（`t_csys_course.college_id`，与 `/course/list` 一致） |
 | educationLevel | String | 否 | 适用对象。精确匹配任一被引用培养方案的 `education_level`，或总库课程自身 `education_level`（回退） |
 | courseModule | String | 否 | 课程模块编码。精确匹配任一被引用课程（`c2.source_id=总库课程.id`）的 `course_Module`，或总库课程自身 `course_Module`（回退） |
 | courseAttr | String | 否 | 修读要求。精确匹配任一被引用课程的 `course_attr`，或总库课程自身 `course_attr`（回退） |
@@ -56,8 +56,8 @@
 | type | String | 课程类型：`1`课程 / `2`实践训练课目 / `3`实验课程 / `4`实践项目 |
 | version | String | 课程版本（`t_csys_course.version`） |
 | programLevel | String | 项目层级（`t_csys_course.program_Level`） |
-| teachCollegeId | Long | 开课单位 ID |
-| teachCollegeName | String | 开课单位名称（后端内存补全，来自 sys_dept） |
+| collegeId | Long | 开课单位 ID（`t_csys_course.college_id`，与 `/course/list` 一致） |
+| collegeName | String | 开课单位名称（后端按 collegeId 内存补全，来自 sys_dept） |
 | educationLevel | String | 适用对象。取自被引用培养方案 `t_csys_training_scheme.education_level` 去重拼接；无引用时回退 `t_csys_course.education_level`。多值顿号分隔 |
 | courseModule | String | 课程模块编码。取自被引用课程(`c2`,`c2.source_id=总库课程.id`）`course_Module` 去重拼接；无引用时回退 `t_csys_course.course_Module`。多值顿号分隔 |
 | courseModuleName | String | 课程模块名称（后端按顿号拆分编码逐个翻译远程字典后重新拼接） |
@@ -105,8 +105,8 @@ GET /flowable-demo/teachingPlan/list?pageNum=1&pageSize=10&type=1&quoted=1&cours
       "type": "1",
       "version": "v1.0",
       "programLevel": "本科",
-      "teachCollegeId": 10,
-      "teachCollegeName": "基础教学学院",
+      "collegeId": 10,
+      "collegeName": "基础教学学院",
       "educationLevel": "本科",
       "courseModule": "MOD01",
       "courseModuleName": "公共基础",
@@ -304,7 +304,7 @@ DB 层唯一约束 `uk_tp_source_course_plan_type (source_course_id, plan_type, 
 | type | type | t_csys_course |
 | version | version | t_csys_course |
 | programLevel | program_Level | t_csys_course |
-| teachCollegeId | teach_college_id | t_csys_course |
+| collegeId | college_id | t_csys_course |
 | educationLevel | education_level | ts(被引用培养方案)聚合,回退 t_csys_course |
 | courseModule | course_Module | c2(被引用课程)聚合,回退 t_csys_course |
 | courseModuleChildren | course_Module_Children | t_csys_course |

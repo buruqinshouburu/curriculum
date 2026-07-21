@@ -12,8 +12,8 @@ public class TeachingPlanQueryVo {
     /** 课程名称(模糊查询) -> t_csys_course.name */
     private String courseName;
 
-    /** 开课单位 -> t_csys_course.teach_college_id */
-    private Long teachCollegeId;
+    /** 开课单位 -> t_csys_course.college_id（与 /course/list 一致） */
+    private Long collegeId;
 
     /** 课程编号(模糊查询) -> t_csys_course.code */
     private String courseCode;
@@ -47,12 +47,12 @@ public class TeachingPlanQueryVo {
         this.courseName = courseName;
     }
 
-    public Long getTeachCollegeId() {
-        return teachCollegeId;
+    public Long getCollegeId() {
+        return collegeId;
     }
 
-    public void setTeachCollegeId(Long teachCollegeId) {
-        this.teachCollegeId = teachCollegeId;
+    public void setCollegeId(Long collegeId) {
+        this.collegeId = collegeId;
     }
 
     public String getCourseCode() {
