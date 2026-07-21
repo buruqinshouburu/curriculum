@@ -1,0 +1,66 @@
+{
+  "info": {
+    "_postman_id": "20260721-171246-teaching-plan-objective-tree",
+    "name": "TeachingPlan - 课程目标与支撑毕业要求总览 (20260721)",
+    "description": "新增接口：课程目标与支撑毕业要求总览树\n\nGET {{baseUrl}}/csys/teachingPlan/objective/tree\n\n结构对齐 TrainingController 调用课程知识体系总览(/viewTrainingCourseKnowLedge)：\n  顶层 = 目标类型（系统字典 sys_plan_target_type）\n  children = 目标内容（TeachingPlanObjectiveTreeVo）\n  目标节点 children = 支撑毕业要求（TeachingPlanObjectiveRef[]）\n\n入参:\n  planId (Long, 必填)\n  schemeId (Long, 必填)  培养方案 tab\n  objectiveTypeCode (String, 否)  按目标类型字典值过滤；不传返回全部类型\n\n返回 DataSet<List<TeachingPlanObjectiveTreeVo>>",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9219" },
+    { "key": "planId", "value": "55" },
+    { "key": "schemeId", "value": "200" },
+    { "key": "objectiveTypeCode", "value": "", "description": "可选，字典 sys_plan_target_type 的 dict_value" }
+  ],
+  "item": [
+    {
+      "name": "课程目标与支撑毕业要求总览 GET /objective/tree",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/objective/tree?planId={{planId}}&schemeId={{schemeId}}&objectiveTypeCode={{objectiveTypeCode}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "objective", "tree"],
+          "query": [
+            { "key": "planId", "value": "{{planId}}", "description": "Long, 必填, 教学计划id" },
+            { "key": "schemeId", "value": "{{schemeId}}", "description": "Long, 必填, 培养方案id(tab)" },
+            { "key": "objectiveTypeCode", "value": "{{objectiveTypeCode}}", "description": "String, 否, 目标类型字典值(sys_plan_target_type.dict_value)，用于筛选目标内容与顶层类型" }
+          ]
+        },
+        "description": "接口: TeachingPlanController#objectiveTree\n\n取数逻辑:\n1. 读字典 sys_plan_target_type 作为顶层类型节点（可按 objectiveTypeCode 过滤）\n2. 查 t_csys_teaching_plan_objective (plan_id+scheme_id，可选 objective_type_code)\n3. 批量查 t_csys_teaching_plan_objective_ref (plan_id+scheme_id)，按 objectiveId 挂到目标 children\n4. 字典未覆盖但库中有数据的类型做兜底输出\n\nTeachingPlanObjectiveTreeVo 字段:\n  id, name,\n  objectiveTypeCode, objectiveTypeName,\n  objectiveId(目标层), content(目标层),\n  planId, schemeId, majorId, sort,\n  children (类型层→目标列表; 目标层→TeachingPlanObjectiveRef[])"
+      },
+      "response": [
+        {
+          "name": "成功 - 全量类型",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": \"knowledge\",\n      \"name\": \"知识目标\",\n      \"objectiveTypeCode\": \"knowledge\",\n      \"objectiveTypeName\": \"知识目标\",\n      \"planId\": 55,\n      \"schemeId\": 200,\n      \"sort\": 1,\n      \"children\": [\n        {\n          \"id\": \"301\",\n          \"name\": \"掌握基础理论……\",\n          \"content\": \"掌握基础理论……\",\n          \"objectiveId\": 301,\n          \"objectiveTypeCode\": \"knowledge\",\n          \"objectiveTypeName\": \"知识目标\",\n          \"planId\": 55,\n          \"schemeId\": 200,\n          \"majorId\": 10,\n          \"sort\": 1,\n          \"children\": [\n            {\n              \"id\": 901,\n              \"planId\": 55,\n              \"objectiveId\": 301,\n              \"schemeId\": 200,\n              \"graduationId\": 501,\n              \"graduationCode\": \"GR-01\",\n              \"graduationName\": \"工程知识\",\n              \"supportDesc\": \"支撑指标点1.1\",\n              \"sort\": 1\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"id\": \"ability\",\n      \"name\": \"能力目标\",\n      \"objectiveTypeCode\": \"ability\",\n      \"objectiveTypeName\": \"能力目标\",\n      \"planId\": 55,\n      \"schemeId\": 200,\n      \"sort\": 2,\n      \"children\": []\n    }\n  ]\n}"
+        },
+        {
+          "name": "成功 - 按类型筛选",
+          "originalRequest": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/tree?planId=55&schemeId=200&objectiveTypeCode=knowledge",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "tree"],
+              "query": [
+                { "key": "planId", "value": "55" },
+                { "key": "schemeId", "value": "200" },
+                { "key": "objectiveTypeCode", "value": "knowledge" }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": \"knowledge\",\n      \"name\": \"知识目标\",\n      \"objectiveTypeCode\": \"knowledge\",\n      \"objectiveTypeName\": \"知识目标\",\n      \"children\": [\n        {\n          \"id\": \"301\",\n          \"name\": \"掌握基础理论……\",\n          \"objectiveId\": 301,\n          \"content\": \"掌握基础理论……\",\n          \"children\": []\n        }\n      ]\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}

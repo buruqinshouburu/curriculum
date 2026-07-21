@@ -41,6 +41,12 @@ public interface TeachingPlanObjectiveRefMapper {
     List<TeachingPlanObjectiveRef> selectBySchemeId(@Param("schemeId") Long schemeId);
 
     /**
+     * 按教学计划 + 培养方案批量查询支撑毕业要求（总览树用）
+     */
+    List<TeachingPlanObjectiveRef> selectByPlanAndScheme(@Param("planId") Long planId,
+                                                          @Param("schemeId") Long schemeId);
+
+    /**
      * 按目标ID逻辑删除
      */
     int deleteByObjectiveId(@Param("objectiveId") Long objectiveId);

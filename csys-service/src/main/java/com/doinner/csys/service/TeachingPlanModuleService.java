@@ -14,6 +14,7 @@ import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 
@@ -35,6 +36,17 @@ public interface TeachingPlanModuleService {
     List<TeachingPlanSchemeVo> listSchemes(Long sourceCourseId);
 
     List<TeachingPlanObjective> listObjective(Long planId, Long schemeId);
+
+    /**
+     * 课程目标与支撑毕业要求总览树。
+     * 结构对齐调用课程知识体系总览：顶层=目标类型(字典 sys_plan_target_type)，
+     * children=目标内容，目标节点 children=支撑毕业要求。
+     *
+     * @param planId            教学计划id
+     * @param schemeId          培养方案id
+     * @param objectiveTypeCode 可选，按目标类型字典值过滤
+     */
+    List<TeachingPlanObjectiveTreeVo> listObjectiveTree(Long planId, Long schemeId, String objectiveTypeCode);
 
     Long addObjective(TeachingPlanObjective objective);
 

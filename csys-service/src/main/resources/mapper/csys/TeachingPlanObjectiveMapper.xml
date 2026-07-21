@@ -49,6 +49,19 @@
         ORDER BY objective_type_code ASC, sort ASC, id ASC
     </select>
 
+    <select id="selectByPlanAndSchemeAndType" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_objective
+        WHERE plan_id = #{planId}
+          AND scheme_id = #{schemeId}
+          AND sysflag = 0
+          <if test="objectiveTypeCode != null and objectiveTypeCode != ''">
+              AND objective_type_code = #{objectiveTypeCode}
+          </if>
+        ORDER BY objective_type_code ASC, sort ASC, id ASC
+    </select>
+
     <update id="deleteByPlanId">
         UPDATE t_csys_teaching_plan_objective SET sysflag = 2 WHERE plan_id = #{planId}
     </update>

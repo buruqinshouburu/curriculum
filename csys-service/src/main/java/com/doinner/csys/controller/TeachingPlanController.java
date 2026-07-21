@@ -22,6 +22,7 @@ import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
@@ -201,6 +202,20 @@ public class TeachingPlanController {
     public DataSet<List<TeachingPlanObjective>> objectiveList(@RequestParam("planId") Long planId,
                                                               @RequestParam("schemeId") Long schemeId) {
         return DataSet.success(teachingPlanModuleService.listObjective(planId, schemeId));
+    }
+
+    /**
+     * 课程目标与支撑毕业要求总览树。
+     * 结构对齐 TrainingController 调用课程知识体系总览：顶层目标类型(字典 sys_plan_target_type)，
+     * children 为目标内容；目标节点 children 为支撑毕业要求。
+     * 可选 objectiveTypeCode 按目标类型过滤。
+     */
+    @ApiOperation("课程目标与支撑毕业要求总览")
+    @GetMapping("/objective/tree")
+    public DataSet<List<TeachingPlanObjectiveTreeVo>> objectiveTree(@RequestParam("planId") Long planId,
+                                                                    @RequestParam("schemeId") Long schemeId,
+                                                                    @RequestParam(value = "objectiveTypeCode", required = false) String objectiveTypeCode) {
+        return DataSet.success(teachingPlanModuleService.listObjectiveTree(planId, schemeId, objectiveTypeCode));
     }
 
     @ApiOperation("新增教学计划目标")

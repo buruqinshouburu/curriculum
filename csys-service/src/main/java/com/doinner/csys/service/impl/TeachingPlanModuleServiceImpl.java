@@ -33,18 +33,24 @@ import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
+import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.csys.utils.UserUtils;
+import com.doinner.system.domain.entity.SysDictData;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -59,6 +65,9 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService {
+
+    /** 教学目标类型字典 type（知识/能力/素质等） */
+    private static final String DICT_PLAN_TARGET_TYPE = "sys_plan_target_type";
 
     @Resource
     private TeachingPlanObjectiveMapper teachingPlanObjectiveMapper;
@@ -155,6 +164,124 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     public List<TeachingPlanObjective> listObjective(Long planId, Long schemeId) {
         return teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, schemeId);
+    }
+
+    @Override
+    public List<TeachingPlanObjectiveTreeVo> listObjectiveTree(Long planId, Long schemeId, String objectiveTypeCode) {
+        if (planId == null || schemeId == null) {
+            throw new IllegalArgumentException("planId 与 schemeId 不能为空");
+        }
+        // 1) 目标类型字典（顶层节点顺序以字典为准）
+        List<SysDictData> typeDicts = CurDictUtils.getDictData(DICT_PLAN_TARGET_TYPE);
+        if (ObjectUtils.isEmpty(typeDicts)) {
+            typeDicts = Collections.emptyList();
+        }
+        // 可选：按目标类型过滤字典顶层
+        if (StringUtils.isNotBlank(objectiveTypeCode)) {
+            typeDicts = typeDicts.stream()
+                    .filter(d -> objectiveTypeCode.equals(d.getDictValue()))
+                    .collect(Collectors.toList());
+        }
+
+        // 2) 目标内容（可按类型过滤）
+        List<TeachingPlanObjective> objectives =
+                teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(planId, schemeId, objectiveTypeCode);
+        Map<String, List<TeachingPlanObjective>> objectivesByType = new LinkedHashMap<>();
+        if (ObjectUtils.isNotEmpty(objectives)) {
+            for (TeachingPlanObjective obj : objectives) {
+                String typeCode = obj.getObjectiveTypeCode() == null ? "" : obj.getObjectiveTypeCode();
+                objectivesByType.computeIfAbsent(typeCode, k -> new ArrayList<>()).add(obj);
+            }
+        }
+
+        // 3) 支撑毕业要求按 objectiveId 分组（一次查出，避免 N+1）
+        List<TeachingPlanObjectiveRef> allRefs =
+                teachingPlanObjectiveRefMapper.selectByPlanAndScheme(planId, schemeId);
+        Map<Long, List<TeachingPlanObjectiveRef>> refsByObjectiveId = new LinkedHashMap<>();
+        if (ObjectUtils.isNotEmpty(allRefs)) {
+            for (TeachingPlanObjectiveRef ref : allRefs) {
+                if (ref.getObjectiveId() == null) {
+                    continue;
+                }
+                refsByObjectiveId.computeIfAbsent(ref.getObjectiveId(), k -> new ArrayList<>()).add(ref);
+            }
+        }
+
+        // 4) 组装树：类型 -> 目标(children) -> 支撑毕业要求(children)
+        //    对齐 viewTrainingCourseKnowLedge：setChildren(...)
+        List<TeachingPlanObjectiveTreeVo> tree = new ArrayList<>();
+        // 字典有定义的类型优先按字典顺序输出
+        for (SysDictData dict : typeDicts) {
+            String typeCode = dict.getDictValue();
+            TeachingPlanObjectiveTreeVo typeNode = new TeachingPlanObjectiveTreeVo();
+            typeNode.setId(typeCode);
+            typeNode.setName(dict.getDictLabel());
+            typeNode.setObjectiveTypeCode(typeCode);
+            typeNode.setObjectiveTypeName(dict.getDictLabel());
+            typeNode.setPlanId(planId);
+            typeNode.setSchemeId(schemeId);
+            typeNode.setSort(dict.getDictSort() == null ? null : dict.getDictSort().intValue());
+            typeNode.setChildren(buildObjectiveChildren(
+                    objectivesByType.remove(typeCode), planId, schemeId, typeCode, dict.getDictLabel(), refsByObjectiveId));
+            tree.add(typeNode);
+        }
+        // 字典未覆盖但库中仍存在的类型（兜底，避免数据丢失）
+        if (!objectivesByType.isEmpty()) {
+            for (Map.Entry<String, List<TeachingPlanObjective>> entry : objectivesByType.entrySet()) {
+                String typeCode = entry.getKey();
+                List<TeachingPlanObjective> list = entry.getValue();
+                String typeName = null;
+                if (ObjectUtils.isNotEmpty(list) && StringUtils.isNotBlank(list.get(0).getObjectiveTypeName())) {
+                    typeName = list.get(0).getObjectiveTypeName();
+                }
+                if (StringUtils.isBlank(typeName)) {
+                    typeName = typeCode;
+                }
+                TeachingPlanObjectiveTreeVo typeNode = new TeachingPlanObjectiveTreeVo();
+                typeNode.setId(typeCode);
+                typeNode.setName(typeName);
+                typeNode.setObjectiveTypeCode(typeCode);
+                typeNode.setObjectiveTypeName(typeName);
+                typeNode.setPlanId(planId);
+                typeNode.setSchemeId(schemeId);
+                typeNode.setChildren(buildObjectiveChildren(list, planId, schemeId, typeCode, typeName, refsByObjectiveId));
+                tree.add(typeNode);
+            }
+        }
+        return tree;
+    }
+
+    /**
+     * 目标层节点列表；每个目标 children = 支撑毕业要求列表。
+     */
+    private List<TeachingPlanObjectiveTreeVo> buildObjectiveChildren(
+            List<TeachingPlanObjective> objectives,
+            Long planId,
+            Long schemeId,
+            String typeCode,
+            String typeName,
+            Map<Long, List<TeachingPlanObjectiveRef>> refsByObjectiveId) {
+        if (ObjectUtils.isEmpty(objectives)) {
+            return new ArrayList<>();
+        }
+        List<TeachingPlanObjectiveTreeVo> nodes = new ArrayList<>(objectives.size());
+        for (TeachingPlanObjective obj : objectives) {
+            TeachingPlanObjectiveTreeVo node = new TeachingPlanObjectiveTreeVo();
+            node.setId(obj.getId() == null ? null : obj.getId().toString());
+            node.setName(obj.getContent());
+            node.setContent(obj.getContent());
+            node.setObjectiveId(obj.getId());
+            node.setObjectiveTypeCode(StringUtils.isNotBlank(obj.getObjectiveTypeCode()) ? obj.getObjectiveTypeCode() : typeCode);
+            node.setObjectiveTypeName(StringUtils.isNotBlank(obj.getObjectiveTypeName()) ? obj.getObjectiveTypeName() : typeName);
+            node.setPlanId(obj.getPlanId() != null ? obj.getPlanId() : planId);
+            node.setSchemeId(obj.getSchemeId() != null ? obj.getSchemeId() : schemeId);
+            node.setMajorId(obj.getMajorId());
+            node.setSort(obj.getSort());
+            List<TeachingPlanObjectiveRef> refs = refsByObjectiveId.getOrDefault(obj.getId(), Collections.emptyList());
+            node.setChildren(refs);
+            nodes.add(node);
+        }
+        return nodes;
     }
 
     @Override

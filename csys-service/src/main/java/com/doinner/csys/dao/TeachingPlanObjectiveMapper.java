@@ -38,6 +38,15 @@ public interface TeachingPlanObjectiveMapper {
                                                       @Param("schemeId") Long schemeId);
 
     /**
+     * 按计划 + 培养方案查询目标；可选按目标类型编码过滤。
+     *
+     * @param objectiveTypeCode 可选，对应 t_csys_teaching_plan_objective.objective_type_code
+     */
+    List<TeachingPlanObjective> selectByPlanAndSchemeAndType(@Param("planId") Long planId,
+                                                              @Param("schemeId") Long schemeId,
+                                                              @Param("objectiveTypeCode") String objectiveTypeCode);
+
+    /**
      * 任务6：根据总库课程id查询专业id与名称。
      * 链路：总库课程 -> 调用课程(source_id) -> 培养方案专业关联 -> 专业总库。
      *
