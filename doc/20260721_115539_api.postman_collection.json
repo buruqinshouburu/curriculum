@@ -97,7 +97,7 @@
               "path": ["csys", "teachingPlan", "teacher", "list"],
               "query": [{ "key": "planId", "value": "{{planId}}", "description": "Long, 必填" }]
             },
-            "description": "表 t_csys_teaching_plan_teacher\n字段: id, planId, teacherId, teacherName, professionalTitle, duty, lectureContent, sort"
+            "description": "表 t_csys_teaching_plan_teacher\n字段: id, planId, teacherId(String,外库教员字符串主键), teacherName, professionalTitle, duty, lectureContent, sort"
           }
         },
         {
@@ -110,7 +110,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planId\": {{planId}},\n  \"teacherId\": 10001,\n  \"teacherName\": \"张三\",\n  \"professionalTitle\": \"教授\",\n  \"duty\": \"主讲\",\n  \"lectureContent\": \"第1-8章\",\n  \"sort\": 1\n}"
+              "raw": "{\n  \"planId\": {{planId}},\n  \"teacherId\": \"T20260001\",\n  \"teacherName\": \"张三\",\n  \"professionalTitle\": \"教授\",\n  \"duty\": \"主讲\",\n  \"lectureContent\": \"第1-8章\",\n  \"sort\": 1\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/csys/teachingPlan/teacher",

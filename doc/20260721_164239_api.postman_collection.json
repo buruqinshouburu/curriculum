@@ -1,0 +1,93 @@
+{
+  "info": {
+    "_postman_id": "20260721-164239-teaching-plan-teacher-id-string",
+    "name": "TeachingPlan - 教员teacherId改为String (20260721)",
+    "description": "变更摘要（前端必改）\n\n教员数据来自外部库，教员主键为字符串，不再是本系统用户数字ID。\n\n字段类型变更（破坏性）:\n  TeachingPlanTeacher.teacherId: Long → String\n  库列 t_csys_teaching_plan_teacher.teacher_id: bigint → varchar(100)\n\n受影响接口（CRUD）:\n  GET    /csys/teachingPlan/teacher/list?planId=\n  POST   /csys/teachingPlan/teacher\n  PUT    /csys/teachingPlan/teacher\n  DELETE /csys/teachingPlan/teacher/{id}  (路径id仍是本表主键Long，未改)\n\n前端注意:\n  1. 请求/响应 teacherId 用字符串，如 \"T20260001\"，不要传数字\n  2. 选择外库教员后把其主键写入 teacherId，姓名写入 teacherName\n  3. 表主键 id 仍是 Long，删除仍用 DELETE /teacher/{id}\n\nDDL: sql/update_teaching_plan_teacher_id_varchar.sql\n服务: {{baseUrl}}/csys",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9219" },
+    { "key": "planId", "value": "55" },
+    { "key": "id", "value": "1", "description": "t_csys_teaching_plan_teacher 表主键(Long)" },
+    { "key": "teacherId", "value": "T20260001", "description": "外库教员字符串主键" }
+  ],
+  "item": [
+    {
+      "name": "1. 教员列表 GET /teacher/list",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/teacher/list?planId={{planId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "teacher", "list"],
+          "query": [{ "key": "planId", "value": "{{planId}}", "description": "Long, 必填, 教学计划id" }]
+        },
+        "description": "返回 TeachingPlanTeacher[]\n字段: id(Long), planId, teacherId(String), teacherName, professionalTitle, duty, lectureContent, sort"
+      },
+      "response": [
+        {
+          "name": "成功",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"planId\": 55,\n      \"teacherId\": \"T20260001\",\n      \"teacherName\": \"张三\",\n      \"professionalTitle\": \"教授\",\n      \"duty\": \"主讲\",\n      \"lectureContent\": \"第1-8章\",\n      \"sort\": 1\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. 新增教员 POST /teacher",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": {{planId}},\n  \"teacherId\": \"{{teacherId}}\",\n  \"teacherName\": \"张三\",\n  \"professionalTitle\": \"教授\",\n  \"duty\": \"主讲\",\n  \"lectureContent\": \"第1-8章\",\n  \"sort\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/teacher",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "teacher"]
+        },
+        "description": "【本次变更】teacherId 为 String（外库主键），示例 \"T20260001\"，勿再传数字 10001。\n返回 DataSet<Long> 新记录本表主键 id"
+      }
+    },
+    {
+      "name": "3. 修改教员 PUT /teacher",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Accept", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id}},\n  \"planId\": {{planId}},\n  \"teacherId\": \"{{teacherId}}\",\n  \"teacherName\": \"张三\",\n  \"professionalTitle\": \"教授\",\n  \"duty\": \"主讲/负责人\",\n  \"lectureContent\": \"第1-10章\",\n  \"sort\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/teacher",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "teacher"]
+        },
+        "description": "body.id 为本表主键；teacherId 为外库字符串主键"
+      }
+    },
+    {
+      "name": "4. 删除教员 DELETE /teacher/{id}",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/teacher/{{id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "teacher", "{{id}}"]
+        },
+        "description": "路径 id 仍是 t_csys_teaching_plan_teacher 表主键 Long，逻辑删除。未改。"
+      }
+    }
+  ]
+}

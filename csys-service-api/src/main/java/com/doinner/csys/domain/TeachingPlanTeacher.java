@@ -18,9 +18,9 @@ public class TeachingPlanTeacher extends AbstractDoinnerLogicalDelBaseEntity {
     private Long planId;
 
     /**
-     * 系统用户ID
+     * 教员ID（外库主键，字符串；非本系统用户数字ID）
      */
-    private Long teacherId;
+    private String teacherId;
 
     /**
      * 教员姓名
@@ -63,11 +63,11 @@ public class TeachingPlanTeacher extends AbstractDoinnerLogicalDelBaseEntity {
         this.planId = planId;
     }
 
-    public Long getTeacherId() {
+    public String getTeacherId() {
         return teacherId;
     }
 
-    public void setTeacherId(Long teacherId) {
+    public void setTeacherId(String teacherId) {
         this.teacherId = teacherId;
     }
 

@@ -108,7 +108,7 @@ CREATE TABLE `t_csys_scheme_course_ref_graduation` (
 CREATE TABLE `t_csys_teaching_plan_teacher` (
                                                 `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
                                                 `plan_id` bigint NOT NULL COMMENT '教学计划ID',
-                                                `teacher_id` bigint DEFAULT NULL COMMENT '系统用户ID',
+                                                `teacher_id` varchar(100) DEFAULT NULL COMMENT '教员ID(外库字符串主键)',
                                                 `teacher_name` varchar(100) NOT NULL COMMENT '教员姓名',
                                                 `professional_title` varchar(100) DEFAULT NULL COMMENT '职称',
                                                 `duty` varchar(100) DEFAULT NULL COMMENT '职责',
