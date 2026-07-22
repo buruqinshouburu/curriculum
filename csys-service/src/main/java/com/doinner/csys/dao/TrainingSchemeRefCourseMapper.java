@@ -86,5 +86,11 @@ public interface TrainingSchemeRefCourseMapper {
      */
     List<TrainingSchemeRefCourse> selectByCourseIds(@Param("ids") List<Long> ids);
 
+    /**
+     * 指定培养方案下，源课的全部被调用课程 id（经 t_csys_training_scheme_ref_course + c2.source_id）。
+     */
+    List<Long> selectQuoteCourseIdsBySourceAndScheme(@Param("sourceCourseId") Long sourceCourseId,
+                                                     @Param("schemeId") Long schemeId);
+
     List<TrainingSchemeRefCourse> selectTrainingSchemeRefCourseByTrainingSchemeVoIdAndCourseType(@Param("trainingCourseVo") TrainingCourseVo trainingCourseVo);
 }

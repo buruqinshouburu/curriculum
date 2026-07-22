@@ -13,6 +13,8 @@ import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
@@ -54,18 +56,32 @@ public interface TeachingPlanModuleService {
 
     void deleteObjective(Long id);
 
-    /** 目标 + 支撑毕业要求同事务保存；objective.schemeId 必填 */
+    /**
+     * 目标 + 支撑毕业要求同事务保存（兼容旧前端一次提交）。
+     * 推荐改用：POST /objective 只存目标 → POST /objectiveRef/save 单独绑定。
+     */
     Long saveObjectiveWithRefs(TeachingPlanObjectiveSaveVo saveVo);
 
-    /** 全部调用课汇总（兼容） */
-    List<StandardGraduation> listCourseGraduation(Long courseId);
+    /**
+     * 仅保存目标与毕业要求的绑定关系（与目标新增解耦）。
+     * 先逻辑删除 objectiveId 下旧 ref，再按 saveVo.refs 重建；refs 空=清空绑定。
+     */
+    void saveObjectiveRefs(TeachingPlanObjectiveRefSaveVo saveVo);
 
     /**
-     * 按培养方案汇总毕业要求：该 scheme 下引用本源课的**全部**调用课所绑定的毕业要求去重。
-     * 同一专业课在方案中被引用多次时，全部计入。
-     * schemeId 为空时回退 listCourseGraduation(courseId)。
+     * 候选毕业要求：源课在指定培养方案下被调用课绑定的毕业要求；
+     * 被调用课均无绑定时回退源课自身在 t_csys_course_ref_graduation 的绑定。
+     * schemeId 为空时汇总源课全部调用课绑定，仍空则回退源课。
+     *
+     * @param courseId 总库源课程 id
+     * @param schemeId 培养方案 id（tab），可选
      */
     List<StandardGraduation> listCourseGraduationByScheme(Long courseId, Long schemeId);
+
+    /**
+     * 全部调用课汇总毕业要求，空则回退源课（Word 生成等兼容）。
+     */
+    List<StandardGraduation> listCourseGraduation(Long courseId);
 
     List<TeachingPlanObjectiveRef> listObjectiveRef(Long objectiveId);
 
@@ -83,6 +99,11 @@ public interface TeachingPlanModuleService {
 
     void deleteContent(Long id);
 
+    /**
+     * 知识/能力/素质目标达成设计列表。
+     * planId 为空时返回空列表（用户未建计划直接进 tab 不报错）；
+     * schemeId 可选。
+     */
     List<TeachingPlanTargetDesign> listTargetDesign(Long planId, Long schemeId, String designTypeCode);
 
     List<CourseKnowledgeUnit> listKnowledgeUnitInit(Long courseId);
@@ -92,6 +113,17 @@ public interface TeachingPlanModuleService {
     void updateTargetDesign(TeachingPlanTargetDesign design);
 
     void deleteTargetDesign(Long id);
+
+    /**
+     * 查询教学计划下某一类型的课程目标选项（达成设计弹框「支撑目标」数据源）。
+     * 按 content 字符串去重，同名称只保留一条。
+     * planId 为空返回空列表。
+     *
+     * @param planId             教学计划 id（可空）
+     * @param schemeId           培养方案 id（可空=汇总全部方案下该类型）
+     * @param objectiveTypeCode  目标类型：知识目标/能力目标/素质目标（或字典编码）
+     */
+    List<TeachingPlanObjectiveOptionVo> listObjectiveOptions(Long planId, Long schemeId, String objectiveTypeCode);
 
     List<TeachingPlanPracticeItem> listPracticeItem(Long planId);
 

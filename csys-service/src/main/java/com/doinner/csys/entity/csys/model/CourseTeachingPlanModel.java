@@ -69,14 +69,32 @@ public class CourseTeachingPlanModel {
     private List<TeachingPlanTeacher> teachers;
     /** 文本章节（任务背景/总体设计/课程概述/组织方式等大段文本） */
     private List<TeachingPlanSection> sections;
-    /** 教学计划目标（知识/能力/素质） */
+    /** 教学计划目标（知识/能力/素质）；兼容单方案，多方案时优先用 schemeObjectiveGroups */
     private List<TeachingPlanObjective> objectives;
-    /** 目标支撑毕业要求：objectiveId -> refs */
+    /** 目标支撑毕业要求：objectiveId -> refs（与 objectives 对应的兼容字段） */
     private Map<Long, List<TeachingPlanObjectiveRef>> objectiveRefMap;
+    /**
+     * 按培养方案分组的「课程目标与支撑毕业要求」。
+     * 源课被多个培养方案引用时，每组对应 Word 中一张表。
+     */
+    private List<SchemeObjectiveGroup> schemeObjectiveGroups;
     /** 教学内容与学时安排 */
     private List<TeachingPlanContent> contents;
     /** 目标达成设计（知识/能力/素质，生成器按 designTypeCode 分组） */
     private List<TeachingPlanTargetDesign> targetDesigns;
+    /**
+     * 第六节「说明」- 教学环节说明行（取自字典 sys_plan_teaching_link 的全部 label）。
+     * 形如：教学环节主要包括：课前预习（准备）、理论教学、……
+     */
+    private String teachingLinkNote;
+    /**
+     * 第六节「说明」- 教法说明行（sys_plan_teaching_method）。
+     */
+    private String teachingMethodNote;
+    /**
+     * 第六节「说明」- 学法说明行（sys_plan_learning_method）。
+     */
+    private String learningMethodNote;
     /** 实验/实践项目 */
     private List<TeachingPlanPracticeItem> practiceItems;
     /** 实验项目明细：itemId -> details */
@@ -252,6 +270,14 @@ public class CourseTeachingPlanModel {
         this.objectiveRefMap = objectiveRefMap;
     }
 
+    public List<SchemeObjectiveGroup> getSchemeObjectiveGroups() {
+        return schemeObjectiveGroups;
+    }
+
+    public void setSchemeObjectiveGroups(List<SchemeObjectiveGroup> schemeObjectiveGroups) {
+        this.schemeObjectiveGroups = schemeObjectiveGroups;
+    }
+
     public List<TeachingPlanContent> getContents() {
         return contents;
     }
@@ -266,6 +292,30 @@ public class CourseTeachingPlanModel {
 
     public void setTargetDesigns(List<TeachingPlanTargetDesign> targetDesigns) {
         this.targetDesigns = targetDesigns;
+    }
+
+    public String getTeachingLinkNote() {
+        return teachingLinkNote;
+    }
+
+    public void setTeachingLinkNote(String teachingLinkNote) {
+        this.teachingLinkNote = teachingLinkNote;
+    }
+
+    public String getTeachingMethodNote() {
+        return teachingMethodNote;
+    }
+
+    public void setTeachingMethodNote(String teachingMethodNote) {
+        this.teachingMethodNote = teachingMethodNote;
+    }
+
+    public String getLearningMethodNote() {
+        return learningMethodNote;
+    }
+
+    public void setLearningMethodNote(String learningMethodNote) {
+        this.learningMethodNote = learningMethodNote;
     }
 
     public List<TeachingPlanPracticeItem> getPracticeItems() {
@@ -314,5 +364,49 @@ public class CourseTeachingPlanModel {
 
     public void setCourseGraduations(List<StandardGraduation> courseGraduations) {
         this.courseGraduations = courseGraduations;
+    }
+
+    /**
+     * 单个培养方案下的课程目标 + 支撑毕业要求。
+     * Word「四、课程目标与支撑毕业要求」中每个 group 对应一张表。
+     */
+    public static class SchemeObjectiveGroup {
+        private Long schemeId;
+        /** 展示标题，如培养方案名称（可带版本） */
+        private String schemeTitle;
+        private List<TeachingPlanObjective> objectives;
+        private Map<Long, List<TeachingPlanObjectiveRef>> objectiveRefMap;
+
+        public Long getSchemeId() {
+            return schemeId;
+        }
+
+        public void setSchemeId(Long schemeId) {
+            this.schemeId = schemeId;
+        }
+
+        public String getSchemeTitle() {
+            return schemeTitle;
+        }
+
+        public void setSchemeTitle(String schemeTitle) {
+            this.schemeTitle = schemeTitle;
+        }
+
+        public List<TeachingPlanObjective> getObjectives() {
+            return objectives;
+        }
+
+        public void setObjectives(List<TeachingPlanObjective> objectives) {
+            this.objectives = objectives;
+        }
+
+        public Map<Long, List<TeachingPlanObjectiveRef>> getObjectiveRefMap() {
+            return objectiveRefMap;
+        }
+
+        public void setObjectiveRefMap(Map<Long, List<TeachingPlanObjectiveRef>> objectiveRefMap) {
+            this.objectiveRefMap = objectiveRefMap;
+        }
     }
 }

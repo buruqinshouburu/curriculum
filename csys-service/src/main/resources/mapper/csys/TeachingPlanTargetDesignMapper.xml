@@ -8,10 +8,12 @@
         <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
         <result column="design_type_code" property="designTypeCode" jdbcType="VARCHAR"/>
         <result column="objective_id" property="objectiveId" jdbcType="BIGINT"/>
+        <result column="objective_text" property="objectiveText" jdbcType="LONGVARCHAR"/>
         <result column="knowledge_unit_id" property="knowledgeUnitId" jdbcType="BIGINT"/>
         <result column="knowledge_unit_name" property="knowledgeUnitName" jdbcType="VARCHAR"/>
         <result column="knowledge_point_id" property="knowledgePointId" jdbcType="BIGINT"/>
         <result column="knowledge_point_name" property="knowledgePointName" jdbcType="VARCHAR"/>
+        <result column="knowledge_points" property="knowledgePointsJson" jdbcType="LONGVARCHAR"/>
         <result column="observation_point" property="observationPoint" jdbcType="LONGVARCHAR"/>
         <result column="content_ids" property="contentIds" jdbcType="LONGVARCHAR"/>
         <result column="content_text" property="contentText" jdbcType="LONGVARCHAR"/>
@@ -30,24 +32,26 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, plan_id, scheme_id, design_type_code, objective_id, knowledge_unit_id, knowledge_unit_name,
-        knowledge_point_id, knowledge_point_name, observation_point, content_ids, content_text, teaching_link,
+        id, plan_id, scheme_id, design_type_code, objective_id, objective_text,
+        knowledge_unit_id, knowledge_unit_name, knowledge_point_id, knowledge_point_name, knowledge_points,
+        observation_point, content_ids, content_text, teaching_link,
         teaching_method, learning_method, hours, teaching_design, sort,
         creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_target_design (
-            plan_id, scheme_id, design_type_code, objective_id, knowledge_unit_id, knowledge_unit_name,
-            knowledge_point_id, knowledge_point_name, observation_point, content_ids, content_text, teaching_link,
+            plan_id, scheme_id, design_type_code, objective_id, objective_text,
+            knowledge_unit_id, knowledge_unit_name, knowledge_point_id, knowledge_point_name, knowledge_points,
+            observation_point, content_ids, content_text, teaching_link,
             teaching_method, learning_method, hours, teaching_design, sort,
             creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
-                #{item.planId}, #{item.schemeId}, #{item.designTypeCode}, #{item.objectiveId},
+                #{item.planId}, #{item.schemeId}, #{item.designTypeCode}, #{item.objectiveId}, #{item.objectiveText},
                 #{item.knowledgeUnitId}, #{item.knowledgeUnitName}, #{item.knowledgePointId},
-                #{item.knowledgePointName}, #{item.observationPoint}, #{item.contentIds}, #{item.contentText},
+                #{item.knowledgePointName}, #{item.knowledgePointsJson}, #{item.observationPoint}, #{item.contentIds}, #{item.contentText},
                 #{item.teachingLink}, #{item.teachingMethod}, #{item.learningMethod}, #{item.hours},
                 #{item.teachingDesign}, #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier},
                 #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
@@ -86,10 +90,12 @@
             <if test="schemeId != null">scheme_id,</if>
             <if test="designTypeCode != null">design_type_code,</if>
             <if test="objectiveId != null">objective_id,</if>
+            <if test="objectiveText != null">objective_text,</if>
             <if test="knowledgeUnitId != null">knowledge_unit_id,</if>
             <if test="knowledgeUnitName != null">knowledge_unit_name,</if>
             <if test="knowledgePointId != null">knowledge_point_id,</if>
             <if test="knowledgePointName != null">knowledge_point_name,</if>
+            <if test="knowledgePointsJson != null">knowledge_points,</if>
             <if test="observationPoint != null">observation_point,</if>
             <if test="contentIds != null">content_ids,</if>
             <if test="contentText != null">content_text,</if>
@@ -111,10 +117,12 @@
             <if test="schemeId != null">#{schemeId},</if>
             <if test="designTypeCode != null">#{designTypeCode},</if>
             <if test="objectiveId != null">#{objectiveId},</if>
+            <if test="objectiveText != null">#{objectiveText},</if>
             <if test="knowledgeUnitId != null">#{knowledgeUnitId},</if>
             <if test="knowledgeUnitName != null">#{knowledgeUnitName},</if>
             <if test="knowledgePointId != null">#{knowledgePointId},</if>
             <if test="knowledgePointName != null">#{knowledgePointName},</if>
+            <if test="knowledgePointsJson != null">#{knowledgePointsJson},</if>
             <if test="observationPoint != null">#{observationPoint},</if>
             <if test="contentIds != null">#{contentIds},</if>
             <if test="contentText != null">#{contentText},</if>
@@ -140,10 +148,12 @@
             <if test="schemeId != null">scheme_id = #{schemeId},</if>
             <if test="designTypeCode != null">design_type_code = #{designTypeCode},</if>
             <if test="objectiveId != null">objective_id = #{objectiveId},</if>
+            <if test="objectiveText != null">objective_text = #{objectiveText},</if>
             <if test="knowledgeUnitId != null">knowledge_unit_id = #{knowledgeUnitId},</if>
             <if test="knowledgeUnitName != null">knowledge_unit_name = #{knowledgeUnitName},</if>
             <if test="knowledgePointId != null">knowledge_point_id = #{knowledgePointId},</if>
             <if test="knowledgePointName != null">knowledge_point_name = #{knowledgePointName},</if>
+            <if test="knowledgePointsJson != null">knowledge_points = #{knowledgePointsJson},</if>
             <if test="observationPoint != null">observation_point = #{observationPoint},</if>
             <if test="contentIds != null">content_ids = #{contentIds},</if>
             <if test="contentText != null">content_text = #{contentText},</if>
@@ -162,7 +172,8 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, plan_id, scheme_id, design_type_code, objective_id, knowledge_unit_id, knowledge_unit_name, knowledge_point_id, knowledge_point_name, observation_point, content_ids, content_text, teaching_link, teaching_method, learning_method, hours, teaching_design, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        SELECT
+        <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_target_design
         WHERE id = #{id}
           AND sysflag = 0
@@ -172,14 +183,24 @@
         UPDATE t_csys_teaching_plan_target_design SET sysflag = 2 WHERE id = #{id}
     </update>
 
+    <!-- planId/schemeId 均可空：用户未建计划直接进 tab 时返回空列表，不报错 -->
     <select id="selectByPlanSchemeAndType" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_target_design
-        WHERE plan_id = #{planId}
-          AND scheme_id = #{schemeId}
-          AND design_type_code = #{designTypeCode}
-          AND sysflag = 0
+        WHERE sysflag = 0
+        <if test="planId != null">
+            AND plan_id = #{planId}
+        </if>
+        <if test="planId == null">
+            AND 1 = 0
+        </if>
+        <if test="schemeId != null">
+            AND scheme_id = #{schemeId}
+        </if>
+        <if test="designTypeCode != null and designTypeCode != ''">
+            AND design_type_code = #{designTypeCode}
+        </if>
         ORDER BY sort ASC, id ASC
     </select>
 

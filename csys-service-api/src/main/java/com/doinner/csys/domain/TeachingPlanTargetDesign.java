@@ -1,104 +1,116 @@
 package com.doinner.csys.domain;
 
 import com.doinner.common.core.domain.db.AbstractDoinnerLogicalDelBaseEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
- * 教学目标达成设计实体
- * 知识/能力/素质目标达成设计，绑定知识单元、知识点、教学环节、教法、学法、观测点
+ * 教学目标达成设计实体。
+ * <p>
+ * 知识/能力/素质目标达成设计：
+ * <ul>
+ *   <li>支撑目标：{@link #objectiveText} 直接存目标内容字符串（不再依赖 objectiveId 关联）</li>
+ *   <li>知识目标可绑定多个知识点（可跨知识单元）：{@link #knowledgePoints}</li>
+ *   <li>能力/素质目标仍用观测点 + 教学设计，不绑知识点</li>
+ *   <li>教学环节 / 教法 / 学法为字典值（编码或名称），由前端从字典表选择后写入字符串</li>
+ * </ul>
  */
 public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntity {
 
-    /**
-     * 主键ID
-     */
     private Long id;
-
-    /**
-     * 教学计划ID
-     */
     private Long planId;
-
-    /**
-     * 教学计划调用上下文ID；按tab维护时填写
-     */
+    /** 培养方案 tab id */
     private Long schemeId;
-
-    /**
-     * 设计类型字典编码：知识目标/能力目标/素质目标
-     */
+    /** 设计类型字典编码：知识目标 / 能力目标 / 素质目标 */
     private String designTypeCode;
-
     /**
-     * 对应教学计划目标ID
+     * 对应教学计划目标ID（可选，兼容旧数据）。
+     * 新流程优先写 {@link #objectiveText}。
      */
     private Long objectiveId;
-
     /**
-     * 知识单元ID，t_csys_course_knowledge_unit.id
+     * 支撑的课程目标文本（知识/能力/素质目标内容）。
+     * 前端从目标选项接口取 content 后直接写入，同名合并后的字符串。
      */
+    private String objectiveText;
+    /** 知识单元ID（兼容：单知识点或 knowledgePoints 首项回填） */
     private Long knowledgeUnitId;
-
-    /**
-     * 知识单元名称快照
-     */
     private String knowledgeUnitName;
-
-    /**
-     * 知识点ID，t_csys_course_knowledge_point.id
-     */
+    /** 知识点ID（兼容：单知识点或 knowledgePoints 首项回填） */
     private Long knowledgePointId;
-
-    /**
-     * 知识点名称快照
-     */
     private String knowledgePointName;
-
     /**
-     * 观测点
+     * 知识目标绑定的多个知识点（可跨不同知识单元）。
+     * 接口入参/出参用此列表；Service 与 {@link #knowledgePointsJson} 互转后落库。
      */
+    private List<KnowledgePointItem> knowledgePoints;
+    /**
+     * 对应表字段 knowledge_points（JSON 原文），MyBatis 读写用；接口不返回，请用 knowledgePoints。
+     */
+    @JsonIgnore
+    private String knowledgePointsJson;
+    /** 观测点（能力/素质） */
     private String observationPoint;
-
-    /**
-     * 关联教学内容ID数组（JSON字符串）
-     */
+    /** 关联教学内容ID数组（JSON字符串） */
     private String contentIds;
-
-    /**
-     * 教学内容文本快照
-     */
+    /** 教学内容文本快照 */
     private String contentText;
-
     /**
-     * 教学环节
+     * 教学环节（字典值，如 sys 字典编码或名称）
      */
     private String teachingLink;
-
-    /**
-     * 教法
-     */
+    /** 教法（字典值） */
     private String teachingMethod;
-
-    /**
-     * 学法
-     */
+    /** 学法（字典值） */
     private String learningMethod;
-
-    /**
-     * 学时
-     */
     private BigDecimal hours;
-
-    /**
-     * 教学设计
-     */
+    /** 教学设计（能力/素质） */
     private String teachingDesign;
+    private Integer sort;
 
     /**
-     * 排序
+     * 知识目标下绑定的单个知识点项（可属于不同知识单元）。
      */
-    private Integer sort;
+    public static class KnowledgePointItem {
+        private Long knowledgeUnitId;
+        private String knowledgeUnitName;
+        private Long knowledgePointId;
+        private String knowledgePointName;
+
+        public Long getKnowledgeUnitId() {
+            return knowledgeUnitId;
+        }
+
+        public void setKnowledgeUnitId(Long knowledgeUnitId) {
+            this.knowledgeUnitId = knowledgeUnitId;
+        }
+
+        public String getKnowledgeUnitName() {
+            return knowledgeUnitName;
+        }
+
+        public void setKnowledgeUnitName(String knowledgeUnitName) {
+            this.knowledgeUnitName = knowledgeUnitName;
+        }
+
+        public Long getKnowledgePointId() {
+            return knowledgePointId;
+        }
+
+        public void setKnowledgePointId(Long knowledgePointId) {
+            this.knowledgePointId = knowledgePointId;
+        }
+
+        public String getKnowledgePointName() {
+            return knowledgePointName;
+        }
+
+        public void setKnowledgePointName(String knowledgePointName) {
+            this.knowledgePointName = knowledgePointName;
+        }
+    }
 
     public Long getId() {
         return id;
@@ -140,6 +152,14 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
         this.objectiveId = objectiveId;
     }
 
+    public String getObjectiveText() {
+        return objectiveText;
+    }
+
+    public void setObjectiveText(String objectiveText) {
+        this.objectiveText = objectiveText;
+    }
+
     public Long getKnowledgeUnitId() {
         return knowledgeUnitId;
     }
@@ -170,6 +190,22 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
 
     public void setKnowledgePointName(String knowledgePointName) {
         this.knowledgePointName = knowledgePointName;
+    }
+
+    public List<KnowledgePointItem> getKnowledgePoints() {
+        return knowledgePoints;
+    }
+
+    public void setKnowledgePoints(List<KnowledgePointItem> knowledgePoints) {
+        this.knowledgePoints = knowledgePoints;
+    }
+
+    public String getKnowledgePointsJson() {
+        return knowledgePointsJson;
+    }
+
+    public void setKnowledgePointsJson(String knowledgePointsJson) {
+        this.knowledgePointsJson = knowledgePointsJson;
     }
 
     public String getObservationPoint() {

@@ -2,6 +2,7 @@ package com.doinner.csys.service.impl;
 
 import com.doinner.csys.dao.CourseMapper;
 import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
+import com.doinner.csys.dao.TrainingSchemeRefCourseMapper;
 import com.doinner.csys.dao.CourseRefGraduationMapper;
 import com.doinner.csys.dao.StandardGraduationMapper;
 import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
@@ -32,6 +33,8 @@ import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
@@ -40,6 +43,8 @@ import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.system.domain.entity.SysDictData;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -68,6 +73,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     /** 教学目标类型字典 type（知识/能力/素质等） */
     private static final String DICT_PLAN_TARGET_TYPE = "sys_plan_target_type";
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>> KP_LIST_TYPE =
+            new TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>>() {};
 
     @Resource
     private TeachingPlanObjectiveMapper teachingPlanObjectiveMapper;
@@ -110,6 +119,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TrainingSchemeCourseScheduleMapper trainingSchemeCourseScheduleMapper;
+
+    @Resource
+    private TrainingSchemeRefCourseMapper trainingSchemeRefCourseMapper;
 
     @Resource
     private CourseRefGraduationMapper courseRefGraduationMapper;
@@ -302,27 +314,47 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteObjective(Long id) {
+        // 删目标时同步逻辑删除其支撑毕业要求，避免孤儿绑定
+        if (id != null) {
+            teachingPlanObjectiveRefMapper.deleteByObjectiveId(id);
+        }
         teachingPlanObjectiveMapper.deleteById(id);
     }
 
-    // ============ 8. 课程绑定毕业要求 ============
+    // ============ 8. 课程绑定毕业要求（候选列表） ============
 
     @Override
     public List<StandardGraduation> listCourseGraduation(Long courseId) {
-        return listGraduationsByQuoteCourseIds(resolveQuoteCourseIds(courseId));
+        // 全部调用课绑定；若调用课均无绑定则回退源课公共毕业要求
+        List<StandardGraduation> fromQuotes = listGraduationsByQuoteCourseIds(resolveQuoteCourseIds(courseId));
+        if (ObjectUtils.isNotEmpty(fromQuotes)) {
+            return fromQuotes;
+        }
+        return listGraduationsByCourseId(courseId);
     }
 
     @Override
     public List<StandardGraduation> listCourseGraduationByScheme(Long courseId, Long schemeId) {
-        if (schemeId == null) {
-            return listCourseGraduation(courseId);
+        if (courseId == null) {
+            return new ArrayList<>();
         }
-        // 该培养方案下引用本源课的全部调用课（同一课可被引用多次）
-        List<Long> quoteIds = trainingSchemeCourseScheduleMapper
-                .selectQuoteCourseIdsBySourceAndScheme(courseId, schemeId);
-        return listGraduationsByQuoteCourseIds(quoteIds);
+        // 1) 查该培养方案下被调用课（经 t_csys_training_scheme_ref_course）
+        List<Long> quoteIds;
+        if (schemeId != null) {
+            quoteIds = trainingSchemeRefCourseMapper.selectQuoteCourseIdsBySourceAndScheme(courseId, schemeId);
+        } else {
+            quoteIds = resolveQuoteCourseIds(courseId);
+        }
+        // 2) 被调用课在 t_csys_course_ref_graduation 的绑定
+        List<StandardGraduation> fromQuotes = listGraduationsByQuoteCourseIds(quoteIds);
+        if (ObjectUtils.isNotEmpty(fromQuotes)) {
+            return fromQuotes;
+        }
+        // 3) 被调用课均未绑定 → 回退源课自身绑定的公共毕业要求
+        return listGraduationsByCourseId(courseId);
     }
 
+    /** 源课全部调用课 id（c2.source_id = 源课） */
     private List<Long> resolveQuoteCourseIds(Long sourceCourseId) {
         if (sourceCourseId == null) {
             return new ArrayList<>();
@@ -338,8 +370,23 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (ObjectUtils.isEmpty(quoteCourseIds)) {
             return new ArrayList<>();
         }
+        return listGraduationsByCourseIds(quoteCourseIds);
+    }
+
+    /** 单课（含源课）在 t_csys_course_ref_graduation 上的毕业要求 */
+    private List<StandardGraduation> listGraduationsByCourseId(Long courseId) {
+        if (courseId == null) {
+            return new ArrayList<>();
+        }
+        return listGraduationsByCourseIds(Collections.singletonList(courseId));
+    }
+
+    private List<StandardGraduation> listGraduationsByCourseIds(List<Long> courseIds) {
+        if (ObjectUtils.isEmpty(courseIds)) {
+            return new ArrayList<>();
+        }
         List<CourseRefGraduation> refs =
-                courseRefGraduationMapper.selectCourseTargetRefGraduationByCourseIds(quoteCourseIds);
+                courseRefGraduationMapper.selectCourseTargetRefGraduationByCourseIds(courseIds);
         if (ObjectUtils.isEmpty(refs)) {
             return new ArrayList<>();
         }
@@ -351,7 +398,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (ObjectUtils.isEmpty(graduationIds)) {
             return new ArrayList<>();
         }
-        return standardGraduationMapper.selectStandardGraduationByIds(graduationIds);
+        List<StandardGraduation> list = standardGraduationMapper.selectStandardGraduationByIds(graduationIds);
+        return list == null ? new ArrayList<>() : list;
     }
 
     @Override
@@ -366,25 +414,64 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             teachingPlanObjectiveMapper.insert(objective);
         } else {
             teachingPlanObjectiveMapper.updateById(objective);
-            // 重建绑定：先逻辑删除旧 ref
             teachingPlanObjectiveRefMapper.deleteByObjectiveId(objective.getId());
         }
-        List<TeachingPlanObjectiveRef> refs = saveVo.getRefs();
-        if (ObjectUtils.isNotEmpty(refs)) {
-            for (TeachingPlanObjectiveRef ref : refs) {
-                ref.setId(null);
-                ref.setObjectiveId(objective.getId());
-                if (ref.getPlanId() == null) {
-                    ref.setPlanId(objective.getPlanId());
-                }
-                if (ref.getSchemeId() == null) {
-                    ref.setSchemeId(objective.getSchemeId());
-                }
-                UserUtils.reflash(ref);
-                teachingPlanObjectiveRefMapper.insert(ref);
-            }
-        }
+        insertObjectiveRefs(objective.getId(), objective.getPlanId(), objective.getSchemeId(), saveVo.getRefs());
         return objective.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveObjectiveRefs(TeachingPlanObjectiveRefSaveVo saveVo) {
+        if (saveVo == null || saveVo.getObjectiveId() == null) {
+            throw new IllegalArgumentException("objectiveId 不能为空");
+        }
+        Long objectiveId = saveVo.getObjectiveId();
+        // 校验目标存在，并补全 planId/schemeId
+        TeachingPlanObjective objective = teachingPlanObjectiveMapper.selectById(objectiveId);
+        if (objective == null) {
+            throw new IllegalArgumentException("教学目标不存在: " + objectiveId);
+        }
+        Long planId = saveVo.getPlanId() != null ? saveVo.getPlanId() : objective.getPlanId();
+        Long schemeId = saveVo.getSchemeId() != null ? saveVo.getSchemeId() : objective.getSchemeId();
+
+        // 重建绑定：先逻辑删除旧 ref，再按列表插入（空列表=清空）
+        teachingPlanObjectiveRefMapper.deleteByObjectiveId(objectiveId);
+        insertObjectiveRefs(objectiveId, planId, schemeId, saveVo.getRefs());
+    }
+
+    /**
+     * 批量写入目标-毕业要求绑定；refs 可空表示不写。
+     * 缺省 planId/schemeId/objectiveId 由参数回填；graduation 编码名称由前端快照传入。
+     */
+    private void insertObjectiveRefs(Long objectiveId, Long planId, Long schemeId,
+                                     List<TeachingPlanObjectiveRef> refs) {
+        if (ObjectUtils.isEmpty(refs)) {
+            return;
+        }
+        int sort = 1;
+        for (TeachingPlanObjectiveRef ref : refs) {
+            if (ref == null) {
+                continue;
+            }
+            ref.setId(null);
+            ref.setObjectiveId(objectiveId);
+            if (ref.getPlanId() == null) {
+                ref.setPlanId(planId);
+            }
+            if (ref.getSchemeId() == null) {
+                ref.setSchemeId(schemeId);
+            }
+            if (ref.getSort() == null) {
+                ref.setSort(sort++);
+            }
+            // 默认绑定来源标记：课程毕业要求关联
+            if (StringUtils.isBlank(ref.getGraduationBindSource())) {
+                ref.setGraduationBindSource("course_ref_graduation");
+            }
+            UserUtils.reflash(ref);
+            teachingPlanObjectiveRefMapper.insert(ref);
+        }
     }
 
     // ============ 9. 教学计划目标支撑毕业要求 ============
@@ -447,7 +534,19 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     public List<TeachingPlanTargetDesign> listTargetDesign(Long planId, Long schemeId, String designTypeCode) {
-        return teachingPlanTargetDesignMapper.selectByPlanSchemeAndType(planId, schemeId, designTypeCode);
+        // 用户可能未建计划直接进入达成设计 tab：planId 为空时返回空列表，避免 SQL 报错
+        if (planId == null) {
+            return new ArrayList<>();
+        }
+        List<TeachingPlanTargetDesign> list =
+                teachingPlanTargetDesignMapper.selectByPlanSchemeAndType(planId, schemeId, designTypeCode);
+        if (ObjectUtils.isEmpty(list)) {
+            return new ArrayList<>();
+        }
+        for (TeachingPlanTargetDesign d : list) {
+            fillKnowledgePointsFromJson(d);
+        }
+        return list;
     }
 
     @Override
@@ -459,6 +558,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long addTargetDesign(TeachingPlanTargetDesign design) {
+        prepareTargetDesignForWrite(design);
         UserUtils.reflash(design);
         teachingPlanTargetDesignMapper.insert(design);
         return design.getId();
@@ -467,6 +567,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateTargetDesign(TeachingPlanTargetDesign design) {
+        prepareTargetDesignForWrite(design);
         UserUtils.reflash(design);
         teachingPlanTargetDesignMapper.updateById(design);
     }
@@ -475,6 +576,138 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Transactional(rollbackFor = Exception.class)
     public void deleteTargetDesign(Long id) {
         teachingPlanTargetDesignMapper.deleteById(id);
+    }
+
+    /**
+     * 教学计划下某类型目标选项：按 content 去重，同名只保留一条。
+     * planId 为空返回空列表。
+     */
+    @Override
+    public List<TeachingPlanObjectiveOptionVo> listObjectiveOptions(Long planId, Long schemeId,
+                                                                    String objectiveTypeCode) {
+        if (planId == null) {
+            return new ArrayList<>();
+        }
+        List<TeachingPlanObjective> list =
+                teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(planId, schemeId, objectiveTypeCode);
+        if (ObjectUtils.isEmpty(list)) {
+            return new ArrayList<>();
+        }
+        // 按 content 字符串去重（trim 后比较），保留首次出现的类型信息
+        Map<String, TeachingPlanObjectiveOptionVo> dedup = new LinkedHashMap<>();
+        for (TeachingPlanObjective o : list) {
+            if (o == null || StringUtils.isBlank(o.getContent())) {
+                continue;
+            }
+            String key = o.getContent().trim();
+            if (dedup.containsKey(key)) {
+                continue;
+            }
+            TeachingPlanObjectiveOptionVo vo = new TeachingPlanObjectiveOptionVo();
+            vo.setContent(key);
+            vo.setObjectiveTypeCode(o.getObjectiveTypeCode());
+            vo.setObjectiveTypeName(o.getObjectiveTypeName());
+            dedup.put(key, vo);
+        }
+        return new ArrayList<>(dedup.values());
+    }
+
+    /**
+     * 写库前：knowledgePoints ↔ knowledgePointsJson；
+     * 有多知识点时回填首项到 unit/point 兼容列；
+     * 仅单点兼容字段时也可组装成 knowledgePoints。
+     */
+    private void prepareTargetDesignForWrite(TeachingPlanTargetDesign design) {
+        if (design == null) {
+            return;
+        }
+        List<TeachingPlanTargetDesign.KnowledgePointItem> points = design.getKnowledgePoints();
+        // 前端只传了旧单字段时，组装成列表
+        if (ObjectUtils.isEmpty(points)
+                && (design.getKnowledgePointId() != null || StringUtils.isNotBlank(design.getKnowledgePointName()))) {
+            TeachingPlanTargetDesign.KnowledgePointItem item = new TeachingPlanTargetDesign.KnowledgePointItem();
+            item.setKnowledgeUnitId(design.getKnowledgeUnitId());
+            item.setKnowledgeUnitName(design.getKnowledgeUnitName());
+            item.setKnowledgePointId(design.getKnowledgePointId());
+            item.setKnowledgePointName(design.getKnowledgePointName());
+            points = Collections.singletonList(item);
+            design.setKnowledgePoints(points);
+        }
+        if (ObjectUtils.isNotEmpty(points)) {
+            design.setKnowledgePointsJson(toKnowledgePointsJson(points));
+            // 首项回填兼容列，便于旧查询/Word 单字段展示
+            TeachingPlanTargetDesign.KnowledgePointItem first = points.get(0);
+            if (first != null) {
+                if (design.getKnowledgeUnitId() == null) {
+                    design.setKnowledgeUnitId(first.getKnowledgeUnitId());
+                }
+                if (StringUtils.isBlank(design.getKnowledgeUnitName())) {
+                    design.setKnowledgeUnitName(first.getKnowledgeUnitName());
+                }
+                if (design.getKnowledgePointId() == null) {
+                    design.setKnowledgePointId(first.getKnowledgePointId());
+                }
+                if (StringUtils.isBlank(design.getKnowledgePointName())) {
+                    // 多知识点时名称列用顿号拼接，方便列表一眼看到
+                    design.setKnowledgePointName(joinKnowledgePointNames(points));
+                }
+            }
+        } else if (design.getKnowledgePointsJson() == null && design.getKnowledgePoints() != null) {
+            // 显式传空列表：清空 JSON
+            design.setKnowledgePointsJson("[]");
+        }
+    }
+
+    private void fillKnowledgePointsFromJson(TeachingPlanTargetDesign design) {
+        if (design == null) {
+            return;
+        }
+        List<TeachingPlanTargetDesign.KnowledgePointItem> points =
+                parseKnowledgePointsJson(design.getKnowledgePointsJson());
+        if (ObjectUtils.isEmpty(points)
+                && (design.getKnowledgePointId() != null || StringUtils.isNotBlank(design.getKnowledgePointName()))) {
+            TeachingPlanTargetDesign.KnowledgePointItem item = new TeachingPlanTargetDesign.KnowledgePointItem();
+            item.setKnowledgeUnitId(design.getKnowledgeUnitId());
+            item.setKnowledgeUnitName(design.getKnowledgeUnitName());
+            item.setKnowledgePointId(design.getKnowledgePointId());
+            item.setKnowledgePointName(design.getKnowledgePointName());
+            points = Collections.singletonList(item);
+        }
+        design.setKnowledgePoints(points == null ? new ArrayList<>() : points);
+    }
+
+    private static String toKnowledgePointsJson(List<TeachingPlanTargetDesign.KnowledgePointItem> points) {
+        if (points == null) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.writeValueAsString(points);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("knowledgePoints 序列化失败: " + e.getMessage(), e);
+        }
+    }
+
+    private static List<TeachingPlanTargetDesign.KnowledgePointItem> parseKnowledgePointsJson(String json) {
+        if (StringUtils.isBlank(json)) {
+            return new ArrayList<>();
+        }
+        try {
+            List<TeachingPlanTargetDesign.KnowledgePointItem> list = OBJECT_MAPPER.readValue(json, KP_LIST_TYPE);
+            return list == null ? new ArrayList<>() : list;
+        } catch (Exception e) {
+            // 脏数据不阻断列表：返回空
+            return new ArrayList<>();
+        }
+    }
+
+    private static String joinKnowledgePointNames(List<TeachingPlanTargetDesign.KnowledgePointItem> points) {
+        if (ObjectUtils.isEmpty(points)) {
+            return null;
+        }
+        return points.stream()
+                .map(TeachingPlanTargetDesign.KnowledgePointItem::getKnowledgePointName)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
     }
 
     // ============ 14. 实验/实践环节 ============

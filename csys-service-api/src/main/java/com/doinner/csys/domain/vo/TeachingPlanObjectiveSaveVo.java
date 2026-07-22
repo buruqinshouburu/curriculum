@@ -6,10 +6,11 @@ import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import java.util.List;
 
 /**
- * 教学计划目标 + 支撑毕业要求 同事务保存入参。
+ * 教学计划目标 + 支撑毕业要求 同事务保存入参（兼容旧前端一次提交）。
  * <p>
- * 对应设计：新增目标内容与绑定毕业要求在同一弹框完成；
- * 一条目标可绑定当前 tab 下多个毕业要求。
+ * 推荐流程已拆分：先 POST /objective 只存目标类型/内容，
+ * 再 POST /objectiveRef/save 单独绑定毕业要求（见 {@link TeachingPlanObjectiveRefSaveVo}）。
+ * 本 VO 仍可用于需要同事务一次提交的场景。
  */
 public class TeachingPlanObjectiveSaveVo {
 

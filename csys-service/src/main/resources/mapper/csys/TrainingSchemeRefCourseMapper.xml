@@ -117,6 +117,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </foreach>
     </select>
 
+    <!-- 源课在指定培养方案下的被调用课程 id：ref_course.course_id = 调用课，c2.source_id = 源课 -->
+    <select id="selectQuoteCourseIdsBySourceAndScheme" resultType="java.lang.Long">
+        select distinct c2.id
+        from t_csys_training_scheme_ref_course tsrc
+        inner join t_csys_course c2 on c2.id = tsrc.course_id and c2.sysflag = 0
+        where tsrc.scheme_id = #{schemeId}
+          and c2.source_id = #{sourceCourseId}
+    </select>
+
     <select id="selectTrainingSchemeRefCourseByTrainingSchemeVoIdAndCourseType"
             resultMap="TrainingSchemeRefCourseResult">
         select tsrc.* from t_csys_training_scheme_ref_course tsrc

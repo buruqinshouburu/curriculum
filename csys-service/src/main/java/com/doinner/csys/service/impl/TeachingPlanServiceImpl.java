@@ -27,12 +27,14 @@ import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
 import com.doinner.csys.service.CommonService;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
+import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.file.api.domain.FileInfo;
 import com.doinner.file.api.domain.vo.FileInfoVO;
@@ -41,6 +43,7 @@ import com.doinner.kg.domain.Dictionary;
 import com.doinner.kg.service.RemoteKgService;
 import com.doinner.system.domain.custom.CustomDept;
 import com.doinner.system.domain.entity.SysDept;
+import com.doinner.system.domain.entity.SysDictData;
 import com.doinner.system.service.DoinnerDeptService;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -61,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,6 +80,13 @@ import java.util.stream.Collectors;
 public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     private static final Logger log = LoggerFactory.getLogger(TeachingPlanServiceImpl.class);
+
+    /** 教学环节字典 type */
+    private static final String DICT_PLAN_TEACHING_LINK = "sys_plan_teaching_link";
+    /** 教法字典 type */
+    private static final String DICT_PLAN_TEACHING_METHOD = "sys_plan_teaching_method";
+    /** 学法字典 type */
+    private static final String DICT_PLAN_LEARNING_METHOD = "sys_plan_learning_method";
 
     @Resource
     private TeachingPlanMapper teachingPlanMapper;
@@ -125,6 +136,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     /** 教学计划生成文档文件分类ID（bootstrap.yml: category.TeachingPlan，未配置默认0） */
     @Value("${category.TeachingPlan:0}")
     private String teachingPlanCategoryId;
+
+    /**
+     * 开课学期字典 1-10：第一学年（秋）~第五学年（春）。
+     * 与 t_csys_training_scheme_course_schedule.term 字典值对齐；下标 0 占位。
+     */
+    private static final String[] SCHEDULE_TERM_LABELS = {
+            "",
+            "第一学年（秋）", "第一学年（春）",
+            "第二学年（秋）", "第二学年（春）",
+            "第三学年（秋）", "第三学年（春）",
+            "第四学年（秋）", "第四学年（春）",
+            "第五学年（秋）", "第五学年（春）"
+    };
 
     @Override
     public List<TeachingPlanListVo> selectTeachingPlanPage(TeachingPlanQueryVo query) {
@@ -283,11 +307,45 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     public TeachingPlanDetailVo getDetail(Long courseId, Long teachingPlanId) {
-        // 教学计划id存在则取计划分支(plan基本信息 + c2/ts聚合)；否则从总库课程取
-        if (teachingPlanId != null) {
-            return teachingPlanMapper.selectDetailByPlanId(teachingPlanId);
+        // 课程相关字段一律实时取 t_csys_course / 被引用侧聚合（含 enabledTerm=course.version）；plan 仅贡献 teachingPlanId/scoreRule
+        TeachingPlanDetailVo detail = teachingPlanId != null
+                ? teachingPlanMapper.selectDetailByPlanId(teachingPlanId)
+                : teachingPlanMapper.selectDetailByCourseId(courseId);
+        if (detail != null) {
+            // 开课学期：SQL 返回 schedule.term 字典值拼接串（如 1、3、5），翻译为中文标签
+            detail.setTerm(translateScheduleTerms(detail.getTerm()));
         }
-        return teachingPlanMapper.selectDetailByCourseId(courseId);
+        return detail;
+    }
+
+    /**
+     * 将执行方案学期字典值拼接串翻译为中文标签。
+     * 入参形如 "1、3、5"（GROUP_CONCAT 结果）或单值 "2"；
+     * 无法解析为 1-10 的片段原样保留（兼容 open_term 文本回退）。
+     */
+    private String translateScheduleTerms(String raw) {
+        if (StringUtils.isBlank(raw)) {
+            return raw;
+        }
+        return Arrays.stream(raw.split("[、,]"))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(this::translateOneScheduleTerm)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.joining("、"));
+    }
+
+    private String translateOneScheduleTerm(String code) {
+        try {
+            int n = Integer.parseInt(code);
+            if (n >= 1 && n < SCHEDULE_TERM_LABELS.length) {
+                return SCHEDULE_TERM_LABELS[n];
+            }
+        } catch (NumberFormatException ignore) {
+            // 非数字：可能是 open_term 回退的中文文本，原样返回
+        }
+        return code;
     }
 
     @Override
@@ -349,18 +407,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             plan = teachingPlanMapper.selectBySourceCourseId(courseId);
         }
         Long planId = plan == null ? null : plan.getId();
-        // 导出时取该源课被引用的第一个培养方案 schemeId 作为 tab 维度（可为空）
-        Long schemeId = null;
-        List<com.doinner.csys.domain.vo.TeachingPlanSchemeVo> schemes =
-                teachingPlanModuleService.listSchemes(courseId);
-        if (ObjectUtils.isNotEmpty(schemes)) {
-            schemeId = schemes.get(0).getSchemeId();
+        // 源课被引用的全部培养方案（多方案 → Word 中「课程目标与支撑毕业要求」多张表）
+        List<TeachingPlanSchemeVo> schemes = teachingPlanModuleService.listSchemes(courseId);
+        if (schemes == null) {
+            schemes = new ArrayList<>();
         }
         TeachingPlanDetailVo detail = (planId != null)
                 ? teachingPlanMapper.selectDetailByPlanId(planId)
                 : teachingPlanMapper.selectDetailByCourseId(courseId);
 
-        CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, schemeId);
+        CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, schemes);
 
         try {
             InputStream stream = new CourseTeachingPlanGenerator().generate(model);
@@ -395,15 +451,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
     }
 
-    /** 组装生成模型：基本信息取自 detail，回退取自 course；模块按 planId/schemeId 加载 */
+    /** 组装生成模型：基本信息取自 detail，回退取自 course；模块按 planId 加载；目标按全部 scheme 分组 */
     private CourseTeachingPlanModel buildModel(CourseVo course, TeachingPlan plan, TeachingPlanDetailVo detail,
-                                               Long planId, Long schemeId) {
+                                               Long planId, List<TeachingPlanSchemeVo> schemes) {
         CourseTeachingPlanModel m = new CourseTeachingPlanModel();
         m.setDocType(mapDocType(course.getType()));
         m.setCourseName(nz(detail == null ? null : detail.getCourseName(), course.getName()));
         m.setCourseCode(nz(detail == null ? null : detail.getCourseCode(), course.getCode()));
         m.setCourseEnName(nz(detail == null ? null : detail.getCourseEnName(), course.getEnName()));
-        m.setEnabledTerm(nz(detail == null ? null : detail.getEnabledTerm(), plan == null ? null : plan.getEnabledTerm()));
+        // 启用时间：与详情接口一致，取课程 version，不再用 plan.enabled_term
+        m.setEnabledTerm(nz(detail == null ? null : detail.getEnabledTerm(), course.getVersion()));
         m.setTeachHours(toStr(detail == null ? null : detail.getTeachHours(), course.getTeachHours()));
         m.setPracticeHours(toStr(detail == null ? null : detail.getPracticeHours(), course.getPracticeHours()));
         m.setHours(toStr(detail == null ? null : detail.getHours(), course.getHours()));
@@ -418,29 +475,81 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         m.setCourseAttr(nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr()));
         m.setScoreRule(plan == null ? null : plan.getScoreRule());
 
+        // 目标达成设计仍用首个 scheme（与历史行为一致；本节「目标与支撑毕业要求」已按全部 scheme 展开）
+        Long firstSchemeId = ObjectUtils.isNotEmpty(schemes) ? schemes.get(0).getSchemeId() : null;
+
         if (planId != null) {
             m.setTeachers(listTeacher(planId));
             m.setSections(listSection(planId));
-            // 目标 + 支撑毕业要求
-            List<TeachingPlanObjective> objectives = (schemeId == null)
-                    ? new ArrayList<>() : teachingPlanModuleService.listObjective(planId, schemeId);
-            m.setObjectives(objectives);
-            Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
-            if (ObjectUtils.isNotEmpty(objectives)) {
-                for (TeachingPlanObjective o : objectives) {
-                    refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+
+            // 按培养方案分组加载目标 + 支撑毕业要求（多方案多表）
+            List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = new ArrayList<>();
+            if (ObjectUtils.isNotEmpty(schemes)) {
+                for (TeachingPlanSchemeVo s : schemes) {
+                    if (s == null || s.getSchemeId() == null) {
+                        continue;
+                    }
+                    CourseTeachingPlanModel.SchemeObjectiveGroup g =
+                            new CourseTeachingPlanModel.SchemeObjectiveGroup();
+                    g.setSchemeId(s.getSchemeId());
+                    g.setSchemeTitle(buildSchemeTitle(s));
+                    List<TeachingPlanObjective> objectives =
+                            teachingPlanModuleService.listObjective(planId, s.getSchemeId());
+                    g.setObjectives(objectives == null ? new ArrayList<>() : objectives);
+                    Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
+                    if (ObjectUtils.isNotEmpty(objectives)) {
+                        for (TeachingPlanObjective o : objectives) {
+                            if (o == null || o.getId() == null) {
+                                continue;
+                            }
+                            refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+                        }
+                    }
+                    g.setObjectiveRefMap(refMap);
+                    groups.add(g);
                 }
+            } else {
+                // 无培养方案 tab：按 planId 全量目标（schemeId=null）落一组，无小标题
+                CourseTeachingPlanModel.SchemeObjectiveGroup g =
+                        new CourseTeachingPlanModel.SchemeObjectiveGroup();
+                List<TeachingPlanObjective> objectives =
+                        teachingPlanModuleService.listObjective(planId, null);
+                g.setObjectives(objectives == null ? new ArrayList<>() : objectives);
+                Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
+                if (ObjectUtils.isNotEmpty(objectives)) {
+                    for (TeachingPlanObjective o : objectives) {
+                        if (o == null || o.getId() == null) {
+                            continue;
+                        }
+                        refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+                    }
+                }
+                g.setObjectiveRefMap(refMap);
+                groups.add(g);
             }
-            m.setObjectiveRefMap(refMap);
+            m.setSchemeObjectiveGroups(groups);
+            // 兼容旧字段：保留首组，供 type2/3 等仍读 objectives 的逻辑使用
+            if (!groups.isEmpty()) {
+                m.setObjectives(groups.get(0).getObjectives());
+                m.setObjectiveRefMap(groups.get(0).getObjectiveRefMap());
+            } else {
+                m.setObjectives(new ArrayList<>());
+                m.setObjectiveRefMap(new HashMap<>());
+            }
+
             m.setContents(teachingPlanModuleService.listContent(planId));
-            // 目标达成设计：知识/能力/素质 三类合并
+            // 目标达成设计：知识/能力/素质 三类合并（仍按首个 scheme；listTargetDesign 已填充 knowledgePoints）
             List<TeachingPlanTargetDesign> designs = new ArrayList<>();
-            if (schemeId != null) {
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, schemeId, "知识目标"));
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, schemeId, "能力目标"));
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, schemeId, "素质目标"));
+            if (firstSchemeId != null) {
+                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, firstSchemeId, "知识目标"));
+                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, firstSchemeId, "能力目标"));
+                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, firstSchemeId, "素质目标"));
             }
+            // 表内教学环节/教法/学法：字典编码译为 label（可多值顿号/逗号分隔）
+            translateTargetDesignDictFields(designs);
             m.setTargetDesigns(designs);
+            // 第六节「说明」三段：取字典全部 label 拼接
+            fillSectionSixNotes(m);
             // 实验/实践项目 + 明细
             List<TeachingPlanPracticeItem> items = teachingPlanModuleService.listPracticeItem(planId);
             m.setPracticeItems(items);
@@ -455,9 +564,121 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             m.setTextbooks(teachingPlanModuleService.listTextbook(planId));
             m.setConditions(teachingPlanModuleService.listCondition(planId));
         }
-        // 课程绑定的毕业要求
+        // 课程绑定的毕业要求（全调用课汇总，空则回退源课）
         m.setCourseGraduations(teachingPlanModuleService.listCourseGraduation(course.getId()));
+        // 无 plan 时仍填充第六节说明（字典），保证空文档结构完整
+        if (StringUtils.isBlank(m.getTeachingLinkNote())) {
+            fillSectionSixNotes(m);
+        }
         return m;
+    }
+
+    /**
+     * 第六节「说明」：教学环节 / 教法 / 学法 三段，
+     * 内容取自字典表全部 label（按 dictSort 顺序顿号拼接）。
+     */
+    private void fillSectionSixNotes(CourseTeachingPlanModel m) {
+        if (m == null) {
+            return;
+        }
+        String links = joinDictLabels(DICT_PLAN_TEACHING_LINK);
+        String methods = joinDictLabels(DICT_PLAN_TEACHING_METHOD);
+        String learnings = joinDictLabels(DICT_PLAN_LEARNING_METHOD);
+        m.setTeachingLinkNote(StringUtils.isBlank(links)
+                ? null : "教学环节主要包括：" + links + "。");
+        m.setTeachingMethodNote(StringUtils.isBlank(methods)
+                ? null : "教法主要包括：" + methods + "。");
+        m.setLearningMethodNote(StringUtils.isBlank(learnings)
+                ? null : "学法主要包括：" + learnings + "。");
+    }
+
+    /**
+     * 目标达成设计表中教学环节/教法/学法字段：将字典编码（可多值、、或,分隔）译为 label。
+     * 已是 label 或未命中字典时保留原文。
+     */
+    private void translateTargetDesignDictFields(List<TeachingPlanTargetDesign> designs) {
+        if (ObjectUtils.isEmpty(designs)) {
+            return;
+        }
+        Map<String, String> linkMap = dictValueToLabelMap(DICT_PLAN_TEACHING_LINK);
+        Map<String, String> methodMap = dictValueToLabelMap(DICT_PLAN_TEACHING_METHOD);
+        Map<String, String> learningMap = dictValueToLabelMap(DICT_PLAN_LEARNING_METHOD);
+        for (TeachingPlanTargetDesign d : designs) {
+            if (d == null) {
+                continue;
+            }
+            d.setTeachingLink(translateDictJoined(d.getTeachingLink(), linkMap));
+            d.setTeachingMethod(translateDictJoined(d.getTeachingMethod(), methodMap));
+            d.setLearningMethod(translateDictJoined(d.getLearningMethod(), learningMap));
+        }
+    }
+
+    /** 字典 type → value:label 映射（保持字典顺序） */
+    private Map<String, String> dictValueToLabelMap(String dictType) {
+        List<SysDictData> list = CurDictUtils.getDictData(dictType);
+        if (ObjectUtils.isEmpty(list)) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> map = new LinkedHashMap<>();
+        for (SysDictData d : list) {
+            if (d == null || StringUtils.isBlank(d.getDictValue())) {
+                continue;
+            }
+            map.put(d.getDictValue(), StringUtils.defaultIfBlank(d.getDictLabel(), d.getDictValue()));
+        }
+        return map;
+    }
+
+    /** 字典 type 全部 label 按顺序顿号拼接 */
+    private String joinDictLabels(String dictType) {
+        List<SysDictData> list = CurDictUtils.getDictData(dictType);
+        if (ObjectUtils.isEmpty(list)) {
+            return "";
+        }
+        return list.stream()
+                .filter(Objects::nonNull)
+                .map(SysDictData::getDictLabel)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
+    }
+
+    /**
+     * 多值字典编码翻译：支持 、 与 , 分隔；命中 map 用 label，否则原样保留。
+     */
+    private String translateDictJoined(String raw, Map<String, String> valueToLabel) {
+        if (StringUtils.isBlank(raw)) {
+            return raw;
+        }
+        if (MapUtils.isEmpty(valueToLabel)) {
+            return raw;
+        }
+        // 若整串已是某个 label，直接返回
+        if (valueToLabel.containsValue(raw.trim())) {
+            return raw.trim();
+        }
+        return Arrays.stream(raw.split("[、,]"))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(code -> {
+                    String label = valueToLabel.get(code);
+                    return StringUtils.isNotBlank(label) ? label : code;
+                })
+                .collect(Collectors.joining("、"));
+    }
+
+    /** 培养方案小标题：名称（版本） */
+    private static String buildSchemeTitle(TeachingPlanSchemeVo s) {
+        if (s == null) {
+            return "";
+        }
+        String name = StringUtils.defaultString(s.getSchemeName());
+        if (StringUtils.isNotBlank(s.getSchemeVersion())) {
+            if (StringUtils.isNotBlank(name)) {
+                return name + "（" + s.getSchemeVersion() + "）";
+            }
+            return s.getSchemeVersion();
+        }
+        return name;
     }
 
     private FileInfo fetchFileInfo(String fileId) {

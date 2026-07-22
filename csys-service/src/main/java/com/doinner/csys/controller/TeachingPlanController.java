@@ -21,6 +21,8 @@ import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
@@ -218,7 +220,11 @@ public class TeachingPlanController {
         return DataSet.success(teachingPlanModuleService.listObjectiveTree(planId, schemeId, objectiveTypeCode));
     }
 
-    @ApiOperation("新增教学计划目标")
+    /**
+     * 仅新增目标类型与内容（不含毕业要求绑定）。
+     * 绑定请走 POST /objectiveRef/save。
+     */
+    @ApiOperation("新增教学计划目标（仅类型与内容）")
     @PostMapping("/objective")
     public DataSet<Long> addObjective(@RequestBody TeachingPlanObjective objective) {
         return DataSet.success(teachingPlanModuleService.addObjective(objective));
@@ -231,6 +237,7 @@ public class TeachingPlanController {
         return Message.success();
     }
 
+    /** 删除目标时同步逻辑删除其支撑毕业要求绑定 */
     @ApiOperation("删除教学计划目标")
     @DeleteMapping("/objective/{id}")
     public Message deleteObjective(@PathVariable("id") Long id) {
@@ -239,17 +246,23 @@ public class TeachingPlanController {
     }
 
     /**
-     * 目标 + 支撑毕业要求同事务保存（弹框一次提交）。
+     * 兼容：目标 + 支撑毕业要求同事务一次提交。
+     * 推荐改用 POST /objective → POST /objectiveRef/save 拆分流程。
      */
-    @ApiOperation("保存教学目标及支撑毕业要求")
+    @ApiOperation("保存教学目标及支撑毕业要求（兼容旧一次提交）")
     @PostMapping("/objective/saveWithRefs")
     public DataSet<Long> saveObjectiveWithRefs(@RequestBody TeachingPlanObjectiveSaveVo saveVo) {
         return DataSet.success(teachingPlanModuleService.saveObjectiveWithRefs(saveVo));
     }
 
-    // ============ 8. 课程绑定毕业要求(按课程id / 可选context) ============
+    // ============ 8. 候选毕业要求（绑定弹框数据源） ============
 
-    @ApiOperation("根据课程id查询课程绑定的毕业要求(可按培养方案schemeId过滤)")
+    /**
+     * 候选毕业要求：源课在 schemeId 下被调用课（t_csys_training_scheme_ref_course）绑定的毕业要求；
+     * 被调用课均无绑定时回退源课自身 t_csys_course_ref_graduation。
+     * courseId 为总库源课程 id；schemeId 为培养方案 tab（可选）。
+     */
+    @ApiOperation("候选毕业要求（被调用课绑定，空则回退源课）")
     @GetMapping("/courseGraduation/{courseId}")
     public DataSet<List<StandardGraduation>> courseGraduation(@PathVariable("courseId") Long courseId,
                                                               @RequestParam(value = "schemeId", required = false) Long schemeId) {
@@ -258,13 +271,25 @@ public class TeachingPlanController {
 
     // ============ 9. 教学计划目标支撑毕业要求 t_csys_teaching_plan_objective_ref ============
 
-    @ApiOperation("教学计划目标支撑毕业要求列表")
+    /** 回显某目标已绑定的毕业要求 */
+    @ApiOperation("教学计划目标已绑定毕业要求列表（回显）")
     @GetMapping("/objectiveRef/list")
     public DataSet<List<TeachingPlanObjectiveRef>> objectiveRefList(@RequestParam("objectiveId") Long objectiveId) {
         return DataSet.success(teachingPlanModuleService.listObjectiveRef(objectiveId));
     }
 
-    @ApiOperation("新增教学计划目标支撑毕业要求")
+    /**
+     * 整表重建目标的毕业要求绑定（与目标新增解耦）。
+     * refs 空列表或 null = 清空该目标全部绑定。
+     */
+    @ApiOperation("保存目标与毕业要求绑定（整表重建）")
+    @PostMapping("/objectiveRef/save")
+    public Message saveObjectiveRefs(@RequestBody TeachingPlanObjectiveRefSaveVo saveVo) {
+        teachingPlanModuleService.saveObjectiveRefs(saveVo);
+        return Message.success();
+    }
+
+    @ApiOperation("新增教学计划目标支撑毕业要求（单条）")
     @PostMapping("/objectiveRef")
     public DataSet<Long> addObjectiveRef(@RequestBody TeachingPlanObjectiveRef ref) {
         return DataSet.success(teachingPlanModuleService.addObjectiveRef(ref));
@@ -314,12 +339,34 @@ public class TeachingPlanController {
 
     // ============ 11-13. 目标达成设计 t_csys_teaching_plan_target_design ============
 
+    /**
+     * 知识/能力/素质目标达成设计列表。
+     * planId / schemeId 均可空：用户未建计划直接进 tab 时返回空列表，不报错。
+     * designTypeCode 区分知识/能力/素质。
+     * 教学环节/教法/学法为字典值字符串；支撑目标见 objectiveText；
+     * 知识目标多知识点见 knowledgePoints。
+     */
     @ApiOperation("知识/能力/素质目标达成设计列表(按designTypeCode区分)")
     @GetMapping("/targetDesign/list")
-    public DataSet<List<TeachingPlanTargetDesign>> targetDesignList(@RequestParam("planId") Long planId,
-                                                                    @RequestParam("schemeId") Long schemeId,
-                                                                    @RequestParam("designTypeCode") String designTypeCode) {
+    public DataSet<List<TeachingPlanTargetDesign>> targetDesignList(
+            @RequestParam(value = "planId", required = false) Long planId,
+            @RequestParam(value = "schemeId", required = false) Long schemeId,
+            @RequestParam(value = "designTypeCode", required = false) String designTypeCode) {
         return DataSet.success(teachingPlanModuleService.listTargetDesign(planId, schemeId, designTypeCode));
+    }
+
+    /**
+     * 达成设计「支撑的知识/能力/素质目标」下拉数据源。
+     * 按 content 去重；objectiveTypeCode 每次只查一种类型。
+     * planId 为空返回空列表。
+     */
+    @ApiOperation("教学计划目标选项（按类型，内容去重）")
+    @GetMapping("/objective/options")
+    public DataSet<List<TeachingPlanObjectiveOptionVo>> objectiveOptions(
+            @RequestParam(value = "planId", required = false) Long planId,
+            @RequestParam(value = "schemeId", required = false) Long schemeId,
+            @RequestParam("objectiveTypeCode") String objectiveTypeCode) {
+        return DataSet.success(teachingPlanModuleService.listObjectiveOptions(planId, schemeId, objectiveTypeCode));
     }
 
     @ApiOperation("知识目标初始化：根据课程id查询知识单元")
@@ -328,6 +375,12 @@ public class TeachingPlanController {
         return DataSet.success(teachingPlanModuleService.listKnowledgeUnitInit(courseId));
     }
 
+    /**
+     * 新增目标达成设计。
+     * 知识目标：knowledgePoints 可传多项（可跨知识单元）；objectiveText 存支撑目标字符串。
+     * 能力/素质：objectiveText + observationPoint + teachingDesign。
+     * teachingLink / teachingMethod / learningMethod 为字典值。
+     */
     @ApiOperation("新增目标达成设计")
     @PostMapping("/targetDesign")
     public DataSet<Long> addTargetDesign(@RequestBody TeachingPlanTargetDesign design) {

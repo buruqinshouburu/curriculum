@@ -131,6 +131,17 @@ public class CourseTeachingPlanGenerator {
 
         // 六、课程目标与教学实现设计
         h1(doc, "六、课程目标与教学实现设计");
+        // 说明：教学环节/教法/学法取字典表 label 拼接（由 Service 预填）
+        WordUtil.createParagraph(doc, "说明：", null);
+        if (StringUtils.isNotBlank(m.getTeachingLinkNote())) {
+            WordUtil.createParagraph(doc, m.getTeachingLinkNote(), null);
+        }
+        if (StringUtils.isNotBlank(m.getTeachingMethodNote())) {
+            WordUtil.createParagraph(doc, m.getTeachingMethodNote(), null);
+        }
+        if (StringUtils.isNotBlank(m.getLearningMethodNote())) {
+            WordUtil.createParagraph(doc, m.getLearningMethodNote(), null);
+        }
         h2(doc, "（一）知识目标和教学实现设计");
         targetDesignTable(filterDesign(m.getTargetDesigns(), KEY_KNOWLEDGE), doc);
         h2(doc, "（二）能力目标和教学实现设计");
@@ -386,25 +397,52 @@ public class CourseTeachingPlanGenerator {
     }
 
     /**
-     * 课程目标与支撑毕业要求表（type1 四）：目标类型 | 目标内容 | 支撑毕业要求
-     * 按 知识/能力/素质 分组，相同类型连续行合并“目标类型”列。
+     * 课程目标与支撑毕业要求（type1 四）。
+     * 源课被多个培养方案引用时，每个培养方案单独一张表（目标类型 | 目标内容 | 支撑毕业要求）；
+     * 多方案时每表前加二级标题（培养方案名称）。
      */
     private void objectiveTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = m.getSchemeObjectiveGroups();
+        if (ObjectUtils.isNotEmpty(groups)) {
+            boolean multi = groups.size() > 1;
+            for (CourseTeachingPlanModel.SchemeObjectiveGroup g : groups) {
+                if (g == null) {
+                    continue;
+                }
+                // 多方案时加小标题，便于区分各组对应关系
+                if (multi && StringUtils.isNotBlank(g.getSchemeTitle())) {
+                    h2(doc, g.getSchemeTitle());
+                } else if (multi) {
+                    h2(doc, "培养方案" + (g.getSchemeId() == null ? "" : " " + g.getSchemeId()));
+                }
+                writeObjectiveTable(g.getObjectives(), g.getObjectiveRefMap(), doc);
+            }
+            return;
+        }
+        // 兼容：未组装 schemeObjectiveGroups 时走旧单表
+        writeObjectiveTable(m.getObjectives(), m.getObjectiveRefMap(), doc);
+    }
+
+    /**
+     * 写一张「目标类型 | 目标内容 | 支撑毕业要求」表。
+     * 按 知识/能力/素质 分组，相同类型连续行合并“目标类型”列。
+     */
+    private void writeObjectiveTable(List<TeachingPlanObjective> objs,
+                                     Map<Long, List<TeachingPlanObjectiveRef>> refMap,
+                                     XWPFDocument doc) {
         int cols = 3;
-        List<TeachingPlanObjective> objs = m.getObjectives();
-        // 按 类型 顺序分组
-        List<List<TeachingPlanObjective>> groups = new ArrayList<>();
-        groups.add(filterObjective(objs, KEY_KNOWLEDGE));
-        groups.add(filterObjective(objs, KEY_ABILITY));
-        groups.add(filterObjective(objs, KEY_QUALITY));
-        int total = groups.stream().mapToInt(List::size).sum();
+        List<List<TeachingPlanObjective>> typeGroups = new ArrayList<>();
+        typeGroups.add(filterObjective(objs, KEY_KNOWLEDGE));
+        typeGroups.add(filterObjective(objs, KEY_ABILITY));
+        typeGroups.add(filterObjective(objs, KEY_QUALITY));
+        int total = typeGroups.stream().mapToInt(List::size).sum();
         int rows = 1 + Math.max(total, 1);
         XWPFTable t = createTable(doc, rows, cols);
         setCell(t, 0, 0, "目标类型", true);
         setCell(t, 0, 1, "目标内容", true);
         setCell(t, 0, 2, "支撑毕业要求", true);
         int r = 1;
-        for (List<TeachingPlanObjective> g : groups) {
+        for (List<TeachingPlanObjective> g : typeGroups) {
             if (g.isEmpty()) {
                 continue;
             }
@@ -415,7 +453,7 @@ public class CourseTeachingPlanGenerator {
             }
             for (TeachingPlanObjective o : g) {
                 setCell(t, r, 1, o.getContent(), false);
-                setCell(t, r, 2, joinRefs(m.getObjectiveRefMap(), o.getId()), false);
+                setCell(t, r, 2, joinRefs(refMap, o.getId()), false);
                 r++;
             }
             setCell(t, start, 0, typeName, true);
@@ -475,9 +513,10 @@ public class CourseTeachingPlanGenerator {
                 TeachingPlanTargetDesign d = designs.get(i);
                 int r = i + 1;
                 setCell(t, r, 0, String.valueOf(i + 1), false);
-                setCell(t, r, 1, d.getKnowledgeUnitName(), false);
-                setCell(t, r, 2, d.getKnowledgePointName(), false);
-                setCell(t, r, 3, d.getContentText(), false);
+                setCell(t, r, 1, joinUnitNames(d), false);
+                setCell(t, r, 2, joinPointNames(d), false);
+                // 支撑的课程知识目标：优先 objectiveText，兼容旧 contentText
+                setCell(t, r, 3, firstNonBlank(d.getObjectiveText(), d.getContentText()), false);
                 setCell(t, r, 4, d.getContentText(), false);
                 setCell(t, r, 5, d.getTeachingLink(), false);
                 setCell(t, r, 6, d.getTeachingMethod(), false);
@@ -509,7 +548,8 @@ public class CourseTeachingPlanGenerator {
                 TeachingPlanTargetDesign d = designs.get(i);
                 int r = i + 1;
                 setCell(t, r, 0, String.valueOf(i + 1), false);
-                setCell(t, r, 1, d.getContentText(), false);
+                // 课程能力/素质目标列：优先 objectiveText
+                setCell(t, r, 1, firstNonBlank(d.getObjectiveText(), d.getContentText()), false);
                 setCell(t, r, 2, d.getObservationPoint(), false);
                 setCell(t, r, 3, d.getContentText(), false);
                 setCell(t, r, 4, d.getTeachingDesign(), false);
@@ -950,6 +990,42 @@ public class CourseTeachingPlanGenerator {
             return "";
         }
         return refs.stream().map(TeachingPlanObjectiveRef::getGraduationName).filter(StringUtils::isNotBlank).collect(Collectors.joining("、"));
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (StringUtils.isNotBlank(a)) {
+            return a;
+        }
+        return b == null ? "" : b;
+    }
+
+    /** 知识单元名称：多知识点时去重顿号拼接 */
+    private String joinUnitNames(TeachingPlanTargetDesign d) {
+        if (d == null) {
+            return "";
+        }
+        if (ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
+            return d.getKnowledgePoints().stream()
+                    .map(TeachingPlanTargetDesign.KnowledgePointItem::getKnowledgeUnitName)
+                    .filter(StringUtils::isNotBlank)
+                    .distinct()
+                    .collect(Collectors.joining("、"));
+        }
+        return str(d.getKnowledgeUnitName());
+    }
+
+    /** 知识点名称：多知识点顿号拼接 */
+    private String joinPointNames(TeachingPlanTargetDesign d) {
+        if (d == null) {
+            return "";
+        }
+        if (ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
+            return d.getKnowledgePoints().stream()
+                    .map(TeachingPlanTargetDesign.KnowledgePointItem::getKnowledgePointName)
+                    .filter(StringUtils::isNotBlank)
+                    .collect(Collectors.joining("、"));
+        }
+        return str(d.getKnowledgePointName());
     }
 
     /** 拼接课程毕业要求名称 */

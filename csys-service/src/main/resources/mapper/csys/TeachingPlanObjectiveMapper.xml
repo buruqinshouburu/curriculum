@@ -51,13 +51,16 @@
         ORDER BY objective_type_code ASC, sort ASC, id ASC
     </select>
 
+    <!-- schemeId 可选：目标选项接口按 plan 汇总全部方案下同类型目标 -->
     <select id="selectByPlanAndSchemeAndType" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective
         WHERE plan_id = #{planId}
-          AND scheme_id = #{schemeId}
           AND sysflag = 0
+          <if test="schemeId != null">
+              AND scheme_id = #{schemeId}
+          </if>
           <if test="objectiveTypeCode != null and objectiveTypeCode != ''">
               AND objective_type_code = #{objectiveTypeCode}
           </if>

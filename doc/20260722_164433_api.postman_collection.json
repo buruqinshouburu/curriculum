@@ -1,0 +1,640 @@
+{
+  "info": {
+    "_postman_id": "20260722-164433-teaching-plan-merged",
+    "name": "TeachingPlan - 详情/目标绑定/达成设计 (20260722_164433)",
+    "description": "整合三份前端接口文档（20260722_150911 详情实时取数 + 20260722_154856 目标与毕业要求绑定拆分 + 20260722_163345 目标达成设计多知识点与目标选项）。\n\nGET /teachingPlan/detail 变更：\n\n1. 课程相关字段不再从 t_csys_teaching_plan 的 source_* 快照读取（已废弃），一律实时取自 t_csys_course。\n2. 启用时间 enabledTerm 取 t_csys_course.version（不再用 plan.enabled_term）。\n3. 开课学期 term 改为从培养方案课程执行方案 t_csys_training_scheme_course_schedule.term 获取：\n   - term 字典值 1-10 = 第一学年（秋）~第五学年（春）\n   - 课程被多个培养方案引用时，跨方案去重后按字典值升序拼接\n   - 接口返回已翻译的中文标签，如「第一学年（秋）、第二学年（春）」\n   - 无排课记录时回退 course.open_term（可能为自由文本）\n4. 仅 teachingPlanId / scoreRule 仍来自教学计划表。\n\n无数据库 DDL。\n---\n课程目标与支撑毕业要求流程调整（前端需改调用与回显）：\n\n推荐流程：\n1. POST /objective 只新增目标类型/内容（不绑毕业要求）\n2. GET /courseGraduation/{courseId}?schemeId= 取候选毕业要求\n3. GET /objectiveRef/list?objectiveId= 回显已绑定\n4. POST /objectiveRef/save 整表重建绑定（refs 空=清空）\n\n候选规则变更（GET /courseGraduation）：\n- 按 schemeId 从 t_csys_training_scheme_ref_course 取该方案下源课的被调用课\n- 再查被调用课在 t_csys_course_ref_graduation 的绑定\n- 被调用课均无绑定 → 回退源课自身绑定\n- schemeId 不传：汇总源课全部调用课绑定，仍空则回退源课\n\n兼容：POST /objective/saveWithRefs 仍可用（目标+绑定一次提交）\n删除：DELETE /objective/{id} 同步逻辑删除该目标下 ref\n\n无数据库 DDL。\n---\n目标达成设计相关变更（前端需改调用/回显）：\n\n1. GET /targetDesign/list：planId、schemeId 均可选；planId 为空返回空列表不报错。\n2. 新增 GET /objective/options：按 objectiveTypeCode 查一种目标，content 字符串去重后返回，作「支撑目标」下拉。\n3. POST/PUT /targetDesign：\n   - objectiveText：支撑的知识/能力/素质目标，直接存字符串\n   - knowledgePoints：知识目标可绑多个知识点（可跨知识单元）[{knowledgeUnitId,knowledgeUnitName,knowledgePointId,knowledgePointName}]\n   - teachingLink/teachingMethod/learningMethod：字典值字符串\n   - 能力/素质不绑知识点，用 observationPoint + teachingDesign\n\nDDL：sql/update_target_design_objective_text_multi_point.sql（objective_text、knowledge_points 两列）",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "服务地址。context-path=/csys"
+    },
+    {
+      "key": "courseId",
+      "value": "1001"
+    },
+    {
+      "key": "teachingPlanId",
+      "value": "55",
+      "description": "教学计划id t_csys_teaching_plan.id（可选）"
+    },
+    {
+      "key": "planId",
+      "value": "55"
+    },
+    {
+      "key": "schemeId",
+      "value": "200"
+    },
+    {
+      "key": "objectiveId",
+      "value": "301",
+      "description": "教学目标 id t_csys_teaching_plan_objective.id"
+    }
+  ],
+  "item": [
+    {
+      "name": "TeachingPlan - 详情实时取数与开课学期 (20260722_150911)",
+      "description": "GET /teachingPlan/detail 变更：\n\n1. 课程相关字段不再从 t_csys_teaching_plan 的 source_* 快照读取（已废弃），一律实时取自 t_csys_course。\n2. 启用时间 enabledTerm 取 t_csys_course.version（不再用 plan.enabled_term）。\n3. 开课学期 term 改为从培养方案课程执行方案 t_csys_training_scheme_course_schedule.term 获取：\n   - term 字典值 1-10 = 第一学年（秋）~第五学年（春）\n   - 课程被多个培养方案引用时，跨方案去重后按字典值升序拼接\n   - 接口返回已翻译的中文标签，如「第一学年（秋）、第二学年（春）」\n   - 无排课记录时回退 course.open_term（可能为自由文本）\n4. 仅 teachingPlanId / scoreRule 仍来自教学计划表。\n\n无数据库 DDL。",
+      "item": [
+        {
+          "name": "详情(带教学计划id) GET /detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/detail?courseId={{courseId}}&teachingPlanId={{teachingPlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "detail"
+              ],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "{{courseId}}",
+                  "description": "Long, 必填, 总库课程id"
+                },
+                {
+                  "key": "teachingPlanId",
+                  "value": "{{teachingPlanId}}",
+                  "description": "Long, 可选, 教学计划id；有值时 plan 仅贡献 teachingPlanId/scoreRule"
+                }
+              ]
+            },
+            "description": "TeachingPlanController#detail\n\n字段来源：\n- courseName/courseCode/courseEnName/type/teachHours/practiceHours/hours/credit/enabledTerm → t_csys_course（实时；enabledTerm=course.version）\n- teachingPlanId/scoreRule → t_csys_teaching_plan\n- educationLevel/majorName/courseAttr/courseModule → 被引用课程c2 + 被引用培养方案ts 聚合（顿号分隔）\n- term → t_csys_training_scheme_course_schedule.term 跨方案 DISTINCT 升序，Service 翻译为中文标签\n\nterm 字典：\n  1 第一学年（秋）  2 第一学年（春）\n  3 第二学年（秋）  4 第二学年（春）\n  5 第三学年（秋）  6 第三学年（春）\n  7 第四学年（秋）  8 第四学年（春）\n  9 第五学年（秋） 10 第五学年（春）"
+          },
+          "response": [
+            {
+              "name": "成功 - 多方案多学期去重",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json;charset=UTF-8"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"courseId\": 1001,\n    \"teachingPlanId\": 55,\n    \"courseName\": \"高等数学\",\n    \"courseCode\": \"MATH1001\",\n    \"courseEnName\": \"Advanced Mathematics\",\n    \"type\": \"1\",\n    \"enabledTerm\": \"2026\",\n    \"educationLevel\": \"1、2\",\n    \"term\": \"第一学年（秋）、第二学年（春）、第三学年（秋）\",\n    \"courseModule\": \"69a7f3162dc370362ef3ee6d\",\n    \"majorId\": 10,\n    \"majorName\": \"计算机科学与技术、软件工程\",\n    \"courseAttr\": \"1\",\n    \"teachHours\": 48.0,\n    \"practiceHours\": 16.0,\n    \"hours\": 64.0,\n    \"credit\": 4.0,\n    \"scoreRule\": \"总评成绩 = 形成性考核×40% + 终结性考核×60%。\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "详情(仅课程id) GET /detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/detail?courseId={{courseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "detail"
+              ],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "{{courseId}}",
+                  "description": "Long, 必填, 总库课程id"
+                }
+              ]
+            },
+            "description": "teachingPlanId 不传：teachingPlanId/scoreRule 为 null；enabledTerm 仍取 course.version；其余课程字段与开课学期取数逻辑与带 planId 时一致（实时）。"
+          },
+          "response": [
+            {
+              "name": "成功 - 无教学计划",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json;charset=UTF-8"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"courseId\": 1001,\n    \"teachingPlanId\": null,\n    \"courseName\": \"高等数学\",\n    \"courseCode\": \"MATH1001\",\n    \"courseEnName\": \"Advanced Mathematics\",\n    \"type\": \"1\",\n    \"enabledTerm\": \"2026\",\n    \"educationLevel\": \"1\",\n    \"term\": \"第一学年（秋）、第一学年（春）\",\n    \"courseModule\": \"69a7f3162dc370362ef3ee6d\",\n    \"majorId\": 10,\n    \"majorName\": \"计算机科学与技术\",\n    \"courseAttr\": \"1\",\n    \"teachHours\": 48.0,\n    \"practiceHours\": 16.0,\n    \"hours\": 64.0,\n    \"credit\": 4.0,\n    \"scoreRule\": null\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TeachingPlan - 目标与毕业要求绑定拆分 (20260722_154856)",
+      "description": "课程目标与支撑毕业要求流程调整（前端需改调用与回显）：\n\n推荐流程：\n1. POST /objective 只新增目标类型/内容（不绑毕业要求）\n2. GET /courseGraduation/{courseId}?schemeId= 取候选毕业要求\n3. GET /objectiveRef/list?objectiveId= 回显已绑定\n4. POST /objectiveRef/save 整表重建绑定（refs 空=清空）\n\n候选规则变更（GET /courseGraduation）：\n- 按 schemeId 从 t_csys_training_scheme_ref_course 取该方案下源课的被调用课\n- 再查被调用课在 t_csys_course_ref_graduation 的绑定\n- 被调用课均无绑定 → 回退源课自身绑定\n- schemeId 不传：汇总源课全部调用课绑定，仍空则回退源课\n\n兼容：POST /objective/saveWithRefs 仍可用（目标+绑定一次提交）\n删除：DELETE /objective/{id} 同步逻辑删除该目标下 ref\n\n无数据库 DDL。",
+      "item": [
+        {
+          "name": "1 新增目标(仅类型与内容) POST /objective",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"objectiveTypeCode\": \"1\",\n  \"objectiveTypeName\": \"知识\",\n  \"content\": \"掌握高等数学基本概念与运算方法\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objective"
+              ]
+            },
+            "description": "TeachingPlanController#addObjective\n\n仅写 t_csys_teaching_plan_objective（目标类型+内容）。\n不写支撑毕业要求；绑定请继续调 POST /objectiveRef/save。\n返回 data = 新目标 id，供后续绑定使用。"
+          },
+          "response": [
+            {
+              "name": "成功",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json;charset=UTF-8"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": 301\n}"
+            }
+          ]
+        },
+        {
+          "name": "2 候选毕业要求 GET /courseGraduation/{courseId}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/courseGraduation/{{courseId}}?schemeId={{schemeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "courseGraduation",
+                "{{courseId}}"
+              ],
+              "query": [
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "Long, 可选。有值：该培养方案下被调用课绑定；无值：全部调用课汇总"
+                }
+              ]
+            },
+            "description": "TeachingPlanController#courseGraduation\n\n候选来源：\n1. schemeId 有值 → t_csys_training_scheme_ref_course 取该方案下 source_id=courseId 的被调用课\n2. 被调用课在 t_csys_course_ref_graduation 的 graduation_id → t_csys_std_graduation\n3. 被调用课均无绑定 → 回退 courseId 自身在 t_csys_course_ref_graduation 的绑定\n\n前端绑定弹框用本列表做多选数据源。"
+          },
+          "response": [
+            {
+              "name": "成功-被调用课有绑定",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json;charset=UTF-8"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 10001,\n      \"code\": \"GR-1.1\",\n      \"name\": \"工程知识\",\n      \"parentId\": 10000,\n      \"level\": 2\n    },\n    {\n      \"id\": 10002,\n      \"code\": \"GR-1.2\",\n      \"name\": \"问题分析\",\n      \"parentId\": 10000,\n      \"level\": 2\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "3 已绑定回显 GET /objectiveRef/list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef/list?objectiveId={{objectiveId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objectiveRef",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "objectiveId",
+                  "value": "{{objectiveId}}",
+                  "description": "Long, 必填, 目标 id"
+                }
+              ]
+            },
+            "description": "TeachingPlanController#objectiveRefList\n\n回显 t_csys_teaching_plan_objective_ref 中该目标已绑定的毕业要求（含 graduationId/code/name 快照）。\n前端编辑绑定时：与候选列表对照勾选。"
+          },
+          "response": [
+            {
+              "name": "成功",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json;charset=UTF-8"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 501,\n      \"planId\": 55,\n      \"objectiveId\": 301,\n      \"schemeId\": 200,\n      \"graduationId\": 10001,\n      \"graduationCode\": \"GR-1.1\",\n      \"graduationName\": \"工程知识\",\n      \"graduationBindSource\": \"course_ref_graduation\",\n      \"sort\": 1\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "4 保存绑定 POST /objectiveRef/save",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objectiveId\": {{objectiveId}},\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"refs\": [\n    {\n      \"graduationId\": 10001,\n      \"sourceGraduationId\": 9001,\n      \"graduationCode\": \"GR-1.1\",\n      \"graduationName\": \"工程知识\",\n      \"graduationBindSource\": \"course_ref_graduation\",\n      \"sort\": 1\n    },\n    {\n      \"graduationId\": 10002,\n      \"sourceGraduationId\": 9002,\n      \"graduationCode\": \"GR-1.2\",\n      \"graduationName\": \"问题分析\",\n      \"graduationBindSource\": \"course_ref_graduation\",\n      \"sort\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objectiveRef",
+                "save"
+              ]
+            },
+            "description": "TeachingPlanController#saveObjectiveRefs\n\n入参 TeachingPlanObjectiveRefSaveVo：\n- objectiveId 必填\n- planId/schemeId 可选（缺省从目标主表回填）\n- refs：要绑定的列表；先逻辑删除该 objective 下旧 ref，再 insert；传 [] 或 null = 清空全部绑定\n\nrefs 单条字段：\n- graduationId 方案内毕业标准 id（t_csys_std_graduation.id）\n- sourceGraduationId / graduationCode / graduationName 快照（前端从候选带回）\n- graduationBindSource 可选，默认 course_ref_graduation\n- sort 可选，缺省按列表顺序 1..n"
+          },
+          "response": [
+            {
+              "name": "成功",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json;charset=UTF-8"
+                }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "4b 清空绑定 POST /objectiveRef/save",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objectiveId\": {{objectiveId}},\n  \"refs\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objectiveRef",
+                "save"
+              ]
+            },
+            "description": "refs 传空数组：逻辑删除该目标下全部绑定，不插入新记录。"
+          },
+          "response": []
+        },
+        {
+          "name": "兼容 目标+绑定一次提交 POST /objective/saveWithRefs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objective\": {\n    \"id\": null,\n    \"planId\": {{planId}},\n    \"schemeId\": {{schemeId}},\n    \"objectiveTypeCode\": \"1\",\n    \"objectiveTypeName\": \"知识\",\n    \"content\": \"掌握高等数学基本概念与运算方法\",\n    \"sort\": 1\n  },\n  \"refs\": [\n    {\n      \"graduationId\": 10001,\n      \"graduationCode\": \"GR-1.1\",\n      \"graduationName\": \"工程知识\",\n      \"sort\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/saveWithRefs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objective",
+                "saveWithRefs"
+              ]
+            },
+            "description": "兼容旧前端：目标与 refs 同事务一次提交。\n有 objective.id 时先更新目标并重建 refs；无 id 时先 insert 目标再 insert refs。\n推荐改用拆分流程（POST /objective + POST /objectiveRef/save）。"
+          },
+          "response": []
+        },
+        {
+          "name": "删除目标(级联ref) DELETE /objective/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/{{objectiveId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objective",
+                "{{objectiveId}}"
+              ]
+            },
+            "description": "删除目标时同步逻辑删除 t_csys_teaching_plan_objective_ref 中该 objectiveId 的绑定，避免孤儿数据。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "TeachingPlan - 目标达成设计多知识点与目标选项 (20260722_163345)",
+      "description": "目标达成设计相关变更（前端需改调用/回显）：\n\n1. GET /targetDesign/list：planId、schemeId 均可选；planId 为空返回空列表不报错。\n2. 新增 GET /objective/options：按 objectiveTypeCode 查一种目标，content 字符串去重后返回，作「支撑目标」下拉。\n3. POST/PUT /targetDesign：\n   - objectiveText：支撑的知识/能力/素质目标，直接存字符串\n   - knowledgePoints：知识目标可绑多个知识点（可跨知识单元）[{knowledgeUnitId,knowledgeUnitName,knowledgePointId,knowledgePointName}]\n   - teachingLink/teachingMethod/learningMethod：字典值字符串\n   - 能力/素质不绑知识点，用 observationPoint + teachingDesign\n\nDDL：sql/update_target_design_objective_text_multi_point.sql（objective_text、knowledge_points 两列）",
+      "item": [
+        {
+          "name": "达成设计列表(planId可空) GET /targetDesign/list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign/list?planId={{planId}}&schemeId={{schemeId}}&designTypeCode=知识目标",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "targetDesign",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "planId",
+                  "value": "{{planId}}",
+                  "description": "可选；空则返回 []"
+                },
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "可选"
+                },
+                {
+                  "key": "designTypeCode",
+                  "value": "知识目标",
+                  "description": "知识目标/能力目标/素质目标（或字典编码）"
+                }
+              ]
+            },
+            "description": "planId 为空时不报错，data=[]。\n返回项含 objectiveText、knowledgePoints[]、teachingLink/teachingMethod/learningMethod（字典值）。"
+          },
+          "response": [
+            {
+              "name": "成功-知识目标",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"planId\": 55,\n      \"schemeId\": 200,\n      \"designTypeCode\": \"知识目标\",\n      \"objectiveText\": \"掌握高等数学基本概念\",\n      \"knowledgeUnitName\": \"极限与连续\",\n      \"knowledgePointName\": \"极限定义、连续定义\",\n      \"knowledgePoints\": [\n        {\n          \"knowledgeUnitId\": 11,\n          \"knowledgeUnitName\": \"极限与连续\",\n          \"knowledgePointId\": 101,\n          \"knowledgePointName\": \"极限定义\"\n        },\n        {\n          \"knowledgeUnitId\": 11,\n          \"knowledgeUnitName\": \"极限与连续\",\n          \"knowledgePointId\": 102,\n          \"knowledgePointName\": \"连续定义\"\n        }\n      ],\n      \"contentText\": \"函数极限\",\n      \"teachingLink\": \"讲授\",\n      \"teachingMethod\": \"讲授法\",\n      \"learningMethod\": \"听讲\",\n      \"hours\": 2.0\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "达成设计列表(无planId) GET /targetDesign/list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign/list?designTypeCode=知识目标",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "targetDesign",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "designTypeCode",
+                  "value": "知识目标"
+                }
+              ]
+            },
+            "description": "用户未建计划直接进 tab：返回 data=[]，HTTP 200。"
+          },
+          "response": []
+        },
+        {
+          "name": "目标选项(去重) GET /objective/options",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/options?planId={{planId}}&schemeId={{schemeId}}&objectiveTypeCode=知识目标",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "objective",
+                "options"
+              ],
+              "query": [
+                {
+                  "key": "planId",
+                  "value": "{{planId}}",
+                  "description": "可选；空返回 []"
+                },
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "可选；不传=汇总该 plan 下全部方案"
+                },
+                {
+                  "key": "objectiveTypeCode",
+                  "value": "知识目标",
+                  "description": "必填，每次只查一种类型"
+                }
+              ]
+            },
+            "description": "达成设计弹框「支撑的课程目标」数据源。\n按 content 字符串去重，同名只保留一条。\n前端选中后把 content 写入 targetDesign.objectiveText。"
+          },
+          "response": [
+            {
+              "name": "成功",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"content\": \"掌握高等数学基本概念\",\n      \"objectiveTypeCode\": \"知识目标\",\n      \"objectiveTypeName\": \"知识目标\"\n    },\n    {\n      \"content\": \"理解导数几何意义\",\n      \"objectiveTypeCode\": \"知识目标\",\n      \"objectiveTypeName\": \"知识目标\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "新增知识目标达成设计 POST /targetDesign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"designTypeCode\": \"知识目标\",\n  \"objectiveText\": \"掌握高等数学基本概念\",\n  \"knowledgePoints\": [\n    {\n      \"knowledgeUnitId\": 11,\n      \"knowledgeUnitName\": \"极限与连续\",\n      \"knowledgePointId\": 101,\n      \"knowledgePointName\": \"极限定义\"\n    },\n    {\n      \"knowledgeUnitId\": 12,\n      \"knowledgeUnitName\": \"导数与微分\",\n      \"knowledgePointId\": 201,\n      \"knowledgePointName\": \"导数定义\"\n    }\n  ],\n  \"contentText\": \"函数极限与导数\",\n  \"teachingLink\": \"讲授\",\n  \"teachingMethod\": \"讲授法\",\n  \"learningMethod\": \"听讲\",\n  \"hours\": 2,\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "targetDesign"
+              ]
+            },
+            "description": "知识目标：knowledgePoints 可多项、可跨知识单元；objectiveText 直接存支撑目标字符串；教学环节/教法/学法为字典值。"
+          },
+          "response": []
+        },
+        {
+          "name": "新增能力目标达成设计 POST /targetDesign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"designTypeCode\": \"能力目标\",\n  \"objectiveText\": \"具备运用微积分分析问题的能力\",\n  \"observationPoint\": \"能独立完成典型习题\",\n  \"contentText\": \"应用题讲解\",\n  \"teachingDesign\": \"案例分析 + 练习\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/targetDesign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "targetDesign"
+              ]
+            },
+            "description": "能力/素质：不绑知识点；objectiveText + observationPoint + teachingDesign。"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
