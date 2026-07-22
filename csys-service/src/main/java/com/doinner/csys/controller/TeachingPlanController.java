@@ -200,7 +200,7 @@ public class TeachingPlanController {
     @ApiOperation("教学计划目标列表")
     @GetMapping("/objective/list")
     public DataSet<List<TeachingPlanObjective>> objectiveList(@RequestParam("planId") Long planId,
-                                                              @RequestParam("schemeId") Long schemeId) {
+                                                              @RequestParam(value = "schemeId",required = false) Long schemeId) {
         return DataSet.success(teachingPlanModuleService.listObjective(planId, schemeId));
     }
 

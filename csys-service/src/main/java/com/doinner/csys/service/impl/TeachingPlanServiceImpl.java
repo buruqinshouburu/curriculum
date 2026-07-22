@@ -411,7 +411,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         m.setEducationLevel(nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel()));
         m.setMajorName(nz(detail == null ? null : detail.getMajorName(), course.getMajorName()));
         m.setTerm(nz(detail == null ? null : detail.getTerm(), course.getOpenTerm()));
-        m.setCourseModule(nz(detail == null ? null : detail.getCourseModule(), course.getCourseModule()));
+        // 课程模块字段存的是字典id（可能多值用、或,拼接），生成文档时翻译为名称
+        String rawCourseModule = nz(detail == null ? null : detail.getCourseModule(), course.getCourseModule());
+        String courseModuleName = translateJoinedCodes(rawCourseModule, getCourseModuleIdToNameMap());
+        m.setCourseModule(StringUtils.isNotBlank(courseModuleName) ? courseModuleName : rawCourseModule);
         m.setCourseAttr(nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr()));
         m.setScoreRule(plan == null ? null : plan.getScoreRule());
 

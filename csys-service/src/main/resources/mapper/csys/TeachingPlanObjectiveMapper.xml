@@ -44,8 +44,10 @@
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective
         WHERE plan_id = #{planId}
-          AND scheme_id = #{schemeId}
           AND sysflag = 0
+          <if test="schemeId != null">
+              AND scheme_id = #{schemeId}
+          </if>
         ORDER BY objective_type_code ASC, sort ASC, id ASC
     </select>
 

@@ -763,7 +763,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 2;
                 setCell(t, r, 0, s.getSectionTitle(), false);
                 setCell(t, r, 1, "", false);
-                setCell(t, r, 2, s.getContent(), false);
+                setCell(t, r, 2, stripHtml(s.getContent()), false);
             }
         }
     }
@@ -817,7 +817,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 2;
                 setCell(t, r, 0, "", false);
                 setCell(t, r, 1, s.getSectionTitle(), false);
-                setCell(t, r, 2, s.getContent(), false);
+                setCell(t, r, 2, stripHtml(s.getContent()), false);
             }
         }
     }
@@ -875,7 +875,7 @@ public class CourseTeachingPlanGenerator {
         WordUtil.createHeading(doc, text, 3);
     }
 
-    /** 渲染文本章节：每段 h3 标题 + 内容段落（\n 分行） */
+    /** 渲染文本章节：每段 h3 标题 + 内容段落（\n 分行）；富文本 HTML 标签剥离为纯文本 */
     private void renderSections(XWPFDocument doc, List<TeachingPlanSection> sections) {
         if (ObjectUtils.isEmpty(sections)) {
             return;
@@ -885,7 +885,8 @@ public class CourseTeachingPlanGenerator {
                 h3(doc, s.getSectionTitle());
             }
             if (StringUtils.isNotBlank(s.getContent())) {
-                String[] lines = s.getContent().split("\n", -1);
+                String plain = stripHtml(s.getContent());
+                String[] lines = plain.split("\n", -1);
                 for (String line : lines) {
                     WordUtil.createParagraph(doc, line, null);
                 }
@@ -994,20 +995,52 @@ public class CourseTeachingPlanGenerator {
         return str(code);
     }
 
-    /** sections -> {sectionTitle/sectionCode : content}，便于按标签取大段文本 */
+    /** sections -> {sectionTitle/sectionCode : content}，便于按标签取大段文本；内容去掉 HTML 标签 */
     private Map<String, String> sectionsMap(List<TeachingPlanSection> sections) {
         Map<String, String> map = new HashMap<>();
         if (ObjectUtils.isEmpty(sections)) {
             return map;
         }
         for (TeachingPlanSection s : sections) {
+            String plain = stripHtml(s.getContent());
             if (StringUtils.isNotBlank(s.getSectionTitle())) {
-                map.put(s.getSectionTitle(), s.getContent());
+                map.put(s.getSectionTitle(), plain);
             }
             if (StringUtils.isNotBlank(s.getSectionCode())) {
-                map.put(s.getSectionCode(), s.getContent());
+                map.put(s.getSectionCode(), plain);
             }
         }
         return map;
+    }
+
+    /**
+     * 富文本 HTML 转纯文本。
+     * 去掉标签，把常见换行标签还原为换行，并解码常见 HTML 实体。
+     * 课程概述等字段来自前端富文本编辑器，可能带有 p 标签，生成 Word 时需要剥离。
+     */
+    private static String stripHtml(String html) {
+        if (StringUtils.isBlank(html)) {
+            return html == null ? "" : html;
+        }
+        String s = html;
+        // 换行类标签先转成换行，再去掉其余标签
+        s = s.replaceAll("(?i)<br\\s*/?>", "\n");
+        s = s.replaceAll("(?i)</p>", "\n");
+        s = s.replaceAll("(?i)</div>", "\n");
+        s = s.replaceAll("(?i)</li>", "\n");
+        s = s.replaceAll("(?i)</h[1-6]>", "\n");
+        s = s.replaceAll("(?i)</tr>", "\n");
+        s = s.replaceAll("<[^>]+>", "");
+        s = s.replace("&nbsp;", " ")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&ldquo;", "\u201c")
+                .replace("&rdquo;", "\u201d");
+        // 压缩连续空行
+        s = s.replaceAll("[\r\n]{3,}", "\n\n");
+        return s.trim();
     }
 }
