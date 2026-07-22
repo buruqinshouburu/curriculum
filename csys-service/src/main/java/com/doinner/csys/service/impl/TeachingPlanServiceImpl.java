@@ -475,9 +475,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         m.setCourseAttr(nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr()));
         m.setScoreRule(plan == null ? null : plan.getScoreRule());
 
-        // 目标达成设计仍用首个 scheme（与历史行为一致；本节「目标与支撑毕业要求」已按全部 scheme 展开）
-        Long firstSchemeId = ObjectUtils.isNotEmpty(schemes) ? schemes.get(0).getSchemeId() : null;
-
         if (planId != null) {
             m.setTeachers(listTeacher(planId));
             m.setSections(listSection(planId));
@@ -538,13 +535,12 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
 
             m.setContents(teachingPlanModuleService.listContent(planId));
-            // 目标达成设计：知识/能力/素质 三类合并（仍按首个 scheme；listTargetDesign 已填充 knowledgePoints）
+            // 目标达成设计：页面已按目标名称聚合多 scheme，落库为 plan 级一张表；
+            // schemeId 传 null 不过滤，取全 plan 数据（listTargetDesign 已填充 knowledgePoints）
             List<TeachingPlanTargetDesign> designs = new ArrayList<>();
-            if (firstSchemeId != null) {
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, firstSchemeId, "知识目标"));
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, firstSchemeId, "能力目标"));
-                designs.addAll(teachingPlanModuleService.listTargetDesign(planId, firstSchemeId, "素质目标"));
-            }
+            designs.addAll(teachingPlanModuleService.listTargetDesign(planId, null, "知识目标"));
+            designs.addAll(teachingPlanModuleService.listTargetDesign(planId, null, "能力目标"));
+            designs.addAll(teachingPlanModuleService.listTargetDesign(planId, null, "素质目标"));
             // 表内教学环节/教法/学法：字典编码译为 label（可多值顿号/逗号分隔）
             translateTargetDesignDictFields(designs);
             m.setTargetDesigns(designs);

@@ -494,10 +494,16 @@ public class CourseTeachingPlanGenerator {
     /**
      * 知识目标达成设计表（type1 六(一)）：9 列
      * 序号 | 知识单元 | 知识点 | 支撑的课程知识目标 | 教学内容 | 教学环节 | 教法 | 学法 | 学时
+     * <p>
+     * 一条达成设计可绑定多个知识点（可跨知识单元）：按知识点展开多行。
+     * - 序号 / 支撑目标 / 教学内容 / 教学环节 / 教法 / 学法 / 学时：同一条设计纵向合并
+     * - 知识单元：同一条设计内连续相同单元纵向合并（不同单元各自成块）
+     * - 知识点：每行一点，不合并
      */
     private void targetDesignTable(List<TeachingPlanTargetDesign> designs, XWPFDocument doc) {
         int cols = 9;
-        int rows = 1 + Math.max(size(designs), 1);
+        List<KnowledgeDesignRow> flat = flattenKnowledgeDesignRows(designs);
+        int rows = 1 + Math.max(flat.size(), 1);
         XWPFTable t = createTable(doc, rows, cols);
         setCell(t, 0, 0, "序号", true);
         setCell(t, 0, 1, "知识单元", true);
@@ -508,26 +514,175 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 0, 6, "教法", true);
         setCell(t, 0, 7, "学法", true);
         setCell(t, 0, 8, "学时", true);
-        if (ObjectUtils.isNotEmpty(designs)) {
-            for (int i = 0; i < designs.size(); i++) {
-                TeachingPlanTargetDesign d = designs.get(i);
-                int r = i + 1;
-                setCell(t, r, 0, String.valueOf(i + 1), false);
-                setCell(t, r, 1, joinUnitNames(d), false);
-                setCell(t, r, 2, joinPointNames(d), false);
-                // 支撑的课程知识目标：优先 objectiveText，兼容旧 contentText
-                setCell(t, r, 3, firstNonBlank(d.getObjectiveText(), d.getContentText()), false);
-                setCell(t, r, 4, d.getContentText(), false);
-                setCell(t, r, 5, d.getTeachingLink(), false);
-                setCell(t, r, 6, d.getTeachingMethod(), false);
-                setCell(t, r, 7, d.getLearningMethod(), false);
-                setCell(t, r, 8, toStr(d.getHours()), false);
-            }
-        } else {
+        if (flat.isEmpty()) {
             for (int c = 0; c < cols; c++) {
                 setCell(t, 1, c, "", false);
             }
+            return;
         }
+        for (int i = 0; i < flat.size(); i++) {
+            KnowledgeDesignRow row = flat.get(i);
+            int r = i + 1;
+            // 仅在设计块首行写入共享列文案；后续行靠纵向合并显示
+            if (row.firstOfDesign) {
+                setCell(t, r, 0, String.valueOf(row.designIndex), false);
+                setCell(t, r, 3, row.objectiveText, false);
+                setCell(t, r, 4, row.contentText, false);
+                setCell(t, r, 5, row.teachingLink, false);
+                setCell(t, r, 6, row.teachingMethod, false);
+                setCell(t, r, 7, row.learningMethod, false);
+                setCell(t, r, 8, row.hours, false);
+            } else {
+                setCell(t, r, 0, "", false);
+                setCell(t, r, 3, "", false);
+                setCell(t, r, 4, "", false);
+                setCell(t, r, 5, "", false);
+                setCell(t, r, 6, "", false);
+                setCell(t, r, 7, "", false);
+                setCell(t, r, 8, "", false);
+            }
+            // 知识单元：块内连续相同单元仅在段首写值
+            if (row.firstOfUnit) {
+                setCell(t, r, 1, row.unitName, false);
+            } else {
+                setCell(t, r, 1, "", false);
+            }
+            setCell(t, r, 2, row.pointName, false);
+        }
+        // 纵向合并：先按设计块合并共享列，再按单元段合并知识单元列
+        mergeKnowledgeDesignSharedColumns(t, flat);
+        mergeKnowledgeUnitColumn(t, flat);
+    }
+
+    /**
+     * 将知识目标达成设计展开为「每知识点一行」。
+     * 无 knowledgePoints 时回退单点兼容字段，仍至少 1 行。
+     */
+    private List<KnowledgeDesignRow> flattenKnowledgeDesignRows(List<TeachingPlanTargetDesign> designs) {
+        List<KnowledgeDesignRow> flat = new ArrayList<>();
+        if (ObjectUtils.isEmpty(designs)) {
+            return flat;
+        }
+        int designIndex = 0;
+        for (TeachingPlanTargetDesign d : designs) {
+            if (d == null) {
+                continue;
+            }
+            designIndex++;
+            List<TeachingPlanTargetDesign.KnowledgePointItem> points = resolveKnowledgePointItems(d);
+            String objectiveText = firstNonBlank(d.getObjectiveText(), d.getContentText());
+            String contentText = str(d.getContentText());
+            String teachingLink = str(d.getTeachingLink());
+            String teachingMethod = str(d.getTeachingMethod());
+            String learningMethod = str(d.getLearningMethod());
+            String hours = toStr(d.getHours());
+            int startIdx = flat.size();
+            for (int p = 0; p < points.size(); p++) {
+                TeachingPlanTargetDesign.KnowledgePointItem item = points.get(p);
+                KnowledgeDesignRow row = new KnowledgeDesignRow();
+                row.designIndex = designIndex;
+                row.unitName = item == null ? "" : str(item.getKnowledgeUnitName());
+                row.pointName = item == null ? "" : str(item.getKnowledgePointName());
+                row.objectiveText = objectiveText;
+                row.contentText = contentText;
+                row.teachingLink = teachingLink;
+                row.teachingMethod = teachingMethod;
+                row.learningMethod = learningMethod;
+                row.hours = hours;
+                row.firstOfDesign = (p == 0);
+                // 单元段首：首行，或与上一行单元名不同
+                if (p == 0) {
+                    row.firstOfUnit = true;
+                } else {
+                    String prevUnit = flat.get(startIdx + p - 1).unitName;
+                    row.firstOfUnit = !StringUtils.equals(
+                            StringUtils.defaultString(prevUnit),
+                            StringUtils.defaultString(row.unitName));
+                }
+                flat.add(row);
+            }
+        }
+        return flat;
+    }
+
+    /**
+     * 解析一条设计下的知识点列表；无多点 JSON 时用单点兼容列。
+     */
+    private List<TeachingPlanTargetDesign.KnowledgePointItem> resolveKnowledgePointItems(
+            TeachingPlanTargetDesign d) {
+        if (d != null && ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
+            return d.getKnowledgePoints();
+        }
+        List<TeachingPlanTargetDesign.KnowledgePointItem> one = new ArrayList<>();
+        TeachingPlanTargetDesign.KnowledgePointItem item = new TeachingPlanTargetDesign.KnowledgePointItem();
+        if (d != null) {
+            item.setKnowledgeUnitId(d.getKnowledgeUnitId());
+            item.setKnowledgeUnitName(d.getKnowledgeUnitName());
+            item.setKnowledgePointId(d.getKnowledgePointId());
+            item.setKnowledgePointName(d.getKnowledgePointName());
+        }
+        one.add(item);
+        return one;
+    }
+
+    /** 同一条设计多行：合并序号、支撑目标、教学内容、教学环节、教法、学法、学时 */
+    private void mergeKnowledgeDesignSharedColumns(XWPFTable t, List<KnowledgeDesignRow> flat) {
+        int i = 0;
+        while (i < flat.size()) {
+            int start = i;
+            int designIndex = flat.get(i).designIndex;
+            i++;
+            while (i < flat.size() && flat.get(i).designIndex == designIndex) {
+                i++;
+            }
+            int end = i - 1;
+            if (end > start) {
+                int startRow = start + 1; // 表头占第 0 行
+                int endRow = end + 1;
+                WordUtil.mergeCellsVertical(t, 0, startRow, endRow);
+                WordUtil.mergeCellsVertical(t, 3, startRow, endRow);
+                WordUtil.mergeCellsVertical(t, 4, startRow, endRow);
+                WordUtil.mergeCellsVertical(t, 5, startRow, endRow);
+                WordUtil.mergeCellsVertical(t, 6, startRow, endRow);
+                WordUtil.mergeCellsVertical(t, 7, startRow, endRow);
+                WordUtil.mergeCellsVertical(t, 8, startRow, endRow);
+            }
+        }
+    }
+
+    /** 同一条设计内连续相同知识单元纵向合并 */
+    private void mergeKnowledgeUnitColumn(XWPFTable t, List<KnowledgeDesignRow> flat) {
+        int i = 0;
+        while (i < flat.size()) {
+            int start = i;
+            int designIndex = flat.get(i).designIndex;
+            String unitName = StringUtils.defaultString(flat.get(i).unitName);
+            i++;
+            while (i < flat.size()
+                    && flat.get(i).designIndex == designIndex
+                    && StringUtils.equals(unitName, StringUtils.defaultString(flat.get(i).unitName))) {
+                i++;
+            }
+            int end = i - 1;
+            if (end > start) {
+                WordUtil.mergeCellsVertical(t, 1, start + 1, end + 1);
+            }
+        }
+    }
+
+    /** 知识目标表展开行（每知识点一行） */
+    private static class KnowledgeDesignRow {
+        int designIndex;
+        String unitName;
+        String pointName;
+        String objectiveText;
+        String contentText;
+        String teachingLink;
+        String teachingMethod;
+        String learningMethod;
+        String hours;
+        boolean firstOfDesign;
+        boolean firstOfUnit;
     }
 
     /**
@@ -997,35 +1152,6 @@ public class CourseTeachingPlanGenerator {
             return a;
         }
         return b == null ? "" : b;
-    }
-
-    /** 知识单元名称：多知识点时去重顿号拼接 */
-    private String joinUnitNames(TeachingPlanTargetDesign d) {
-        if (d == null) {
-            return "";
-        }
-        if (ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
-            return d.getKnowledgePoints().stream()
-                    .map(TeachingPlanTargetDesign.KnowledgePointItem::getKnowledgeUnitName)
-                    .filter(StringUtils::isNotBlank)
-                    .distinct()
-                    .collect(Collectors.joining("、"));
-        }
-        return str(d.getKnowledgeUnitName());
-    }
-
-    /** 知识点名称：多知识点顿号拼接 */
-    private String joinPointNames(TeachingPlanTargetDesign d) {
-        if (d == null) {
-            return "";
-        }
-        if (ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
-            return d.getKnowledgePoints().stream()
-                    .map(TeachingPlanTargetDesign.KnowledgePointItem::getKnowledgePointName)
-                    .filter(StringUtils::isNotBlank)
-                    .collect(Collectors.joining("、"));
-        }
-        return str(d.getKnowledgePointName());
     }
 
     /** 拼接课程毕业要求名称 */
