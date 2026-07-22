@@ -1,0 +1,128 @@
+{
+  "info": {
+    "_postman_id": "20260722-111836-teaching-plan-objective-list-scheme-optional",
+    "name": "TeachingPlan - 目标列表schemeId可选 (20260722_111836)",
+    "description": "本次变更：GET /teachingPlan/objective/list 的 schemeId 由必填改为可选。\n\n背景：教学计划 / 培养方案 id 缺失时兼容查询。\n- planId 仍必填\n- schemeId 不传（或 null）时，按 planId 查该计划下全部目标（不按培养方案过滤）\n- schemeId 有值时行为与原先一致，按 planId+schemeId 过滤\n\n无数据库 DDL。\n\n同批次后端另有 Word 生成兼容（富文本去 HTML、课程模块字典翻译），不涉及对外接口入参/出参，见更新说明。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "服务地址。context-path=/csys"
+    },
+    {
+      "key": "planId",
+      "value": "55",
+      "description": "教学计划id t_csys_teaching_plan.id"
+    },
+    {
+      "key": "schemeId",
+      "value": "200",
+      "description": "培养方案id（可选）t_csys_training_scheme.id"
+    }
+  ],
+  "item": [
+    {
+      "name": "目标列表(带schemeId) GET /objective/list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/objective/list?planId={{planId}}&schemeId={{schemeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "csys",
+            "teachingPlan",
+            "objective",
+            "list"
+          ],
+          "query": [
+            {
+              "key": "planId",
+              "value": "{{planId}}",
+              "description": "Long, 必填, 教学计划id"
+            },
+            {
+              "key": "schemeId",
+              "value": "{{schemeId}}",
+              "description": "Long, 可选, 培养方案id；有值时按 planId+schemeId 过滤"
+            }
+          ]
+        },
+        "description": "TeachingPlanController#objectiveList\n\n表: t_csys_teaching_plan_objective\n\n入参:\n  planId (Long, 必填)\n  schemeId (Long, 可选)  有值按培养方案过滤；不传则返回该 plan 下全部目标\n\n返回 DataSet<List<TeachingPlanObjective>>\n字段示例: id, planId, schemeId, majorId, objectiveTypeCode, objectiveTypeName, content, sourceMode, sort"
+      },
+      "response": [
+        {
+          "name": "成功 - 指定培养方案",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json;charset=UTF-8"
+            }
+          ],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 301,\n      \"planId\": 55,\n      \"schemeId\": 200,\n      \"majorId\": 10,\n      \"objectiveTypeCode\": \"knowledge\",\n      \"objectiveTypeName\": \"知识目标\",\n      \"content\": \"掌握基础理论……\",\n      \"sourceMode\": 0,\n      \"sort\": 1\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "目标列表(不传schemeId) GET /objective/list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/objective/list?planId={{planId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "csys",
+            "teachingPlan",
+            "objective",
+            "list"
+          ],
+          "query": [
+            {
+              "key": "planId",
+              "value": "{{planId}}",
+              "description": "Long, 必填, 教学计划id"
+            }
+          ]
+        },
+        "description": "schemeId 不传时：Mapper 条件 scheme_id 动态省略，返回该 planId 下全部有效目标（sysflag=0）。\n\n适用：培养方案 tab 尚未选定 / 无培养方案 id 时的兼容查询。\n\n注意：返回结果可能包含多个 schemeId 的目标，前端如需分组展示请按 schemeId 自行聚合。"
+      },
+      "response": [
+        {
+          "name": "成功 - 计划下全部目标",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json;charset=UTF-8"
+            }
+          ],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 301,\n      \"planId\": 55,\n      \"schemeId\": 200,\n      \"majorId\": 10,\n      \"objectiveTypeCode\": \"knowledge\",\n      \"objectiveTypeName\": \"知识目标\",\n      \"content\": \"掌握基础理论……\",\n      \"sourceMode\": 0,\n      \"sort\": 1\n    },\n    {\n      \"id\": 302,\n      \"planId\": 55,\n      \"schemeId\": 201,\n      \"majorId\": 11,\n      \"objectiveTypeCode\": \"ability\",\n      \"objectiveTypeName\": \"能力目标\",\n      \"content\": \"具备分析能力……\",\n      \"sourceMode\": 0,\n      \"sort\": 1\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}
