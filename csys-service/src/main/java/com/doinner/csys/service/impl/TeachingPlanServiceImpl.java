@@ -406,7 +406,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         } else {
             plan = teachingPlanMapper.selectBySourceCourseId(courseId);
         }
-        Long planId = plan == null ? null : plan.getId();
+        if (plan == null){
+            throw new IllegalArgumentException("教学计划不存在,请先保存后再生成!" );
+        }
+        Long planId =  plan.getId();
         // 源课被引用的全部培养方案（多方案 → Word 中「课程目标与支撑毕业要求」多张表）
         List<TeachingPlanSchemeVo> schemes = teachingPlanModuleService.listSchemes(courseId);
         if (schemes == null) {
