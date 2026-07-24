@@ -1,9 +1,20 @@
 package com.doinner.csys.service.impl;
 
 import com.doinner.csys.dao.CourseMapper;
+import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
+import com.doinner.csys.dao.TeachingPlanConditionMapper;
+import com.doinner.csys.dao.TeachingPlanContentMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
+import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
+import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
+import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
+import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
+import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
+import com.doinner.csys.dao.TeachingPlanRefMapper;
 import com.doinner.csys.dao.TeachingPlanSectionMapper;
+import com.doinner.csys.dao.TeachingPlanTargetDesignMapper;
 import com.doinner.csys.dao.TeachingPlanTeacherMapper;
+import com.doinner.csys.dao.TeachingPlanTextbookMapper;
 import com.doinner.csys.dao.StandardMajorMapper;
 import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
 import com.doinner.csys.domain.Course;
@@ -23,6 +34,8 @@ import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.CourseVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
+import com.doinner.csys.domain.vo.TeachingPlanImportIssueVo;
+import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
@@ -30,7 +43,10 @@ import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
+import com.doinner.csys.entity.csys.TeachingPlanWordImporter;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
+import com.doinner.csys.entity.csys.model.DictContent;
+import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.CommonService;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
@@ -45,6 +61,7 @@ import com.doinner.system.domain.custom.CustomDept;
 import com.doinner.system.domain.entity.SysDept;
 import com.doinner.system.domain.entity.SysDictData;
 import com.doinner.system.service.DoinnerDeptService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -55,6 +72,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.io.IOException;
@@ -81,12 +99,30 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     private static final Logger log = LoggerFactory.getLogger(TeachingPlanServiceImpl.class);
 
+    private static final ObjectMapper IMPORT_OBJECT_MAPPER = new ObjectMapper();
+
     /** 教学环节字典 type */
     private static final String DICT_PLAN_TEACHING_LINK = "sys_plan_teaching_link";
     /** 教法字典 type */
     private static final String DICT_PLAN_TEACHING_METHOD = "sys_plan_teaching_method";
     /** 学法字典 type */
     private static final String DICT_PLAN_LEARNING_METHOD = "sys_plan_learning_method";
+    /** 适用对象/培养层次字典 type */
+    private static final String DICT_EDUCATION_LEVEL = "sys_education_level";
+    /** 考核项目字典 type */
+    private static final String DICT_ASSESSMENT_ITEM = "sys_assessment_item";
+    /** 考核方式字典 type */
+    private static final String DICT_ASSESSMENT_METHOD = "sys_assessment_method";
+    /** 评定机制字典 type */
+    private static final String DICT_ASSESSMENT_MECHANISM = "sys_assessment_mechanism";
+    /** 评价标准字典 type */
+    private static final String DICT_EVALUATION_STANDARD = "sys_evaluation_standard";
+    /** 教材性质字典 type */
+    private static final String DICT_TEXTBOOK_NATURE = "sys_textbook_nature";
+    /** 出版方式字典 type */
+    private static final String DICT_PUBLICATION_METHOD = "sys_publication_method";
+    /** 条件类型字典 type */
+    private static final String DICT_CONDITION_TYPE = "sys_condition_type";
 
     @Resource
     private TeachingPlanMapper teachingPlanMapper;
@@ -95,6 +131,29 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Resource
     private TeachingPlanSectionMapper teachingPlanSectionMapper;
+
+    @Resource
+    private TeachingPlanObjectiveMapper teachingPlanObjectiveMapper;
+    @Resource
+    private TeachingPlanObjectiveRefMapper teachingPlanObjectiveRefMapper;
+    @Resource
+    private TeachingPlanContentMapper teachingPlanContentMapper;
+    @Resource
+    private TeachingPlanTargetDesignMapper teachingPlanTargetDesignMapper;
+    @Resource
+    private TeachingPlanPracticeItemMapper teachingPlanPracticeItemMapper;
+    @Resource
+    private TeachingPlanPracticeItemDetailMapper teachingPlanPracticeItemDetailMapper;
+    @Resource
+    private TeachingPlanAssessmentMapper teachingPlanAssessmentMapper;
+    @Resource
+    private TeachingPlanTextbookMapper teachingPlanTextbookMapper;
+    @Resource
+    private TeachingPlanConditionMapper teachingPlanConditionMapper;
+    @Resource
+    private TeachingPlanProcessStepMapper teachingPlanProcessStepMapper;
+    @Resource
+    private TeachingPlanRefMapper teachingPlanRefMapper;
 
     @Resource
     private CourseMapper courseMapper;
@@ -314,8 +373,32 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (detail != null) {
             // 开课学期：SQL 返回 schedule.term 字典值拼接串（如 1、3、5），翻译为中文标签
             detail.setTerm(translateScheduleTerms(detail.getTerm()));
+            // 适用对象：被引用培养方案 education_level 多值顿号拼接，字典 sys_education_level 译为 label
+            detail.setEducationLevel(translateDictJoined(
+                    detail.getEducationLevel(), dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
+            // 课程模块：被引用课程 course_Module 多值顿号拼接，KG 字典 id 译为 name；未命中保留原值
+            String rawModule = detail.getCourseModule();
+            String moduleName = translateJoinedCodes(rawModule, getCourseModuleIdToNameMap());
+            detail.setCourseModule(StringUtils.isNotBlank(moduleName) ? moduleName : rawModule);
+            // 公共基础标记：按源课 course_Module 原 id 判定（detail.courseModule 已是名称）
+            detail.setPublicFoundation(isPublicFoundationCourseModule(
+                    courseId != null ? courseId : detail.getCourseId()));
         }
         return detail;
+    }
+
+    /**
+     * 源课是否公共基础课程：t_csys_course.course_Module == DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE。
+     */
+    private boolean isPublicFoundationCourseModule(Long sourceCourseId) {
+        if (sourceCourseId == null) {
+            return false;
+        }
+        CourseVo course = courseMapper.selectCourseById(sourceCourseId);
+        if (course == null || StringUtils.isBlank(course.getCourseModule())) {
+            return false;
+        }
+        return Objects.equals(course.getCourseModule(), DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
     }
 
     /**
@@ -468,10 +551,12 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         m.setPracticeHours(toStr(detail == null ? null : detail.getPracticeHours(), course.getPracticeHours()));
         m.setHours(toStr(detail == null ? null : detail.getHours(), course.getHours()));
         m.setCredit(toStr(detail == null ? null : detail.getCredit(), course.getCredit()));
-        m.setEducationLevel(nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel()));
+        // 适用对象：detail 已译 label；若回退到 course 原值则再译一次（多值顿号分隔）
+        String rawEducationLevel = nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel());
+        m.setEducationLevel(translateDictJoined(rawEducationLevel, dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
         m.setMajorName(nz(detail == null ? null : detail.getMajorName(), course.getMajorName()));
         m.setTerm(nz(detail == null ? null : detail.getTerm(), course.getOpenTerm()));
-        // 课程模块字段存的是字典id（可能多值用、或,拼接），生成文档时翻译为名称
+        // 课程模块：detail 已译 name；若仍是 id 串则再译（多值、/, 分隔），未命中保留原值
         String rawCourseModule = nz(detail == null ? null : detail.getCourseModule(), course.getCourseModule());
         String courseModuleName = translateJoinedCodes(rawCourseModule, getCourseModuleIdToNameMap());
         m.setCourseModule(StringUtils.isNotBlank(courseModuleName) ? courseModuleName : rawCourseModule);
@@ -483,8 +568,29 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             m.setSections(listSection(planId));
 
             // 按培养方案分组加载目标 + 支撑毕业要求（多方案多表）
+            // 公共基础：plan 级单组（scheme_id IS NULL），Word 只出一张表、无方案小标题
             List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = new ArrayList<>();
-            if (ObjectUtils.isNotEmpty(schemes)) {
+            boolean publicFoundation = isPublicFoundationCourseModule(course.getId())
+                    || Objects.equals(course.getCourseModule(), DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+            if (publicFoundation) {
+                CourseTeachingPlanModel.SchemeObjectiveGroup g =
+                        new CourseTeachingPlanModel.SchemeObjectiveGroup();
+                // listObjective 内部已按公共基础 onlyNullScheme 取数
+                List<TeachingPlanObjective> objectives =
+                        teachingPlanModuleService.listObjective(planId, null);
+                g.setObjectives(objectives == null ? new ArrayList<>() : objectives);
+                Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
+                if (ObjectUtils.isNotEmpty(objectives)) {
+                    for (TeachingPlanObjective o : objectives) {
+                        if (o == null || o.getId() == null) {
+                            continue;
+                        }
+                        refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+                    }
+                }
+                g.setObjectiveRefMap(refMap);
+                groups.add(g);
+            } else if (ObjectUtils.isNotEmpty(schemes)) {
                 for (TeachingPlanSchemeVo s : schemes) {
                     if (s == null || s.getSchemeId() == null) {
                         continue;
@@ -559,9 +665,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 }
             }
             m.setItemDetailMap(detailMap);
-            m.setAssessments(teachingPlanModuleService.listAssessment(planId));
-            m.setTextbooks(teachingPlanModuleService.listTextbook(planId));
-            m.setConditions(teachingPlanModuleService.listCondition(planId));
+            // 考核/教材/条件：字典编码译为 label 再写入 Word
+            List<TeachingPlanAssessment> assessments = teachingPlanModuleService.listAssessment(planId);
+            translateAssessmentDictFields(assessments);
+            m.setAssessments(assessments);
+            List<TeachingPlanTextbook> textbooks = teachingPlanModuleService.listTextbook(planId);
+            translateTextbookDictFields(textbooks);
+            m.setTextbooks(textbooks);
+            List<TeachingPlanCondition> conditions = teachingPlanModuleService.listCondition(planId);
+            translateConditionDictFields(conditions);
+            m.setConditions(conditions);
         }
         // 课程绑定的毕业要求（全调用课汇总，空则回退源课）
         m.setCourseGraduations(teachingPlanModuleService.listCourseGraduation(course.getId()));
@@ -609,6 +722,65 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             d.setTeachingLink(translateDictJoined(d.getTeachingLink(), linkMap));
             d.setTeachingMethod(translateDictJoined(d.getTeachingMethod(), methodMap));
             d.setLearningMethod(translateDictJoined(d.getLearningMethod(), learningMap));
+        }
+    }
+
+    /**
+     * 考核评价表：考核项目/考核方式/评定机制/评价标准 字典编码译为 label。
+     * 已是 label 或未命中字典时保留原文。
+     */
+    private void translateAssessmentDictFields(List<TeachingPlanAssessment> assessments) {
+        if (ObjectUtils.isEmpty(assessments)) {
+            return;
+        }
+        Map<String, String> itemMap = dictValueToLabelMap(DICT_ASSESSMENT_ITEM);
+        Map<String, String> methodMap = dictValueToLabelMap(DICT_ASSESSMENT_METHOD);
+        Map<String, String> mechanismMap = dictValueToLabelMap(DICT_ASSESSMENT_MECHANISM);
+        Map<String, String> standardMap = dictValueToLabelMap(DICT_EVALUATION_STANDARD);
+        for (TeachingPlanAssessment a : assessments) {
+            if (a == null) {
+                continue;
+            }
+            a.setAssessmentItem(translateDictJoined(a.getAssessmentItem(), itemMap));
+            a.setMethod(translateDictJoined(a.getMethod(), methodMap));
+            a.setMechanism(translateDictJoined(a.getMechanism(), mechanismMap));
+            a.setStandard(translateDictJoined(a.getStandard(), standardMap));
+        }
+    }
+
+    /**
+     * 教材表：教材性质/出版方式 字典编码译为 label。
+     * 已是 label 或未命中字典时保留原文。
+     */
+    private void translateTextbookDictFields(List<TeachingPlanTextbook> textbooks) {
+        if (ObjectUtils.isEmpty(textbooks)) {
+            return;
+        }
+        Map<String, String> natureMap = dictValueToLabelMap(DICT_TEXTBOOK_NATURE);
+        Map<String, String> publishMap = dictValueToLabelMap(DICT_PUBLICATION_METHOD);
+        for (TeachingPlanTextbook b : textbooks) {
+            if (b == null) {
+                continue;
+            }
+            b.setMaterialNature(translateDictJoined(b.getMaterialNature(), natureMap));
+            b.setPublishMethod(translateDictJoined(b.getPublishMethod(), publishMap));
+        }
+    }
+
+    /**
+     * 条件保障表：条件类型 字典编码译为 label。
+     * 已是 label 或未命中字典时保留原文。
+     */
+    private void translateConditionDictFields(List<TeachingPlanCondition> conditions) {
+        if (ObjectUtils.isEmpty(conditions)) {
+            return;
+        }
+        Map<String, String> typeMap = dictValueToLabelMap(DICT_CONDITION_TYPE);
+        for (TeachingPlanCondition c : conditions) {
+            if (c == null) {
+                continue;
+            }
+            c.setConditionType(translateDictJoined(c.getConditionType(), typeMap));
         }
     }
 
@@ -799,6 +971,378 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             throw new RuntimeException("教学计划审核中或已通过，无法删除");
         }
         teachingPlanMapper.deleteById(planId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TeachingPlanImportResultVo importWord(Long courseId, MultipartFile file) {
+        if (courseId == null) {
+            throw new IllegalArgumentException("courseId 不能为空");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Word 文件不能为空");
+        }
+        String originalName = file.getOriginalFilename();
+        if (StringUtils.isNotBlank(originalName) && !originalName.toLowerCase().endsWith(".docx")) {
+            throw new IllegalArgumentException("仅支持 .docx 文件");
+        }
+        CourseVo course = courseMapper.selectCourseById(courseId);
+        if (course == null) {
+            throw new IllegalArgumentException("课程不存在: " + courseId);
+        }
+
+        TeachingPlanWordImporter.ParseContext ctx = buildImportParseContext(courseId, course);
+        TeachingPlanWordImporter.ParseResult parsed;
+        try (InputStream in = file.getInputStream()) {
+            parsed = new TeachingPlanWordImporter().parse(in, ctx);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("解析教学计划 Word 失败, courseId={}", courseId, e);
+            throw new IllegalArgumentException("无法解析 Word 文件: " + e.getMessage());
+        }
+
+        int planType = parsed.docType;
+        TeachingPlan existing = teachingPlanMapper.selectBySourceCourseIdAndPlanType(courseId, planType);
+        if (existing == null) {
+            existing = teachingPlanMapper.selectBySourceCourseId(courseId);
+        }
+        boolean created = false;
+        Long planId;
+        if (existing == null) {
+            TeachingPlan plan = new TeachingPlan();
+            plan.setSourceCourseId(courseId);
+            plan.setPlanType(planType);
+            plan.setStatus(0);
+            plan.setCurrentFlag(1);
+            plan.setSourceCourseName(course.getName());
+            plan.setSourceCourseCode(course.getCode());
+            plan.setSourceCourseEnName(StringUtils.isNotBlank(parsed.courseEnName)
+                    ? parsed.courseEnName : course.getEnName());
+            if (course.getHours() != null) {
+                plan.setSourceHours(BigDecimal.valueOf(course.getHours()));
+            }
+            if (course.getTeachHours() != null) {
+                plan.setSourceTeachHours(BigDecimal.valueOf(course.getTeachHours()));
+            }
+            if (course.getPracticeHours() != null) {
+                plan.setSourcePracticeHours(BigDecimal.valueOf(course.getPracticeHours()));
+            }
+            if (course.getCredit() != null) {
+                plan.setSourceCredit(BigDecimal.valueOf(course.getCredit()));
+            }
+            plan.setScoreRule(parsed.scoreRule);
+            TeachingPlanSaveVo saveVo = new TeachingPlanSaveVo();
+            saveVo.setPlan(plan);
+            planId = saveTeachingPlan(saveVo);
+            created = true;
+        } else {
+            planId = existing.getId();
+            clearPlanModules(planId);
+            TeachingPlan upd = new TeachingPlan();
+            upd.setId(planId);
+            if (StringUtils.isNotBlank(parsed.courseEnName)) {
+                upd.setSourceCourseEnName(parsed.courseEnName);
+            }
+            if (parsed.scoreRule != null) {
+                upd.setScoreRule(parsed.scoreRule);
+            }
+            UserUtils.reflash(upd);
+            teachingPlanMapper.updateById(upd);
+        }
+
+        TeachingPlanImportResultVo result = new TeachingPlanImportResultVo();
+        result.setCourseId(courseId);
+        result.setPlanId(planId);
+        result.setDocType(planType);
+        result.setCreatedPlan(created);
+        if (parsed.issues != null) {
+            result.getIssues().addAll(parsed.issues);
+        }
+
+        persistImportData(planId, courseId, ctx.publicFoundation, parsed, result);
+        return result;
+    }
+
+    private TeachingPlanWordImporter.ParseContext buildImportParseContext(Long courseId, CourseVo course) {
+        TeachingPlanWordImporter.ParseContext ctx = new TeachingPlanWordImporter.ParseContext();
+        ctx.expectedDocType = mapDocType(course.getType());
+        ctx.publicFoundation = Objects.equals(course.getCourseModule(),
+                DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+        List<TeachingPlanSchemeVo> schemes = teachingPlanModuleService.listSchemes(courseId);
+        ctx.schemes = schemes == null ? new ArrayList<>() : schemes;
+        List<CourseKnowledgeUnit> units = teachingPlanModuleService.listKnowledgeUnitInit(courseId);
+        ctx.knowledgeUnits = units == null ? new ArrayList<>() : units;
+
+        String[] dictTypes = {
+                "sys_plan_target_type",
+                DICT_PLAN_TEACHING_LINK, DICT_PLAN_TEACHING_METHOD, DICT_PLAN_LEARNING_METHOD,
+                DICT_ASSESSMENT_ITEM, DICT_ASSESSMENT_METHOD, DICT_ASSESSMENT_MECHANISM, DICT_EVALUATION_STANDARD,
+                DICT_TEXTBOOK_NATURE, DICT_PUBLICATION_METHOD, DICT_CONDITION_TYPE
+        };
+        for (String type : dictTypes) {
+            List<SysDictData> list = CurDictUtils.getDictData(type);
+            if (ObjectUtils.isEmpty(list)) {
+                continue;
+            }
+            for (SysDictData d : list) {
+                if (d == null || StringUtils.isBlank(d.getDictLabel())) {
+                    continue;
+                }
+                TeachingPlanWordImporter.putDict(ctx.dictLabelToValue, type, d.getDictLabel(), d.getDictValue());
+            }
+        }
+        return ctx;
+    }
+
+    /** 覆盖导入：逻辑删除 plan 下各子模块（明细表物理删） */
+    private void clearPlanModules(Long planId) {
+        teachingPlanPracticeItemDetailMapper.deleteByPlanId(planId);
+        teachingPlanObjectiveRefMapper.deleteByPlanId(planId);
+        teachingPlanObjectiveMapper.deleteByPlanId(planId);
+        teachingPlanTeacherMapper.deleteByPlanId(planId);
+        teachingPlanSectionMapper.deleteByPlanId(planId);
+        teachingPlanContentMapper.deleteByPlanId(planId);
+        teachingPlanTargetDesignMapper.deleteByPlanId(planId);
+        teachingPlanPracticeItemMapper.deleteByPlanId(planId);
+        teachingPlanAssessmentMapper.deleteByPlanId(planId);
+        teachingPlanTextbookMapper.deleteByPlanId(planId);
+        teachingPlanConditionMapper.deleteByPlanId(planId);
+        teachingPlanProcessStepMapper.deleteByPlanId(planId);
+        teachingPlanRefMapper.deleteByPlanId(planId);
+    }
+
+    private void persistImportData(Long planId, Long courseId, boolean publicFoundation,
+                                   TeachingPlanWordImporter.ParseResult parsed,
+                                   TeachingPlanImportResultVo result) {
+        // 教员
+        if (ObjectUtils.isNotEmpty(parsed.teachers)) {
+            for (TeachingPlanTeacher t : parsed.teachers) {
+                t.setId(null);
+                t.setPlanId(planId);
+                prepareEntity(t);
+                teachingPlanTeacherMapper.insert(t);
+            }
+            result.addCount("teacher", parsed.teachers.size());
+        }
+        // 章节
+        if (ObjectUtils.isNotEmpty(parsed.sections)) {
+            for (TeachingPlanSection s : parsed.sections) {
+                s.setId(null);
+                s.setPlanId(planId);
+                prepareEntity(s);
+                teachingPlanSectionMapper.insert(s);
+            }
+            result.addCount("section", parsed.sections.size());
+        }
+        // 目标 + 支撑毕业要求
+        int objCount = 0;
+        int refCount = 0;
+        if (ObjectUtils.isNotEmpty(parsed.objectives)) {
+            Map<Long, Map<String, StandardGraduation>> schemeGradCache = new HashMap<>();
+            for (TeachingPlanWordImporter.ParsedObjective po : parsed.objectives) {
+                if (po == null || po.objective == null || StringUtils.isBlank(po.objective.getContent())) {
+                    continue;
+                }
+                TeachingPlanObjective o = po.objective;
+                o.setId(null);
+                o.setPlanId(planId);
+                if (publicFoundation) {
+                    o.setSchemeId(null);
+                }
+                prepareEntity(o);
+                teachingPlanObjectiveMapper.insert(o);
+                objCount++;
+                if (ObjectUtils.isEmpty(po.graduationNames) || o.getId() == null) {
+                    continue;
+                }
+                Long schemeId = o.getSchemeId();
+                Map<String, StandardGraduation> nameMap = schemeGradCache.computeIfAbsent(
+                        schemeId == null ? -1L : schemeId,
+                        k -> buildGraduationNameMap(courseId, schemeId));
+                int sort = 1;
+                for (String gName : po.graduationNames) {
+                    StandardGraduation g = nameMap.get(gName);
+                    if (g == null) {
+                        // 忽略空白差异再试
+                        g = nameMap.get(gName.replaceAll("\\s+", ""));
+                    }
+                    if (g == null) {
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "四、课程目标与支撑毕业要求", o.getContent(), "graduationName",
+                                "未匹配到毕业要求，已跳过: " + gName));
+                        continue;
+                    }
+                    TeachingPlanObjectiveRef ref = new TeachingPlanObjectiveRef();
+                    ref.setPlanId(planId);
+                    ref.setObjectiveId(o.getId());
+                    ref.setSchemeId(schemeId);
+                    ref.setGraduationId(g.getId());
+                    ref.setSourceGraduationId(g.getSourceId());
+                    ref.setGraduationCode(g.getCode());
+                    ref.setGraduationName(g.getName());
+                    ref.setGraduationBindSource("course_ref_graduation");
+                    ref.setSort(sort++);
+                    prepareEntity(ref);
+                    teachingPlanObjectiveRefMapper.insert(ref);
+                    refCount++;
+                }
+            }
+        }
+        result.addCount("objective", objCount);
+        result.addCount("objectiveRef", refCount);
+
+        // 教学内容
+        if (ObjectUtils.isNotEmpty(parsed.contents)) {
+            for (TeachingPlanContent c : parsed.contents) {
+                c.setId(null);
+                c.setPlanId(planId);
+                prepareEntity(c);
+                teachingPlanContentMapper.insert(c);
+            }
+            result.addCount("content", parsed.contents.size());
+        }
+        // 达成设计
+        if (ObjectUtils.isNotEmpty(parsed.targetDesigns)) {
+            for (TeachingPlanTargetDesign d : parsed.targetDesigns) {
+                d.setId(null);
+                d.setPlanId(planId);
+                if (ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
+                    try {
+                        d.setKnowledgePointsJson(IMPORT_OBJECT_MAPPER.writeValueAsString(d.getKnowledgePoints()));
+                    } catch (Exception e) {
+                        d.setKnowledgePointsJson("[]");
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "六、达成设计", d.getObjectiveText(), "knowledgePoints",
+                                "知识点 JSON 序列化失败，已置空"));
+                    }
+                }
+                prepareEntity(d);
+                teachingPlanTargetDesignMapper.insert(d);
+            }
+            result.addCount("targetDesign", parsed.targetDesigns.size());
+        }
+        // 实践项目 + 明细
+        int itemCount = 0;
+        int detailCount = 0;
+        if (ObjectUtils.isNotEmpty(parsed.practiceItems)) {
+            for (TeachingPlanWordImporter.ParsedPracticeItem pi : parsed.practiceItems) {
+                if (pi == null || pi.item == null || StringUtils.isBlank(pi.item.getName())) {
+                    continue;
+                }
+                TeachingPlanPracticeItem item = pi.item;
+                item.setId(null);
+                item.setPlanId(planId);
+                prepareEntity(item);
+                teachingPlanPracticeItemMapper.insert(item);
+                itemCount++;
+                if (ObjectUtils.isNotEmpty(pi.details) && item.getId() != null) {
+                    for (TeachingPlanPracticeItemDetail det : pi.details) {
+                        det.setId(null);
+                        det.setItemId(item.getId());
+                        teachingPlanPracticeItemDetailMapper.insert(det);
+                        detailCount++;
+                    }
+                }
+            }
+        }
+        result.addCount("practiceItem", itemCount);
+        result.addCount("practiceItemDetail", detailCount);
+
+        // 考核
+        if (ObjectUtils.isNotEmpty(parsed.assessments)) {
+            for (TeachingPlanAssessment a : parsed.assessments) {
+                a.setId(null);
+                a.setPlanId(planId);
+                // 字典反查已在解析阶段尽量完成；此处再补 assessment 字段
+                a.setAssessmentItem(reverseImportDict(a.getAssessmentItem(), DICT_ASSESSMENT_ITEM));
+                a.setMethod(reverseImportDict(a.getMethod(), DICT_ASSESSMENT_METHOD));
+                a.setMechanism(reverseImportDict(a.getMechanism(), DICT_ASSESSMENT_MECHANISM));
+                a.setStandard(reverseImportDict(a.getStandard(), DICT_EVALUATION_STANDARD));
+                prepareEntity(a);
+                teachingPlanAssessmentMapper.insert(a);
+            }
+            result.addCount("assessment", parsed.assessments.size());
+        }
+        // 教材
+        if (ObjectUtils.isNotEmpty(parsed.textbooks)) {
+            for (TeachingPlanTextbook b : parsed.textbooks) {
+                b.setId(null);
+                b.setPlanId(planId);
+                prepareEntity(b);
+                teachingPlanTextbookMapper.insert(b);
+            }
+            result.addCount("textbook", parsed.textbooks.size());
+        }
+        // 条件
+        if (ObjectUtils.isNotEmpty(parsed.conditions)) {
+            for (TeachingPlanCondition c : parsed.conditions) {
+                c.setId(null);
+                c.setPlanId(planId);
+                prepareEntity(c);
+                teachingPlanConditionMapper.insert(c);
+            }
+            result.addCount("condition", parsed.conditions.size());
+        }
+    }
+
+    private Map<String, StandardGraduation> buildGraduationNameMap(Long courseId, Long schemeId) {
+        List<StandardGraduation> list = teachingPlanModuleService.listCourseGraduationByScheme(courseId, schemeId);
+        Map<String, StandardGraduation> map = new HashMap<>();
+        if (ObjectUtils.isEmpty(list)) {
+            return map;
+        }
+        for (StandardGraduation g : list) {
+            if (g == null || StringUtils.isBlank(g.getName())) {
+                continue;
+            }
+            map.putIfAbsent(g.getName().trim(), g);
+            map.putIfAbsent(g.getName().replaceAll("\\s+", ""), g);
+        }
+        return map;
+    }
+
+    private void prepareEntity(Object entity) {
+        UserUtils.reflash(entity);
+        try {
+            java.lang.reflect.Field f = getSysflagField(entity.getClass());
+            if (f != null) {
+                f.setAccessible(true);
+                if (f.get(entity) == null) {
+                    f.set(entity, 0);
+                }
+            }
+        } catch (Exception ignored) {
+            // ignore
+        }
+    }
+
+    private java.lang.reflect.Field getSysflagField(Class<?> clazz) {
+        Class<?> c = clazz;
+        while (c != null && c != Object.class) {
+            try {
+                return c.getDeclaredField("sysflag");
+            } catch (NoSuchFieldException e) {
+                c = c.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    private String reverseImportDict(String label, String dictType) {
+        if (StringUtils.isBlank(label)) {
+            return label;
+        }
+        List<SysDictData> list = CurDictUtils.getDictData(dictType);
+        if (ObjectUtils.isEmpty(list)) {
+            return label;
+        }
+        for (SysDictData d : list) {
+            if (d != null && label.equals(d.getDictLabel())) {
+                return d.getDictValue();
+            }
+        }
+        return label;
     }
 }
 

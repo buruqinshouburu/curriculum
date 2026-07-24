@@ -12,6 +12,7 @@ import java.math.BigDecimal;
  *    启用时间 enabledTerm 取自 t_csys_course.version（课程版本/启用年份）。
  * 3) 适用对象/适用专业/修读性质/课程模块：被引用课程 c2 + 被引用培养方案 ts 聚合（多值顿号分隔），
  *    无引用时回退总库课程自身字段。
+ *    Service 层会把适用对象（sys_education_level）与课程模块（KG 字典 id）译为中文名称后再返回。
  * 4) 开课学期 term：取培养方案关联的课程执行方案 t_csys_training_scheme_course_schedule.term
  *    （字典值 1-10，对应第一学年（秋）~第五学年（春）），跨全部引用培养方案去重后升序拼接；
  *    Service 层会翻译为中文标签；无排课记录时回退 course.open_term。
@@ -39,7 +40,7 @@ public class TeachingPlanDetailVo {
     /** 启用时间（实时取自 t_csys_course.version，如 2026） */
     private String enabledTerm;
 
-    /** 适用对象（被引用培养方案 education_level 聚合，多值顿号分隔） */
+    /** 适用对象（被引用培养方案 education_level 聚合后译为 sys_education_level 中文 label，多值顿号分隔） */
     private String educationLevel;
 
     /**
@@ -48,7 +49,7 @@ public class TeachingPlanDetailVo {
      */
     private String term;
 
-    /** 课程模块（被引用课程聚合，多值顿号分隔） */
+    /** 课程模块（被引用课程聚合后译为 KG 字典名称，多值顿号分隔） */
     private String courseModule;
 
     /** 适用专业id（总库课程 major_Id 兜底单值） */
@@ -74,6 +75,13 @@ public class TeachingPlanDetailVo {
 
     /** 计分规则 -> t_csys_teaching_plan.score_rule（无教学计划时为 null） */
     private String scoreRule;
+
+    /**
+     * 是否公共基础课程（源课 course_Module == 公共基础字典 id）。
+     * true 时：第四节目标/毕业要求为 plan 级单组，不按培养方案拆分；
+     * 前端可据此隐藏培养方案 tab、objective/tree 可不传 schemeId。
+     */
+    private Boolean publicFoundation;
 
     public Long getCourseId() {
         return courseId;
@@ -217,5 +225,13 @@ public class TeachingPlanDetailVo {
 
     public void setScoreRule(String scoreRule) {
         this.scoreRule = scoreRule;
+    }
+
+    public Boolean getPublicFoundation() {
+        return publicFoundation;
+    }
+
+    public void setPublicFoundation(Boolean publicFoundation) {
+        this.publicFoundation = publicFoundation;
     }
 }

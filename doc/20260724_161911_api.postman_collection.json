@@ -1,0 +1,373 @@
+{
+  "info": {
+    "_postman_id": "20260724-161911-public-foundation",
+    "name": "TeachingPlan - 公共基础单组目标与毕业要求 (20260724_161911)",
+    "description": "公共基础课程（源课 course_Module == 69a7f32e2dc370362ef3ee6e）第四节「课程目标与支撑毕业要求」改为 plan 级单组逻辑。\n\n判定：总库源课 t_csys_course.course_Module == DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE。\n\n变更摘要：\n1. GET /detail 新增 publicFoundation:Boolean，true 时前端可隐藏培养方案 tab、objective/tree 可不传 schemeId。\n2. GET /courseGraduation/{courseId}：公共基础始终只返回源课 t_csys_course_ref_graduation，忽略 schemeId。\n3. GET /objective/list、/objective/tree、/objective/options：公共基础只取 scheme_id IS NULL 单组；tree 的 schemeId 改为可选（非公共基础仍必填）。\n4. POST/PUT /objective、/objective/saveWithRefs、/objectiveRef/save、/objectiveRef：公共基础强制 scheme_id=null 落库。\n5. GET /createWord/{courseId} 第四节：公共基础只出一张目标表，无培养方案小标题。\n\n非公共基础课程逻辑不变（多 scheme tab / 被调用课优先毕业要求 / 多表 Word）。\n目标达成设计（第六节）本期不改。\n无数据库 DDL。\n\n注意：历史若公共基础目标已按 scheme 存了多份，新查询只见 scheme_id IS NULL；需重存或手工清空旧 scheme_id。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "服务地址。context-path=/csys"
+    },
+    {
+      "key": "courseId",
+      "value": "1001",
+      "description": "总库源课程 id（公共基础示例）"
+    },
+    {
+      "key": "teachingPlanId",
+      "value": "55"
+    },
+    {
+      "key": "planId",
+      "value": "55"
+    },
+    {
+      "key": "schemeId",
+      "value": "200",
+      "description": "培养方案 id；公共基础可忽略"
+    },
+    {
+      "key": "objectiveId",
+      "value": "301"
+    }
+  ],
+  "item": [
+    {
+      "name": "详情 publicFoundation 标记",
+      "item": [
+        {
+          "name": "详情 GET /detail（含 publicFoundation）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/detail?courseId={{courseId}}&teachingPlanId={{teachingPlanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "detail"],
+              "query": [
+                {
+                  "key": "courseId",
+                  "value": "{{courseId}}",
+                  "description": "Long, 必填, 总库课程id"
+                },
+                {
+                  "key": "teachingPlanId",
+                  "value": "{{teachingPlanId}}",
+                  "description": "Long, 可选"
+                }
+              ]
+            },
+            "description": "TeachingPlanController#detail\n\n新增字段：\n- publicFoundation: Boolean\n  - true = 源课 course_Module 为公共基础字典 id（69a7f32e2dc370362ef3ee6e）\n  - 前端据此：隐藏培养方案 tab；objective/tree 可不传 schemeId；courseGraduation 无需按 scheme 切换\n\n其余字段：educationLevel / courseModule / term 已译为中文标签（多值顿号分隔）。"
+          },
+          "response": [
+            {
+              "name": "成功 - 公共基础",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"courseId\": 1001,\n    \"teachingPlanId\": 55,\n    \"courseName\": \"大学英语\",\n    \"courseModule\": \"公共基础课程\",\n    \"educationLevel\": \"本科\",\n    \"term\": \"第一学年（秋）、第一学年（春）\",\n    \"publicFoundation\": true,\n    \"scoreRule\": null\n  }\n}"
+            },
+            {
+              "name": "成功 - 非公共基础",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"courseId\": 2002,\n    \"teachingPlanId\": 66,\n    \"courseName\": \"数据结构\",\n    \"courseModule\": \"专业基础课程\",\n    \"publicFoundation\": false\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "候选毕业要求（公共基础只取源课）",
+      "item": [
+        {
+          "name": "候选毕业要求 GET /courseGraduation/{courseId}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/courseGraduation/{{courseId}}?schemeId={{schemeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "courseGraduation", "{{courseId}}"],
+              "query": [
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "Long, 可选。公共基础忽略；非公共基础：按 scheme 取被调用课绑定，空则回退源课"
+                }
+              ]
+            },
+            "description": "TeachingPlanController#courseGraduation\n\n公共基础（course_Module=公共基础）：\n- 始终 listGraduationsByCourseId(sourceCourseId)\n- 忽略 schemeId（传/不传结果相同）\n- 不查被调用课 t_csys_training_scheme_ref_course\n\n非公共基础：保持原逻辑\n- schemeId 有值：该方案下被调用课绑定 → 空则回退源课\n- schemeId 空：汇总全部调用课 → 空则回退源课"
+          },
+          "response": [
+            {
+              "name": "成功 - 公共基础源课公共毕业要求",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": 11,\n      \"content\": \"具有良好的人文素养\",\n      \"level\": 1\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "目标 list / tree（公共基础单组）",
+      "item": [
+        {
+          "name": "目标列表 GET /objective/list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/list?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "list"],
+              "query": [
+                {
+                  "key": "planId",
+                  "value": "{{planId}}",
+                  "description": "Long, 必填"
+                },
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "Long, 可选。公共基础忽略，只返回 scheme_id IS NULL；非公共基础按 scheme 过滤",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "公共基础：强制 onlyNullScheme，忽略 schemeId，只返回 scheme_id IS NULL 的目标。\n非公共基础：schemeId 有值按 scheme 过滤；空则全量（兼容 options）。"
+          },
+          "response": []
+        },
+        {
+          "name": "目标树 GET /objective/tree（schemeId 可选）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/tree?planId={{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "tree"],
+              "query": [
+                {
+                  "key": "planId",
+                  "value": "{{planId}}",
+                  "description": "Long, 必填"
+                },
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "Long。公共基础可空；非公共基础必填，否则 400",
+                  "disabled": true
+                },
+                {
+                  "key": "objectiveTypeCode",
+                  "value": "",
+                  "description": "可选，按目标类型字典值过滤",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "TeachingPlanController#objectiveTree\n\n**接口变更**：schemeId 由 required 改为 required=false。\n\n- 公共基础：schemeId 可空；返回 plan 级单组（scheme_id IS NULL）；节点 schemeId 为 null\n- 非公共基础：schemeId 仍必填，缺省抛 IllegalArgumentException\n\n树结构：顶层=目标类型(sys_plan_target_type) → children=目标内容 → children=支撑毕业要求。"
+          },
+          "response": [
+            {
+              "name": "成功 - 公共基础单组树",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": [\n    {\n      \"id\": \"knowledge\",\n      \"name\": \"知识目标\",\n      \"objectiveTypeCode\": \"knowledge\",\n      \"planId\": 55,\n      \"schemeId\": null,\n      \"children\": [\n        {\n          \"id\": \"301\",\n          \"name\": \"掌握基本语法\",\n          \"objectiveId\": 301,\n          \"schemeId\": null,\n          \"children\": []\n        }\n      ]\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "目标选项 GET /objective/options",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective/options?planId={{planId}}&objectiveTypeCode=知识目标",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective", "options"],
+              "query": [
+                {
+                  "key": "planId",
+                  "value": "{{planId}}",
+                  "description": "Long, 可空（空返回[]）"
+                },
+                {
+                  "key": "schemeId",
+                  "value": "{{schemeId}}",
+                  "description": "Long, 可选。公共基础忽略",
+                  "disabled": true
+                },
+                {
+                  "key": "objectiveTypeCode",
+                  "value": "知识目标",
+                  "description": "目标类型名称或字典编码"
+                }
+              ]
+            },
+            "description": "达成设计弹框「支撑目标」数据源。公共基础只取 scheme_id IS NULL 的目标 content 去重。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "目标保存（公共基础强制 scheme_id=null）",
+      "item": [
+        {
+          "name": "新增目标 POST /objective",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"objectiveTypeCode\": \"knowledge\",\n  \"objectiveTypeName\": \"知识目标\",\n  \"content\": \"掌握基本语法\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective"]
+            },
+            "description": "公共基础：即使 body 带 schemeId，服务端强制 scheme_id=null 落库。\n非公共基础：按传入 schemeId 写入。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改目标 PUT /objective",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{objectiveId}},\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"content\": \"掌握基本语法与词汇\",\n  \"sort\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objective",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objective"]
+            },
+            "description": "公共基础：setSchemeId(null) + clearSchemeIdById（动态 update 不写 null，需显式清空）。"
+          },
+          "response": []
+        },
+        {
+          "name": "绑定毕业要求 POST /objectiveRef/save",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objectiveId\": {{objectiveId}},\n  \"planId\": {{planId}},\n  \"schemeId\": {{schemeId}},\n  \"refs\": [\n    {\n      \"graduationId\": 11,\n      \"graduationContent\": \"具有良好的人文素养\",\n      \"supportLevel\": \"H\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/objectiveRef/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "objectiveRef", "save"]
+            },
+            "description": "整表重建绑定。公共基础：ref.schemeId 强制 null；refs 空=清空绑定。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Word 生成（公共基础单表）",
+      "item": [
+        {
+          "name": "生成 Word GET /createWord/{courseId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/createWord/{{courseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "createWord", "{{courseId}}"]
+            },
+            "description": "TeachingPlanController#createWord\n\n第四节「课程目标与支撑毕业要求」：\n- 公共基础：schemeObjectiveGroups 仅 1 组（schemeId/title 空，objectives=scheme_id IS NULL），Word 只出一张表、无方案小标题\n- 非公共基础：按 listSchemes 多组多表\n\n响应为文件流（docx），回写 t_csys_course.plan_* 列。"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

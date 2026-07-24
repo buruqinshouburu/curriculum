@@ -46,6 +46,11 @@ public interface TeachingPlanPracticeItemDetailMapper {
     int deleteByItemId(@Param("itemId") Long itemId);
 
     /**
+     * 按教学计划ID删除其下全部实践项目明细（覆盖导入用）
+     */
+    int deleteByPlanId(@Param("planId") Long planId);
+
+    /**
      * 根据主键删除
      */
     int deleteById(@Param("id") Long id);

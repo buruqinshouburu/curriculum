@@ -19,6 +19,7 @@ import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
+import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
@@ -36,6 +37,7 @@ import com.doinner.file.api.domain.FileInfo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -112,6 +114,19 @@ public class TeachingPlanController {
     public DataSet<FileInfo> createWord(@PathVariable("courseId") Long courseId,
                                         @RequestParam(value = "planId", required = false) Long planId) {
         return DataSet.success(teachingPlanService.generateTeachingPlanWord(courseId, planId));
+    }
+
+    /**
+     * 从系统导出的教学计划 Word 覆盖导入。
+     * form-data: courseId + file(.docx)。
+     * 无 plan 自动新建；有则清空子模块后重写。
+     * 基本信息仅回写 plan.sourceCourseEnName；匹配失败项跳过并记入 issues。
+     */
+    @ApiOperation("教学计划 Word 导入（覆盖）")
+    @PostMapping("/importWord")
+    public DataSet<TeachingPlanImportResultVo> importWord(@RequestParam("courseId") Long courseId,
+                                                          @RequestParam("file") MultipartFile file) {
+        return DataSet.success(teachingPlanService.importWord(courseId, file));
     }
 
     /**
@@ -211,11 +226,13 @@ public class TeachingPlanController {
      * 结构对齐 TrainingController 调用课程知识体系总览：顶层目标类型(字典 sys_plan_target_type)，
      * children 为目标内容；目标节点 children 为支撑毕业要求。
      * 可选 objectiveTypeCode 按目标类型过滤。
+     * 公共基础课程：schemeId 可空，返回 plan 级单组（scheme_id IS NULL）；
+     * 非公共基础：schemeId 必填。
      */
     @ApiOperation("课程目标与支撑毕业要求总览")
     @GetMapping("/objective/tree")
     public DataSet<List<TeachingPlanObjectiveTreeVo>> objectiveTree(@RequestParam("planId") Long planId,
-                                                                    @RequestParam("schemeId") Long schemeId,
+                                                                    @RequestParam(value = "schemeId", required = false) Long schemeId,
                                                                     @RequestParam(value = "objectiveTypeCode", required = false) String objectiveTypeCode) {
         return DataSet.success(teachingPlanModuleService.listObjectiveTree(planId, schemeId, objectiveTypeCode));
     }
@@ -261,8 +278,9 @@ public class TeachingPlanController {
      * 候选毕业要求：源课在 schemeId 下被调用课（t_csys_training_scheme_ref_course）绑定的毕业要求；
      * 被调用课均无绑定时回退源课自身 t_csys_course_ref_graduation。
      * courseId 为总库源课程 id；schemeId 为培养方案 tab（可选）。
+     * 公共基础课程：始终只返回源课公共毕业要求，忽略 schemeId。
      */
-    @ApiOperation("候选毕业要求（被调用课绑定，空则回退源课）")
+    @ApiOperation("候选毕业要求（被调用课绑定，空则回退源课；公共基础仅源课）")
     @GetMapping("/courseGraduation/{courseId}")
     public DataSet<List<StandardGraduation>> courseGraduation(@PathVariable("courseId") Long courseId,
                                                               @RequestParam(value = "schemeId", required = false) Long schemeId) {

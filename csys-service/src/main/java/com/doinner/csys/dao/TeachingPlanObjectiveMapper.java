@@ -32,19 +32,25 @@ public interface TeachingPlanObjectiveMapper {
     TeachingPlanObjective selectById(@Param("id") Long id);
 
     /**
-     * 按计划与培养方案查询目标内容
+     * 按计划与培养方案查询目标内容。
+     * onlyNullScheme=true 时只取 scheme_id IS NULL（公共基础单组）；
+     * onlyNullScheme=false 且 schemeId 非空时按 scheme 过滤；
+     * onlyNullScheme=false 且 schemeId 为空时不过滤 scheme（全量）。
      */
     List<TeachingPlanObjective> selectByPlanAndScheme(@Param("planId") Long planId,
-                                                      @Param("schemeId") Long schemeId);
+                                                      @Param("schemeId") Long schemeId,
+                                                      @Param("onlyNullScheme") Boolean onlyNullScheme);
 
     /**
      * 按计划 + 培养方案查询目标；可选按目标类型编码过滤。
+     * onlyNullScheme 语义同 {@link #selectByPlanAndScheme}。
      *
      * @param objectiveTypeCode 可选，对应 t_csys_teaching_plan_objective.objective_type_code
      */
     List<TeachingPlanObjective> selectByPlanAndSchemeAndType(@Param("planId") Long planId,
                                                               @Param("schemeId") Long schemeId,
-                                                              @Param("objectiveTypeCode") String objectiveTypeCode);
+                                                              @Param("objectiveTypeCode") String objectiveTypeCode,
+                                                              @Param("onlyNullScheme") Boolean onlyNullScheme);
 
     /**
      * 任务6：根据总库课程id查询专业id与名称。
@@ -75,4 +81,9 @@ public interface TeachingPlanObjectiveMapper {
      * 根据主键逻辑删除
      */
     int deleteById(@Param("id") Long id);
+
+    /**
+     * 将目标 scheme_id 置空（公共基础单组：覆盖历史按 scheme 落库的数据）。
+     */
+    int clearSchemeIdById(@Param("id") Long id);
 }

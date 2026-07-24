@@ -39,28 +39,43 @@
         </foreach>
     </insert>
 
+    <!--
+        onlyNullScheme=true  → scheme_id IS NULL（公共基础单组）
+        onlyNullScheme=false + schemeId 非空 → scheme_id = #{schemeId}
+        onlyNullScheme=false + schemeId 空  → 不过滤 scheme（全量，兼容 options）
+    -->
     <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective
         WHERE plan_id = #{planId}
           AND sysflag = 0
-          <if test="schemeId != null">
-              AND scheme_id = #{schemeId}
-          </if>
+          <choose>
+              <when test="onlyNullScheme != null and onlyNullScheme">
+                  AND scheme_id IS NULL
+              </when>
+              <when test="schemeId != null">
+                  AND scheme_id = #{schemeId}
+              </when>
+          </choose>
         ORDER BY objective_type_code ASC, sort ASC, id ASC
     </select>
 
-    <!-- schemeId 可选：目标选项接口按 plan 汇总全部方案下同类型目标 -->
+    <!-- schemeId 可选：目标选项接口按 plan 汇总全部方案下同类型目标；onlyNullScheme 同 selectByPlanAndScheme -->
     <select id="selectByPlanAndSchemeAndType" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective
         WHERE plan_id = #{planId}
           AND sysflag = 0
-          <if test="schemeId != null">
-              AND scheme_id = #{schemeId}
-          </if>
+          <choose>
+              <when test="onlyNullScheme != null and onlyNullScheme">
+                  AND scheme_id IS NULL
+              </when>
+              <when test="schemeId != null">
+                  AND scheme_id = #{schemeId}
+              </when>
+          </choose>
           <if test="objectiveTypeCode != null and objectiveTypeCode != ''">
               AND objective_type_code = #{objectiveTypeCode}
           </if>
@@ -136,6 +151,10 @@
 
     <update id="deleteById">
         UPDATE t_csys_teaching_plan_objective SET sysflag = 2 WHERE id = #{id}
+    </update>
+
+    <update id="clearSchemeIdById">
+        UPDATE t_csys_teaching_plan_objective SET scheme_id = NULL WHERE id = #{id} AND sysflag = 0
     </update>
 
     <!--

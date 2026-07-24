@@ -49,6 +49,12 @@
         DELETE FROM t_csys_teaching_plan_practice_item_detail WHERE item_id = #{itemId}
     </delete>
 
+    <delete id="deleteByPlanId">
+        DELETE d FROM t_csys_teaching_plan_practice_item_detail d
+        INNER JOIN t_csys_teaching_plan_practice_item i ON d.item_id = i.id
+        WHERE i.plan_id = #{planId}
+    </delete>
+
     <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanPracticeItemDetail"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_csys_teaching_plan_practice_item_detail

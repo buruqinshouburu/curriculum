@@ -1,0 +1,77 @@
+{
+  "info": {
+    "_postman_id": "20260724-164305-teaching-plan-import-word",
+    "name": "TeachingPlan - Word导入覆盖 (20260724_164305)",
+    "description": "POST /teachingPlan/importWord：从系统导出的教学计划 Word（docx）覆盖导入。\n\n规则：\n1. 入参 form-data：courseId（总库源课）+ file（.docx）\n2. 无教学计划自动新建；有则逻辑删除子模块后重写（覆盖）\n3. 基本信息仅回写 t_csys_teaching_plan.source_course_en_name（不改 t_csys_course）\n4. 第四节多方案：按 Word 中方案小标题匹配 listSchemes 的 name（version）；公共基础无小标题 → scheme_id=null\n5. 字典/毕业要求等匹配失败：跳过该条，issues 记录 WARN/ERROR，不中断整单\n6. 四套模板（type1课程/2实践训练课目/3实验课程/4实践项目）均支持；以 Word 标题识别 docType\n\n请优先使用系统 GET /createWord/{courseId} 导出后再补充导入。\n无 DDL。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "服务地址。context-path=/csys"
+    },
+    {
+      "key": "courseId",
+      "value": "1001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Word 覆盖导入 POST /importWord",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "courseId",
+              "value": "{{courseId}}",
+              "type": "text",
+              "description": "Long, 必填, 总库源课程 id"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "系统导出的教学计划 .docx"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/csys/teachingPlan/importWord",
+          "host": ["{{baseUrl}}"],
+          "path": ["csys", "teachingPlan", "importWord"]
+        },
+        "description": "TeachingPlanController#importWord\n\n响应 TeachingPlanImportResultVo：\n- planId / courseId / docType(1~4) / createdPlan\n- successCounts：各模块成功条数（teacher/section/objective/objectiveRef/content/targetDesign/practiceItem/practiceItemDetail/assessment/textbook/condition）\n- issues[]：{ section, rowHint, field, message, severity: WARN|ERROR }\n\n注意：\n- 仅支持 .docx\n- 覆盖会清空该 plan 下目标/团队/概述/内容/达成设计/实践/考核/教材/条件等子表后重写\n- 英文名称写入 plan.sourceCourseEnName\n- 公共基础目标强制 scheme_id 为空\n- 多方案请保留导出时的培养方案小标题，否则该组目标跳过"
+      },
+      "response": [
+        {
+          "name": "成功 - 新建 plan",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": {\n    \"planId\": 88,\n    \"courseId\": 1001,\n    \"docType\": 1,\n    \"createdPlan\": true,\n    \"successCounts\": {\n      \"teacher\": 2,\n      \"section\": 1,\n      \"objective\": 6,\n      \"objectiveRef\": 4,\n      \"content\": 5,\n      \"targetDesign\": 3,\n      \"practiceItem\": 1,\n      \"practiceItemDetail\": 3,\n      \"assessment\": 2,\n      \"textbook\": 1,\n      \"condition\": 2\n    },\n    \"issues\": [\n      {\n        \"section\": \"四、课程目标与支撑毕业要求\",\n        \"rowHint\": \"掌握基本语法\",\n        \"field\": \"graduationName\",\n        \"message\": \"未匹配到毕业要求，已跳过: 某某指标点\",\n        \"severity\": \"WARN\"\n      }\n    ]\n  }\n}"
+        },
+        {
+          "name": "失败 - 非 docx",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": "{\n  \"code\": 500,\n  \"msg\": \"仅支持 .docx 文件\"\n}"
+        }
+      ]
+    }
+  ]
+}

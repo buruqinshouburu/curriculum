@@ -65,13 +65,24 @@
         ORDER BY objective_id ASC, sort ASC, id ASC
     </select>
 
+    <!--
+        onlyNullScheme=true  → scheme_id IS NULL（公共基础单组）
+        onlyNullScheme=false → scheme_id = #{schemeId}
+    -->
     <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective_ref
         WHERE plan_id = #{planId}
-          AND scheme_id = #{schemeId}
           AND sysflag = 0
+          <choose>
+              <when test="onlyNullScheme != null and onlyNullScheme">
+                  AND scheme_id IS NULL
+              </when>
+              <otherwise>
+                  AND scheme_id = #{schemeId}
+              </otherwise>
+          </choose>
         ORDER BY objective_id ASC, sort ASC, id ASC
     </select>
 

@@ -4,10 +4,12 @@ import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
+import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.file.api.domain.FileInfo;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -30,6 +32,17 @@ public interface TeachingPlanService {
     FileInfo generateTeachingPlanWord(Long courseId);
 
     FileInfo generateTeachingPlanWord(Long courseId, Long planId);
+
+    /**
+     * 从系统导出的教学计划 Word 覆盖导入。
+     * 无 plan 则新建；有则逻辑删除子模块后重写。
+     * 基本信息仅回写 plan.sourceCourseEnName。
+     *
+     * @param courseId 总库源课程 id
+     * @param file     docx 文件
+     * @return 导入结果（成功计数 + 问题列表）
+     */
+    TeachingPlanImportResultVo importWord(Long courseId, MultipartFile file);
 
     List<TeachingPlanTeacher> listTeacher(Long planId);
 

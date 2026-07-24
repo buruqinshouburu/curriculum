@@ -38,6 +38,8 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
+import com.doinner.csys.domain.vo.CourseVo;
+import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
@@ -173,16 +175,52 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     // ============ 7. 教学计划目标 ============
 
+    /**
+     * 源课是否为公共基础课程：course_Module == DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE。
+     * 公共基础：目标/毕业要求按 plan 单组（scheme_id 恒为 null），不按培养方案拆分。
+     */
+    private boolean isPublicFoundationCourse(Long sourceCourseId) {
+        if (sourceCourseId == null) {
+            return false;
+        }
+        CourseVo course = courseMapper.selectCourseById(sourceCourseId);
+        if (course == null || StringUtils.isBlank(course.getCourseModule())) {
+            return false;
+        }
+        return Objects.equals(course.getCourseModule(), DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+    }
+
+    /** 教学计划对应源课是否为公共基础课程 */
+    private boolean isPublicFoundationPlan(Long planId) {
+        if (planId == null) {
+            return false;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null) {
+            return false;
+        }
+        return isPublicFoundationCourse(plan.getSourceCourseId());
+    }
+
     @Override
     public List<TeachingPlanObjective> listObjective(Long planId, Long schemeId) {
-        return teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, schemeId);
+        boolean onlyNull = isPublicFoundationPlan(planId);
+        // 公共基础：忽略入参 schemeId，只取 scheme_id IS NULL 单组
+        return teachingPlanObjectiveMapper.selectByPlanAndScheme(
+                planId, onlyNull ? null : schemeId, onlyNull);
     }
 
     @Override
     public List<TeachingPlanObjectiveTreeVo> listObjectiveTree(Long planId, Long schemeId, String objectiveTypeCode) {
-        if (planId == null || schemeId == null) {
+        if (planId == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        boolean onlyNull = isPublicFoundationPlan(planId);
+        // 非公共基础仍要求 schemeId；公共基础允许 schemeId 为空（单组）
+        if (!onlyNull && schemeId == null) {
             throw new IllegalArgumentException("planId 与 schemeId 不能为空");
         }
+        Long querySchemeId = onlyNull ? null : schemeId;
         // 1) 目标类型字典（顶层节点顺序以字典为准）
         List<SysDictData> typeDicts = CurDictUtils.getDictData(DICT_PLAN_TARGET_TYPE);
         if (ObjectUtils.isEmpty(typeDicts)) {
@@ -197,7 +235,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
         // 2) 目标内容（可按类型过滤）
         List<TeachingPlanObjective> objectives =
-                teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(planId, schemeId, objectiveTypeCode);
+                teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(
+                        planId, querySchemeId, objectiveTypeCode, onlyNull);
         Map<String, List<TeachingPlanObjective>> objectivesByType = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(objectives)) {
             for (TeachingPlanObjective obj : objectives) {
@@ -208,7 +247,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
         // 3) 支撑毕业要求按 objectiveId 分组（一次查出，避免 N+1）
         List<TeachingPlanObjectiveRef> allRefs =
-                teachingPlanObjectiveRefMapper.selectByPlanAndScheme(planId, schemeId);
+                teachingPlanObjectiveRefMapper.selectByPlanAndScheme(planId, querySchemeId, onlyNull);
         Map<Long, List<TeachingPlanObjectiveRef>> refsByObjectiveId = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(allRefs)) {
             for (TeachingPlanObjectiveRef ref : allRefs) {
@@ -221,6 +260,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
         // 4) 组装树：类型 -> 目标(children) -> 支撑毕业要求(children)
         //    对齐 viewTrainingCourseKnowLedge：setChildren(...)
+        //    公共基础时 querySchemeId=null，节点 schemeId 亦为空
         List<TeachingPlanObjectiveTreeVo> tree = new ArrayList<>();
         // 字典有定义的类型优先按字典顺序输出
         for (SysDictData dict : typeDicts) {
@@ -231,10 +271,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             typeNode.setObjectiveTypeCode(typeCode);
             typeNode.setObjectiveTypeName(dict.getDictLabel());
             typeNode.setPlanId(planId);
-            typeNode.setSchemeId(schemeId);
+            typeNode.setSchemeId(querySchemeId);
             typeNode.setSort(dict.getDictSort() == null ? null : dict.getDictSort().intValue());
             typeNode.setChildren(buildObjectiveChildren(
-                    objectivesByType.remove(typeCode), planId, schemeId, typeCode, dict.getDictLabel(), refsByObjectiveId));
+                    objectivesByType.remove(typeCode), planId, querySchemeId, typeCode, dict.getDictLabel(), refsByObjectiveId));
             tree.add(typeNode);
         }
         // 字典未覆盖但库中仍存在的类型（兜底，避免数据丢失）
@@ -255,8 +295,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 typeNode.setObjectiveTypeCode(typeCode);
                 typeNode.setObjectiveTypeName(typeName);
                 typeNode.setPlanId(planId);
-                typeNode.setSchemeId(schemeId);
-                typeNode.setChildren(buildObjectiveChildren(list, planId, schemeId, typeCode, typeName, refsByObjectiveId));
+                typeNode.setSchemeId(querySchemeId);
+                typeNode.setChildren(buildObjectiveChildren(list, planId, querySchemeId, typeCode, typeName, refsByObjectiveId));
                 tree.add(typeNode);
             }
         }
@@ -299,6 +339,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long addObjective(TeachingPlanObjective objective) {
+        forceNullSchemeIfPublicFoundation(objective);
         UserUtils.reflash(objective);
         teachingPlanObjectiveMapper.insert(objective);
         return objective.getId();
@@ -307,8 +348,35 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateObjective(TeachingPlanObjective objective) {
+        boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
         UserUtils.reflash(objective);
         teachingPlanObjectiveMapper.updateById(objective);
+        // update 动态 SQL 不会把 null 写进 scheme_id，公共基础需显式清空
+        if (publicFoundation && objective.getId() != null) {
+            teachingPlanObjectiveMapper.clearSchemeIdById(objective.getId());
+        }
+    }
+
+    /**
+     * 公共基础：目标强制 scheme_id = null（不区分培养方案）。
+     * @return 是否公共基础（调用方用于决定是否 clearSchemeId）
+     */
+    private boolean forceNullSchemeIfPublicFoundation(TeachingPlanObjective objective) {
+        if (objective == null) {
+            return false;
+        }
+        Long planId = objective.getPlanId();
+        if (planId == null && objective.getId() != null) {
+            TeachingPlanObjective existing = teachingPlanObjectiveMapper.selectById(objective.getId());
+            if (existing != null) {
+                planId = existing.getPlanId();
+            }
+        }
+        if (isPublicFoundationPlan(planId)) {
+            objective.setSchemeId(null);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -325,6 +393,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     public List<StandardGraduation> listCourseGraduation(Long courseId) {
+        // 公共基础：始终只用源课公共毕业要求
+        if (isPublicFoundationCourse(courseId)) {
+            return listGraduationsByCourseId(courseId);
+        }
         // 全部调用课绑定；若调用课均无绑定则回退源课公共毕业要求
         List<StandardGraduation> fromQuotes = listGraduationsByQuoteCourseIds(resolveQuoteCourseIds(courseId));
         if (ObjectUtils.isNotEmpty(fromQuotes)) {
@@ -337,6 +409,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     public List<StandardGraduation> listCourseGraduationByScheme(Long courseId, Long schemeId) {
         if (courseId == null) {
             return new ArrayList<>();
+        }
+        // 公共基础：忽略 schemeId，只取源课 t_csys_course_ref_graduation
+        if (isPublicFoundationCourse(courseId)) {
+            return listGraduationsByCourseId(courseId);
         }
         // 1) 查该培养方案下被调用课（经 t_csys_training_scheme_ref_course）
         List<Long> quoteIds;
@@ -409,11 +485,15 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("教学目标不能为空");
         }
         TeachingPlanObjective objective = saveVo.getObjective();
+        boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
         UserUtils.reflash(objective);
         if (objective.getId() == null) {
             teachingPlanObjectiveMapper.insert(objective);
         } else {
             teachingPlanObjectiveMapper.updateById(objective);
+            if (publicFoundation) {
+                teachingPlanObjectiveMapper.clearSchemeIdById(objective.getId());
+            }
             teachingPlanObjectiveRefMapper.deleteByObjectiveId(objective.getId());
         }
         insertObjectiveRefs(objective.getId(), objective.getPlanId(), objective.getSchemeId(), saveVo.getRefs());
@@ -434,6 +514,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         }
         Long planId = saveVo.getPlanId() != null ? saveVo.getPlanId() : objective.getPlanId();
         Long schemeId = saveVo.getSchemeId() != null ? saveVo.getSchemeId() : objective.getSchemeId();
+        // 公共基础：绑定也强制 scheme_id 为空
+        if (isPublicFoundationPlan(planId)) {
+            schemeId = null;
+        }
 
         // 重建绑定：先逻辑删除旧 ref，再按列表插入（空列表=清空）
         teachingPlanObjectiveRefMapper.deleteByObjectiveId(objectiveId);
@@ -443,11 +527,16 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     /**
      * 批量写入目标-毕业要求绑定；refs 可空表示不写。
      * 缺省 planId/schemeId/objectiveId 由参数回填；graduation 编码名称由前端快照传入。
+     * 公共基础：schemeId 强制 null。
      */
     private void insertObjectiveRefs(Long objectiveId, Long planId, Long schemeId,
                                      List<TeachingPlanObjectiveRef> refs) {
         if (ObjectUtils.isEmpty(refs)) {
             return;
+        }
+        boolean publicFoundation = isPublicFoundationPlan(planId);
+        if (publicFoundation) {
+            schemeId = null;
         }
         int sort = 1;
         for (TeachingPlanObjectiveRef ref : refs) {
@@ -459,7 +548,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             if (ref.getPlanId() == null) {
                 ref.setPlanId(planId);
             }
-            if (ref.getSchemeId() == null) {
+            if (publicFoundation) {
+                ref.setSchemeId(null);
+            } else if (ref.getSchemeId() == null) {
                 ref.setSchemeId(schemeId);
             }
             if (ref.getSort() == null) {
@@ -484,6 +575,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long addObjectiveRef(TeachingPlanObjectiveRef ref) {
+        if (ref != null && isPublicFoundationPlan(ref.getPlanId())) {
+            ref.setSchemeId(null);
+        }
         UserUtils.reflash(ref);
         teachingPlanObjectiveRefMapper.insert(ref);
         return ref.getId();
@@ -581,6 +675,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     /**
      * 教学计划下某类型目标选项：按 content 去重，同名只保留一条。
      * planId 为空返回空列表。
+     * 公共基础：只取 scheme_id IS NULL 单组。
      */
     @Override
     public List<TeachingPlanObjectiveOptionVo> listObjectiveOptions(Long planId, Long schemeId,
@@ -588,8 +683,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (planId == null) {
             return new ArrayList<>();
         }
+        boolean onlyNull = isPublicFoundationPlan(planId);
         List<TeachingPlanObjective> list =
-                teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(planId, schemeId, objectiveTypeCode);
+                teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(
+                        planId, onlyNull ? null : schemeId, objectiveTypeCode, onlyNull);
         if (ObjectUtils.isEmpty(list)) {
             return new ArrayList<>();
         }

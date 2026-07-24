@@ -43,9 +43,11 @@ public interface TeachingPlanModuleService {
      * 课程目标与支撑毕业要求总览树。
      * 结构对齐调用课程知识体系总览：顶层=目标类型(字典 sys_plan_target_type)，
      * children=目标内容，目标节点 children=支撑毕业要求。
+     * 公共基础课程：schemeId 可空，返回 plan 级 scheme_id IS NULL 单组；
+     * 非公共基础：schemeId 必填。
      *
      * @param planId            教学计划id
-     * @param schemeId          培养方案id
+     * @param schemeId          培养方案id（公共基础可空）
      * @param objectiveTypeCode 可选，按目标类型字典值过滤
      */
     List<TeachingPlanObjectiveTreeVo> listObjectiveTree(Long planId, Long schemeId, String objectiveTypeCode);
@@ -72,6 +74,7 @@ public interface TeachingPlanModuleService {
      * 候选毕业要求：源课在指定培养方案下被调用课绑定的毕业要求；
      * 被调用课均无绑定时回退源课自身在 t_csys_course_ref_graduation 的绑定。
      * schemeId 为空时汇总源课全部调用课绑定，仍空则回退源课。
+     * 公共基础课程：始终只返回源课公共毕业要求，忽略 schemeId。
      *
      * @param courseId 总库源课程 id
      * @param schemeId 培养方案 id（tab），可选
