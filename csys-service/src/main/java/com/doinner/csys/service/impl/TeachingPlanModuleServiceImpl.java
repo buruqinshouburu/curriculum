@@ -217,12 +217,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (planId == null) {
             throw new IllegalArgumentException("planId 不能为空");
         }
-        boolean onlyNull = isPublicFoundationPlan(planId);
-        // 非公共基础仍要求 schemeId；公共基础允许 schemeId 为空（单组）
-        if (!onlyNull && schemeId == null) {
-            throw new IllegalArgumentException("planId 与 schemeId 不能为空");
-        }
-        Long querySchemeId = onlyNull ? null : schemeId;
+        // schemeId 可选：传则按 scheme 过滤；不传则不过滤 scheme。
+        // 不按课程模块判定是否必填——源课模块与引用后展示模块可能不一致，前端有 tab 就传、无 tab 就不传。
         // 1) 目标类型字典（顶层节点顺序以字典为准）
         List<SysDictData> typeDicts = CurDictUtils.getDictData(DICT_PLAN_TARGET_TYPE);
         if (ObjectUtils.isEmpty(typeDicts)) {
@@ -235,10 +231,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                     .collect(Collectors.toList());
         }
 
-        // 2) 目标内容（可按类型过滤）
+        // 2) 目标内容（可按类型过滤；schemeId 空=plan 下全量）
         List<TeachingPlanObjective> objectives =
                 teachingPlanObjectiveMapper.selectByPlanAndSchemeAndType(
-                        planId, querySchemeId, objectiveTypeCode, onlyNull);
+                        planId, schemeId, objectiveTypeCode, false);
         Map<String, List<TeachingPlanObjective>> objectivesByType = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(objectives)) {
             for (TeachingPlanObjective obj : objectives) {
@@ -249,7 +245,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
         // 3) 支撑毕业要求按 objectiveId 分组（一次查出，避免 N+1）
         List<TeachingPlanObjectiveRef> allRefs =
-                teachingPlanObjectiveRefMapper.selectByPlanAndScheme(planId, querySchemeId, onlyNull);
+                teachingPlanObjectiveRefMapper.selectByPlanAndScheme(planId, schemeId, false);
         Map<Long, List<TeachingPlanObjectiveRef>> refsByObjectiveId = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(allRefs)) {
             for (TeachingPlanObjectiveRef ref : allRefs) {
@@ -262,7 +258,6 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
         // 4) 组装树：类型 -> 目标(children) -> 支撑毕业要求(children)
         //    对齐 viewTrainingCourseKnowLedge：setChildren(...)
-        //    公共基础时 querySchemeId=null，节点 schemeId 亦为空
         List<TeachingPlanObjectiveTreeVo> tree = new ArrayList<>();
         // 字典有定义的类型优先按字典顺序输出
         for (SysDictData dict : typeDicts) {
@@ -273,10 +268,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             typeNode.setObjectiveTypeCode(typeCode);
             typeNode.setObjectiveTypeName(dict.getDictLabel());
             typeNode.setPlanId(planId);
-            typeNode.setSchemeId(querySchemeId);
+            typeNode.setSchemeId(schemeId);
             typeNode.setSort(dict.getDictSort() == null ? null : dict.getDictSort().intValue());
             typeNode.setChildren(buildObjectiveChildren(
-                    objectivesByType.remove(typeCode), planId, querySchemeId, typeCode, dict.getDictLabel(), refsByObjectiveId));
+                    objectivesByType.remove(typeCode), planId, schemeId, typeCode, dict.getDictLabel(), refsByObjectiveId));
             tree.add(typeNode);
         }
         // 字典未覆盖但库中仍存在的类型（兜底，避免数据丢失）
@@ -297,8 +292,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 typeNode.setObjectiveTypeCode(typeCode);
                 typeNode.setObjectiveTypeName(typeName);
                 typeNode.setPlanId(planId);
-                typeNode.setSchemeId(querySchemeId);
-                typeNode.setChildren(buildObjectiveChildren(list, planId, querySchemeId, typeCode, typeName, refsByObjectiveId));
+                typeNode.setSchemeId(schemeId);
+                typeNode.setChildren(buildObjectiveChildren(list, planId, schemeId, typeCode, typeName, refsByObjectiveId));
                 tree.add(typeNode);
             }
         }

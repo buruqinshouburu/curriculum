@@ -228,8 +228,8 @@ public class TeachingPlanController {
      * 结构对齐 TrainingController 调用课程知识体系总览：顶层目标类型(字典 sys_plan_target_type)，
      * children 为目标内容；目标节点 children 为支撑毕业要求。
      * 可选 objectiveTypeCode 按目标类型过滤。
-     * 公共基础课程：schemeId 可空，返回 plan 级单组（scheme_id IS NULL）；
-     * 非公共基础：schemeId 必填。
+     * schemeId 可选：有培养方案 tab 时传入按方案过滤；无 tab（如公共基础/不按方案拆分）可不传，返回 plan 下全部。
+     * 不按课程模块判定 schemeId 是否必填。
      */
     @ApiOperation("课程目标与支撑毕业要求总览")
     @GetMapping("/objective/tree")
