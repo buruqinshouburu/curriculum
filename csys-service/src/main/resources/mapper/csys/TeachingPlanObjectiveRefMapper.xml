@@ -67,7 +67,8 @@
 
     <!--
         onlyNullScheme=true  → scheme_id IS NULL（公共基础单组）
-        onlyNullScheme=false → scheme_id = #{schemeId}
+        onlyNullScheme=false + schemeId 非空 → scheme_id = #{schemeId}
+        onlyNullScheme=false + schemeId 空  → 不过滤 scheme（plan 下全量，与 objective 查询对齐）
     -->
     <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
         SELECT
@@ -79,9 +80,9 @@
               <when test="onlyNullScheme != null and onlyNullScheme">
                   AND scheme_id IS NULL
               </when>
-              <otherwise>
+              <when test="schemeId != null">
                   AND scheme_id = #{schemeId}
-              </otherwise>
+              </when>
           </choose>
         ORDER BY objective_id ASC, sort ASC, id ASC
     </select>

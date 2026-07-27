@@ -43,7 +43,8 @@ public interface TeachingPlanObjectiveRefMapper {
     /**
      * 按教学计划 + 培养方案批量查询支撑毕业要求（总览树用）。
      * onlyNullScheme=true 时只取 scheme_id IS NULL；
-     * onlyNullScheme=false 时 schemeId 必填，按 scheme_id = #{schemeId}。
+     * onlyNullScheme=false + schemeId 非空 → scheme_id = #{schemeId}；
+     * onlyNullScheme=false + schemeId 空 → 不过滤 scheme（plan 下全量）。
      */
     List<TeachingPlanObjectiveRef> selectByPlanAndScheme(@Param("planId") Long planId,
                                                           @Param("schemeId") Long schemeId,
