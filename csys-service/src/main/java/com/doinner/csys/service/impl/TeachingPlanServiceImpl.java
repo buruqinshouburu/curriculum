@@ -82,10 +82,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -975,9 +977,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TeachingPlanImportResultVo importWord(Long courseId, MultipartFile file) {
+    public TeachingPlanImportResultVo importWord(Long courseId, Integer planType, MultipartFile file) {
         if (courseId == null) {
             throw new IllegalArgumentException("courseId 不能为空");
+        }
+        if (planType == null || planType < TeachingPlanWordImporter.DOC_TYPE_COURSE
+                || planType > TeachingPlanWordImporter.DOC_TYPE_PRACTICE_PROJECT) {
+            throw new IllegalArgumentException("planType 必须为 1-4（1课程/2实践训练课目/3实验课程/4实践项目）");
         }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Word 文件不能为空");
@@ -991,7 +997,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             throw new IllegalArgumentException("课程不存在: " + courseId);
         }
 
-        TeachingPlanWordImporter.ParseContext ctx = buildImportParseContext(courseId, course);
+        TeachingPlanWordImporter.ParseContext ctx = buildImportParseContext(courseId, course, planType);
         TeachingPlanWordImporter.ParseResult parsed;
         try (InputStream in = file.getInputStream()) {
             parsed = new TeachingPlanWordImporter().parse(in, ctx);
@@ -1002,10 +1008,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             throw new IllegalArgumentException("无法解析 Word 文件: " + e.getMessage());
         }
 
-        int planType = parsed.docType;
+        // 类型以前端传入为准；严格按 (courseId, planType) 定位，不再回退其他类型的计划
         TeachingPlan existing = teachingPlanMapper.selectBySourceCourseIdAndPlanType(courseId, planType);
-        if (existing == null) {
-            existing = teachingPlanMapper.selectBySourceCourseId(courseId);
+        if (existing != null && existing.getStatus() != null
+                && (existing.getStatus() == 1 || existing.getStatus() == 2)) {
+            throw new IllegalArgumentException("教学计划审核中或已通过，无法覆盖导入");
         }
         boolean created = false;
         Long planId;
@@ -1061,12 +1068,18 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
 
         persistImportData(planId, courseId, ctx.publicFoundation, parsed, result);
+        if (ObjectUtils.isNotEmpty(result.getIssues())) {
+            log.warn("教学计划 Word 导入完成但存在 {} 条问题, courseId={}, planId={}, planType={}",
+                    result.getIssues().size(), courseId, planId, planType);
+        }
         return result;
     }
 
-    private TeachingPlanWordImporter.ParseContext buildImportParseContext(Long courseId, CourseVo course) {
+    private TeachingPlanWordImporter.ParseContext buildImportParseContext(Long courseId, CourseVo course,
+                                                                          Integer planType) {
         TeachingPlanWordImporter.ParseContext ctx = new TeachingPlanWordImporter.ParseContext();
-        ctx.expectedDocType = mapDocType(course.getType());
+        // 类型由前端传入，Word 识别仅用于对照 WARN
+        ctx.expectedDocType = planType;
         ctx.publicFoundation = Objects.equals(course.getCourseModule(),
                 DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
         List<TeachingPlanSchemeVo> schemes = teachingPlanModuleService.listSchemes(courseId);
@@ -1139,7 +1152,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         int objCount = 0;
         int refCount = 0;
         if (ObjectUtils.isNotEmpty(parsed.objectives)) {
-            Map<Long, Map<String, StandardGraduation>> schemeGradCache = new HashMap<>();
+            Map<Long, Map<String, List<StandardGraduation>>> schemeGradCache = new HashMap<>();
             for (TeachingPlanWordImporter.ParsedObjective po : parsed.objectives) {
                 if (po == null || po.objective == null || StringUtils.isBlank(po.objective.getContent())) {
                     continue;
@@ -1157,20 +1170,37 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     continue;
                 }
                 Long schemeId = o.getSchemeId();
-                Map<String, StandardGraduation> nameMap = schemeGradCache.computeIfAbsent(
+                // 候选毕业要求与页面绑定弹框同源：listCourseGraduationByScheme
+                Map<String, List<StandardGraduation>> nameMap = schemeGradCache.computeIfAbsent(
                         schemeId == null ? -1L : schemeId,
                         k -> buildGraduationNameMap(courseId, schemeId));
+                // 整串优先：名称本身含「、，；」时单元格原文可整体命中一条，避免被拆碎后全部失配
+                List<String> names = po.graduationNames;
+                if (StringUtils.isNotBlank(po.graduationRaw)
+                        && lookupGraduations(nameMap, po.graduationRaw) != null) {
+                    names = Collections.singletonList(po.graduationRaw);
+                }
                 int sort = 1;
-                for (String gName : po.graduationNames) {
-                    StandardGraduation g = nameMap.get(gName);
-                    if (g == null) {
-                        // 忽略空白差异再试
-                        g = nameMap.get(gName.replaceAll("\\s+", ""));
-                    }
-                    if (g == null) {
+                Set<Long> boundGradIds = new HashSet<>();
+                for (String gName : names) {
+                    List<StandardGraduation> matches = lookupGraduations(nameMap, gName);
+                    if (ObjectUtils.isEmpty(matches)) {
                         result.getIssues().add(TeachingPlanImportIssueVo.warn(
                                 "四、课程目标与支撑毕业要求", o.getContent(), "graduationName",
                                 "未匹配到毕业要求，已跳过: " + gName));
+                        continue;
+                    }
+                    // 同名多条：默认绑定第一条，记日志并返回提示
+                    StandardGraduation g = matches.get(0);
+                    if (matches.size() > 1) {
+                        log.warn("教学计划导入毕业要求同名多条, planId={}, objectiveId={}, name={}, 命中{}条, 默认绑定第一条 id={}",
+                                planId, o.getId(), gName, matches.size(), g.getId());
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "四、课程目标与支撑毕业要求", o.getContent(), "graduationName",
+                                "毕业要求同名存在 " + matches.size() + " 条，默认绑定第一条: " + gName));
+                    }
+                    // 同一目标重复绑定去重
+                    if (g.getId() != null && !boundGradIds.add(g.getId())) {
                         continue;
                     }
                     TeachingPlanObjectiveRef ref = new TeachingPlanObjectiveRef();
@@ -1286,9 +1316,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
     }
 
-    private Map<String, StandardGraduation> buildGraduationNameMap(Long courseId, Long schemeId) {
+    /**
+     * 候选毕业要求名称索引（与页面绑定弹框同源 listCourseGraduationByScheme）。
+     * 同名保留全部候选，落库时默认取第一条并提示。
+     */
+    private Map<String, List<StandardGraduation>> buildGraduationNameMap(Long courseId, Long schemeId) {
         List<StandardGraduation> list = teachingPlanModuleService.listCourseGraduationByScheme(courseId, schemeId);
-        Map<String, StandardGraduation> map = new HashMap<>();
+        Map<String, List<StandardGraduation>> map = new HashMap<>();
         if (ObjectUtils.isEmpty(list)) {
             return map;
         }
@@ -1296,10 +1330,26 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             if (g == null || StringUtils.isBlank(g.getName())) {
                 continue;
             }
-            map.putIfAbsent(g.getName().trim(), g);
-            map.putIfAbsent(g.getName().replaceAll("\\s+", ""), g);
+            String trimmed = g.getName().trim();
+            String compact = g.getName().replaceAll("\\s+", "");
+            map.computeIfAbsent(trimmed, k -> new ArrayList<>()).add(g);
+            if (!compact.equals(trimmed)) {
+                map.computeIfAbsent(compact, k -> new ArrayList<>()).add(g);
+            }
         }
         return map;
+    }
+
+    /** 名称查候选：先原样，再忽略空白差异；查不到返回 null */
+    private List<StandardGraduation> lookupGraduations(Map<String, List<StandardGraduation>> nameMap, String name) {
+        if (StringUtils.isBlank(name)) {
+            return null;
+        }
+        List<StandardGraduation> matches = nameMap.get(name.trim());
+        if (ObjectUtils.isEmpty(matches)) {
+            matches = nameMap.get(name.replaceAll("\\s+", ""));
+        }
+        return ObjectUtils.isEmpty(matches) ? null : matches;
     }
 
     private void prepareEntity(Object entity) {

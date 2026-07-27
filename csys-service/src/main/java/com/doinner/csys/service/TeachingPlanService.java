@@ -35,14 +35,16 @@ public interface TeachingPlanService {
 
     /**
      * 从系统导出的教学计划 Word 覆盖导入。
-     * 无 plan 则新建；有则逻辑删除子模块后重写。
+     * planType 由前端传入，按 (courseId, planType) 定位：无 plan 则新建；有则逻辑删除子模块后重写；
+     * 审核中/已通过的计划不允许覆盖导入。
      * 基本信息仅回写 plan.sourceCourseEnName。
      *
      * @param courseId 总库源课程 id
+     * @param planType 教学计划类型（1课程/2实践训练课目/3实验课程/4实践项目）
      * @param file     docx 文件
      * @return 导入结果（成功计数 + 问题列表）
      */
-    TeachingPlanImportResultVo importWord(Long courseId, MultipartFile file);
+    TeachingPlanImportResultVo importWord(Long courseId, Integer planType, MultipartFile file);
 
     List<TeachingPlanTeacher> listTeacher(Long planId);
 

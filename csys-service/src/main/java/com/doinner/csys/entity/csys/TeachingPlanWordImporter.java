@@ -110,6 +110,8 @@ public class TeachingPlanWordImporter {
     public static class ParsedObjective {
         public TeachingPlanObjective objective = new TeachingPlanObjective();
         public List<String> graduationNames = new ArrayList<>();
+        /** 支撑毕业要求单元格原文（落库时优先整串匹配，避免名称含分隔符被拆碎） */
+        public String graduationRaw;
         public String schemeTitle;
     }
 
@@ -204,8 +206,8 @@ public class TeachingPlanWordImporter {
                     continue;
                 }
                 dispatchTable(section, subSection, pendingSchemeTitle, grid, result, ctx);
-                // 方案小标题只作用于紧随其后的目标表
-                if (section.contains("目标与支撑毕业要求")) {
+                // 方案小标题只作用于紧随其后的目标表（含 type2 训练目的节，保持对称清理）
+                if (section.contains("目标与支撑毕业要求") || section.contains("训练目的")) {
                     pendingSchemeTitle = null;
                 }
             }
@@ -364,6 +366,12 @@ public class TeachingPlanWordImporter {
 
     private void parseObjectives(List<List<String>> grid, String schemeTitle,
                                  ParseResult result, ParseContext ctx) {
+        // 非公共基础且课程未被任何培养方案引用：目标无处归属（scheme_id 为空在前端不可见），整组跳过
+        if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
+            result.issues.add(TeachingPlanImportIssueVo.error("四、课程目标与支撑毕业要求", schemeTitle, "schemeId",
+                    "课程未被任何培养方案引用，目标无法归属培养方案，该组目标跳过"));
+            return;
+        }
         Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
         if (schemeId == null && !ctx.publicFoundation && schemeTitle != null) {
             // 已记 ERROR，整组跳过
@@ -405,9 +413,11 @@ public class TeachingPlanWordImporter {
             po.objective.setSourceMode(2);
             po.objective.setSort(result.objectives.size() + 1);
             if (StringUtils.isNotBlank(refs)) {
+                po.graduationRaw = refs.trim();
                 for (String part : refs.split("[、,，;；]")) {
-                    if (StringUtils.isNotBlank(part)) {
-                        po.graduationNames.add(part.trim());
+                    String name = part == null ? "" : part.trim();
+                    if (StringUtils.isNotBlank(name) && !po.graduationNames.contains(name)) {
+                        po.graduationNames.add(name);
                     }
                 }
             }
@@ -872,9 +882,14 @@ public class TeachingPlanWordImporter {
 
     // ============================ detect type ============================
 
+    /**
+     * 识别文档类型：首段标题必须命中教学计划关键字，否则视为非教学计划文档直接拒绝，
+     * 避免误传任意 docx 触发覆盖清空。expected（前端传入的 planType）非空时以前端为准，
+     * 与识别结果不一致仅记 WARN。
+     */
     private int detectDocType(XWPFDocument doc, List<TeachingPlanImportIssueVo> issues, Integer expected) {
         String title = firstNonBlankParagraph(doc);
-        int detected = DOC_TYPE_COURSE;
+        Integer detected = null;
         if (title != null) {
             if (title.contains("实验课程教学计划")) {
                 detected = DOC_TYPE_EXPERIMENT_COURSE;
@@ -886,9 +901,14 @@ public class TeachingPlanWordImporter {
                 detected = DOC_TYPE_COURSE;
             }
         }
+        if (detected == null) {
+            throw new IllegalArgumentException("文档首段标题未包含教学计划关键字，疑似非教学计划文档，拒绝导入"
+                    + (StringUtils.isBlank(title) ? "" : "（首段：" + StringUtils.abbreviate(title, 30) + "）"));
+        }
         if (expected != null && !expected.equals(detected)) {
             issues.add(TeachingPlanImportIssueVo.warn("文档识别", title, "docType",
-                    "Word 识别类型=" + detected + " 与课程 type 映射=" + expected + " 不一致，以 Word 为准"));
+                    "Word 识别类型=" + detected + " 与前端传入类型=" + expected + " 不一致，以前端传入为准"));
+            return expected;
         }
         return detected;
     }
@@ -1010,6 +1030,10 @@ public class TeachingPlanWordImporter {
             return false;
         }
         if (isH1(text, p) || H2_PAREN.matcher(text).matches()) {
+            return false;
+        }
+        // 含句读的段落视为正文说明，避免污染方案小标题导致整组目标被跳过
+        if (text.contains("。") || text.contains("；") || text.contains("！") || text.contains("？")) {
             return false;
         }
         return text.length() > 0 && text.length() <= 80 && !text.startsWith("说明");

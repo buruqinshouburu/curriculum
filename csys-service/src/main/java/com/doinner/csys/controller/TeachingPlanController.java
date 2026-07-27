@@ -118,15 +118,17 @@ public class TeachingPlanController {
 
     /**
      * 从系统导出的教学计划 Word 覆盖导入。
-     * form-data: courseId + file(.docx)。
-     * 无 plan 自动新建；有则清空子模块后重写。
+     * form-data: courseId + planType + file(.docx)。
+     * planType 由前端传入（1课程/2实践训练课目/3实验课程/4实践项目），与 Word 识别类型不一致时以前端为准并记 WARN。
+     * 按 (courseId, planType) 定位计划：无则新建；有则清空子模块后重写；审核中/已通过不可覆盖导入。
      * 基本信息仅回写 plan.sourceCourseEnName；匹配失败项跳过并记入 issues。
      */
-    @ApiOperation("教学计划 Word 导入（覆盖）")
+    @ApiOperation("教学计划 Word 导入（覆盖，planType 前端传入）")
     @PostMapping("/importWord")
     public DataSet<TeachingPlanImportResultVo> importWord(@RequestParam("courseId") Long courseId,
+                                                          @RequestParam("planType") Integer planType,
                                                           @RequestParam("file") MultipartFile file) {
-        return DataSet.success(teachingPlanService.importWord(courseId, file));
+        return DataSet.success(teachingPlanService.importWord(courseId, planType, file));
     }
 
     /**

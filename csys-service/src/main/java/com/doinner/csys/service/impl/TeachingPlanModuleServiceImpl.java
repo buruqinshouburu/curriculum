@@ -55,10 +55,12 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -339,15 +341,38 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long addObjective(TeachingPlanObjective objective) {
-        forceNullSchemeIfPublicFoundation(objective);
+        boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
+        validateObjectiveForInsert(objective, publicFoundation);
         UserUtils.reflash(objective);
         teachingPlanObjectiveMapper.insert(objective);
         return objective.getId();
     }
 
+    /**
+     * 新增目标必填校验：planId/content 必填；
+     * 非公共基础需指定 schemeId（scheme_id 为空的目标在总览树/列表中不可见）。
+     */
+    private void validateObjectiveForInsert(TeachingPlanObjective objective, boolean publicFoundation) {
+        if (objective == null) {
+            throw new IllegalArgumentException("教学目标不能为空");
+        }
+        if (objective.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        if (StringUtils.isBlank(objective.getContent())) {
+            throw new IllegalArgumentException("目标内容不能为空");
+        }
+        if (!publicFoundation && objective.getSchemeId() == null) {
+            throw new IllegalArgumentException("非公共基础课程新增目标必须指定 schemeId");
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateObjective(TeachingPlanObjective objective) {
+        if (objective == null || objective.getId() == null) {
+            throw new IllegalArgumentException("教学目标id不能为空");
+        }
         boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
         UserUtils.reflash(objective);
         teachingPlanObjectiveMapper.updateById(objective);
@@ -488,6 +513,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
         UserUtils.reflash(objective);
         if (objective.getId() == null) {
+            validateObjectiveForInsert(objective, publicFoundation);
             teachingPlanObjectiveMapper.insert(objective);
         } else {
             teachingPlanObjectiveMapper.updateById(objective);
@@ -496,7 +522,21 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             }
             teachingPlanObjectiveRefMapper.deleteByObjectiveId(objective.getId());
         }
-        insertObjectiveRefs(objective.getId(), objective.getPlanId(), objective.getSchemeId(), saveVo.getRefs());
+        // 更新时入参可能不带 planId/schemeId，从库中回读，保证 ref 归属正确
+        Long planId = objective.getPlanId();
+        Long schemeId = objective.getSchemeId();
+        if (planId == null || (!publicFoundation && schemeId == null)) {
+            TeachingPlanObjective db = teachingPlanObjectiveMapper.selectById(objective.getId());
+            if (db != null) {
+                if (planId == null) {
+                    planId = db.getPlanId();
+                }
+                if (schemeId == null) {
+                    schemeId = db.getSchemeId();
+                }
+            }
+        }
+        insertObjectiveRefs(objective.getId(), planId, schemeId, saveVo.getRefs());
         return objective.getId();
     }
 
@@ -507,13 +547,13 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("objectiveId 不能为空");
         }
         Long objectiveId = saveVo.getObjectiveId();
-        // 校验目标存在，并补全 planId/schemeId
+        // 校验目标存在；绑定归属(planId/schemeId)以目标库中记录为准，不信任前端传值
         TeachingPlanObjective objective = teachingPlanObjectiveMapper.selectById(objectiveId);
         if (objective == null) {
             throw new IllegalArgumentException("教学目标不存在: " + objectiveId);
         }
-        Long planId = saveVo.getPlanId() != null ? saveVo.getPlanId() : objective.getPlanId();
-        Long schemeId = saveVo.getSchemeId() != null ? saveVo.getSchemeId() : objective.getSchemeId();
+        Long planId = objective.getPlanId() != null ? objective.getPlanId() : saveVo.getPlanId();
+        Long schemeId = objective.getSchemeId() != null ? objective.getSchemeId() : saveVo.getSchemeId();
         // 公共基础：绑定也强制 scheme_id 为空
         if (isPublicFoundationPlan(planId)) {
             schemeId = null;
@@ -526,8 +566,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     /**
      * 批量写入目标-毕业要求绑定；refs 可空表示不写。
-     * 缺省 planId/schemeId/objectiveId 由参数回填；graduation 编码名称由前端快照传入。
-     * 公共基础：schemeId 强制 null。
+     * planId/schemeId 强制取目标归属（不信任前端 ref 上的值，避免与目标不一致导致树查询丢失）；
+     * graduationId 必填且必须真实存在，编码/名称快照缺省时从毕业要求回填；
+     * 同一目标重复绑定同一毕业要求自动去重。公共基础：schemeId 强制 null。
      */
     private void insertObjectiveRefs(Long objectiveId, Long planId, Long schemeId,
                                      List<TeachingPlanObjectiveRef> refs) {
@@ -538,24 +579,50 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (publicFoundation) {
             schemeId = null;
         }
+        // 校验毕业要求存在
+        List<Long> graduationIds = new ArrayList<>();
+        for (TeachingPlanObjectiveRef ref : refs) {
+            if (ref == null) {
+                continue;
+            }
+            if (ref.getGraduationId() == null) {
+                throw new IllegalArgumentException("毕业要求id(graduationId)不能为空");
+            }
+            if (!graduationIds.contains(ref.getGraduationId())) {
+                graduationIds.add(ref.getGraduationId());
+            }
+        }
+        Map<Long, StandardGraduation> gradMap = loadGraduationMap(graduationIds);
+        Set<Long> bound = new HashSet<>();
         int sort = 1;
         for (TeachingPlanObjectiveRef ref : refs) {
             if (ref == null) {
                 continue;
             }
+            StandardGraduation g = gradMap.get(ref.getGraduationId());
+            if (g == null) {
+                throw new IllegalArgumentException("毕业要求不存在: " + ref.getGraduationId());
+            }
+            if (!bound.add(ref.getGraduationId())) {
+                continue;
+            }
             ref.setId(null);
             ref.setObjectiveId(objectiveId);
-            if (ref.getPlanId() == null) {
-                ref.setPlanId(planId);
+            ref.setPlanId(planId);
+            ref.setSchemeId(schemeId);
+            if (ref.getSourceGraduationId() == null) {
+                ref.setSourceGraduationId(g.getSourceId());
             }
-            if (publicFoundation) {
-                ref.setSchemeId(null);
-            } else if (ref.getSchemeId() == null) {
-                ref.setSchemeId(schemeId);
+            if (StringUtils.isBlank(ref.getGraduationCode())) {
+                ref.setGraduationCode(g.getCode());
+            }
+            if (StringUtils.isBlank(ref.getGraduationName())) {
+                ref.setGraduationName(g.getName());
             }
             if (ref.getSort() == null) {
-                ref.setSort(sort++);
+                ref.setSort(sort);
             }
+            sort++;
             // 默认绑定来源标记：课程毕业要求关联
             if (StringUtils.isBlank(ref.getGraduationBindSource())) {
                 ref.setGraduationBindSource("course_ref_graduation");
@@ -563,6 +630,19 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             UserUtils.reflash(ref);
             teachingPlanObjectiveRefMapper.insert(ref);
         }
+    }
+
+    private Map<Long, StandardGraduation> loadGraduationMap(List<Long> graduationIds) {
+        if (ObjectUtils.isEmpty(graduationIds)) {
+            return Collections.emptyMap();
+        }
+        List<StandardGraduation> list = standardGraduationMapper.selectStandardGraduationByIds(graduationIds);
+        if (ObjectUtils.isEmpty(list)) {
+            return Collections.emptyMap();
+        }
+        return list.stream()
+                .filter(g -> g != null && g.getId() != null)
+                .collect(Collectors.toMap(StandardGraduation::getId, g -> g, (a, b) -> a));
     }
 
     // ============ 9. 教学计划目标支撑毕业要求 ============
@@ -575,11 +655,29 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long addObjectiveRef(TeachingPlanObjectiveRef ref) {
-        if (ref != null && isPublicFoundationPlan(ref.getPlanId())) {
-            ref.setSchemeId(null);
+        if (ref == null || ref.getObjectiveId() == null) {
+            throw new IllegalArgumentException("objectiveId 不能为空");
         }
-        UserUtils.reflash(ref);
-        teachingPlanObjectiveRefMapper.insert(ref);
+        TeachingPlanObjective objective = teachingPlanObjectiveMapper.selectById(ref.getObjectiveId());
+        if (objective == null) {
+            throw new IllegalArgumentException("教学目标不存在: " + ref.getObjectiveId());
+        }
+        // 重复绑定拒绝；sort 缺省接在已有绑定之后
+        List<TeachingPlanObjectiveRef> existing =
+                teachingPlanObjectiveRefMapper.selectByObjectiveId(ref.getObjectiveId());
+        if (ref.getGraduationId() != null && ObjectUtils.isNotEmpty(existing)) {
+            for (TeachingPlanObjectiveRef e : existing) {
+                if (e != null && ref.getGraduationId().equals(e.getGraduationId())) {
+                    throw new IllegalArgumentException("该目标已绑定该毕业要求");
+                }
+            }
+        }
+        if (ref.getSort() == null) {
+            ref.setSort((existing == null ? 0 : existing.size()) + 1);
+        }
+        // planId/schemeId/存在性校验统一走 insertObjectiveRefs（归属取目标）
+        insertObjectiveRefs(objective.getId(), objective.getPlanId(), objective.getSchemeId(),
+                Collections.singletonList(ref));
         return ref.getId();
     }
 

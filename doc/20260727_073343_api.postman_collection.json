@@ -1,0 +1,51 @@
+{
+  "info": {
+    "name": "教学计划Word导入调整_20260727",
+    "description": "变更摘要（2026-07-27）：\n\n1. POST /teachingPlan/importWord 【行为变更·前端必改】\n   - 新增必传 form-data 参数 planType（1课程/2实践训练课目/3实验课程/4实践项目），教学计划类型以前端传入为准；Word 识别类型与之不一致时仅在 issues 中记 WARN。\n   - 严格按 (courseId, planType) 定位教学计划：无则新建，有则清空子模块后覆盖重写；不再回退覆盖其他类型的计划。\n   - 新增拦截：目标计划审核中(status=1)或已通过(status=2)时拒绝导入，报错「教学计划审核中或已通过，无法覆盖导入」。\n   - 新增拦截：Word 首段标题不含教学计划关键字（课程教学计划/实验课程教学计划/实践训练课目/实践项目教学计划）时拒绝导入，防止误传文件清空数据。\n   - 毕业要求绑定与页面绑定弹框同源（/teachingPlan/courseGraduation 候选）；同名毕业要求存在多条时默认绑定第一条，并在返回 issues 中提示（WARN，graduationName 字段）。前端应展示 issues 列表。\n\n2. 目标/绑定接口校验加强【无参数变化，注意新增报错】\n   - POST /teachingPlan/objective、/objective/saveWithRefs：planId、目标内容必填；非公共基础课程 schemeId 必填。\n   - POST /teachingPlan/objectiveRef/save、/objectiveRef：ref.graduationId 必填且必须真实存在；绑定的 planId/schemeId 以目标归属为准（前端传入的 ref.planId/schemeId 不再生效）；同一目标重复绑定同一毕业要求自动去重（单条接口直接报错「该目标已绑定该毕业要求」）。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/flowable-demo"
+    }
+  ],
+  "item": [
+    {
+      "name": "教学计划 Word 导入（覆盖，planType 前端传入）",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/teachingPlan/importWord",
+          "host": ["{{baseUrl}}"],
+          "path": ["teachingPlan", "importWord"]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "courseId",
+              "value": "1001",
+              "type": "text",
+              "description": "总库源课程 id，必填"
+            },
+            {
+              "key": "planType",
+              "value": "1",
+              "type": "text",
+              "description": "必填【新增】。教学计划类型：1课程/2实践训练课目/3实验课程/4实践项目。以此为准定位并覆盖计划"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "系统导出的教学计划 .docx，必填"
+            }
+          ]
+        },
+        "description": "覆盖导入。响应 data：{ courseId, planId, docType, createdPlan, counts{teacher/section/objective/objectiveRef/...}, issues[{section,rowHint,field,message,severity}] }。\n\n注意：\n- issues 建议前端弹窗展示（WARN=该条跳过或降级处理，ERROR=整组跳过）。\n- 同名毕业要求多条时默认绑定第一条，issues 中有 WARN 提示。\n- 审核中/已通过的计划、非教学计划文档、planType 非 1-4 均直接报错（Message.error）。"
+      }
+    }
+  ]
+}
