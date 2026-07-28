@@ -213,7 +213,7 @@
         LEFT JOIN t_csys_course_knowledge_unit unit ON courseRefUnit.course_unit_id = unit.id
         WHERE source.id = #{courseId}
           AND unit.id IS NOT NULL
-          AND unit.sysflag = 0
+
         ORDER BY unit.sort ASC, unit.id ASC
     </select>
 </mapper>
