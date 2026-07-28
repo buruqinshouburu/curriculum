@@ -896,12 +896,63 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     // ============ 教员团队 ============
 
-    @Override
+        @Override
     public List<TeachingPlanTeacher> listTeacher(Long planId) {
-        return teachingPlanTeacherMapper.selectByPlanId(planId);
+        if (planId == null) {
+            throw new IllegalArgumentException("planId cannot be null");
+        }
+        List<TeachingPlanTeacher> teachers = teachingPlanTeacherMapper.selectByPlanId(planId);
+        if (ObjectUtils.isNotEmpty(teachers)) {
+            return teachers;
+        }
+        // No plan teachers: read-only fallback from course authors, do not insert
+        return buildTeachersFromCourse(planId);
     }
 
-    @Override
+    private List<TeachingPlanTeacher> buildTeachersFromCourse(Long planId) {
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null || plan.getSourceCourseId() == null) {
+            return Collections.emptyList();
+        }
+        CourseVo course = courseMapper.selectCourseById(plan.getSourceCourseId());
+        if (course == null) {
+            return Collections.emptyList();
+        }
+        String[] names = splitCsv(course.getAuthors());
+        String[] ids = splitCsv(course.getAuthorIds());
+        if (names.length == 0 && ids.length == 0) {
+            return Collections.emptyList();
+        }
+        int size = Math.max(names.length, ids.length);
+        List<TeachingPlanTeacher> result = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            String name = i < names.length ? names[i] : null;
+            String teacherId = i < ids.length ? ids[i] : null;
+            if (StringUtils.isBlank(name) && StringUtils.isBlank(teacherId)) {
+                continue;
+            }
+            TeachingPlanTeacher teacher = new TeachingPlanTeacher();
+            teacher.setPlanId(planId);
+            teacher.setTeacherId(StringUtils.trimToNull(teacherId));
+            teacher.setTeacherName(StringUtils.defaultIfBlank(StringUtils.trimToNull(name), teacherId));
+            teacher.setSort(i + 1);
+            teacher.setSysflag(0);
+            result.add(teacher);
+        }
+        return result;
+    }
+
+    private String[] splitCsv(String raw) {
+        if (StringUtils.isBlank(raw)) {
+            return new String[0];
+        }
+        return Arrays.stream(raw.split("[,，、;；]"))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .toArray(String[]::new);
+    }
+
+@Override
     @Transactional(rollbackFor = Exception.class)
     public Long addTeacher(TeachingPlanTeacher teacher) {
         UserUtils.reflash(teacher);
