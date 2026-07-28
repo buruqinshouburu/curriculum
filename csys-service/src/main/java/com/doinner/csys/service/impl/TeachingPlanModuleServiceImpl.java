@@ -78,6 +78,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     /** 教学目标类型字典 type（知识/能力/素质等） */
     private static final String DICT_PLAN_TARGET_TYPE = "sys_plan_target_type";
 
+    /** 条件保障类型字典 type */
+    private static final String DICT_CONDITION_TYPE = "sys_condition_type";
+
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>> KP_LIST_TYPE =
             new TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>>() {};
@@ -1042,8 +1045,63 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     // ============ 17. 条件保障 ============
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public List<TeachingPlanCondition> listCondition(Long planId) {
+        if (planId == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        // 含已删除(sysflag=2)在内都没有数据时，按字典初始化 9 条条件类型
+        int total = teachingPlanConditionMapper.countAllByPlanId(planId);
+        if (total <= 0) {
+            initDefaultConditions(planId);
+        }
+        // 列表只返回有效数据(sysflag=0)
         return teachingPlanConditionMapper.selectByPlanId(planId);
+    }
+
+    /**
+     * 按字典 sys_condition_type 初始化条件保障。
+     * 字典有几条就初始化几条；若字典缺失则按常见 9 类兜底。
+     */
+    private void initDefaultConditions(Long planId) {
+        List<SysDictData> dictList = CurDictUtils.getDictData(DICT_CONDITION_TYPE);
+        List<TeachingPlanCondition> rows = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(dictList)) {
+            int index = 1;
+            for (SysDictData dict : dictList) {
+                if (dict == null || StringUtils.isBlank(dict.getDictValue())) {
+                    continue;
+                }
+                TeachingPlanCondition row = new TeachingPlanCondition();
+                row.setPlanId(planId);
+                row.setConditionType(dict.getDictValue());
+                row.setRequirement("");
+                Integer sort = dict.getDictSort() == null ? index : dict.getDictSort().intValue();
+                row.setSort(sort);
+                UserUtils.reflash(row);
+                row.setSysflag(0);
+                rows.add(row);
+                index++;
+            }
+        }
+        // 字典异常或为空时，按 9 条占位初始化，保证页面可展示
+        if (rows.isEmpty()) {
+            for (int i = 1; i <= 9; i++) {
+                TeachingPlanCondition row = new TeachingPlanCondition();
+                row.setPlanId(planId);
+                row.setConditionType(String.valueOf(i));
+                row.setRequirement("");
+                row.setSort(i);
+                UserUtils.reflash(row);
+                row.setSysflag(0);
+                rows.add(row);
+            }
+        }
+        if (rows.size() == 1) {
+            teachingPlanConditionMapper.insert(rows.get(0));
+        } else {
+            teachingPlanConditionMapper.insertBatch(rows);
+        }
     }
 
     @Override

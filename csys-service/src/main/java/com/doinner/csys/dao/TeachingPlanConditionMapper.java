@@ -36,6 +36,11 @@ public interface TeachingPlanConditionMapper {
     List<TeachingPlanCondition> selectByPlanId(@Param("planId") Long planId);
 
     /**
+     * 按教学计划统计全部记录数（含 sysflag=2 已删除），用于判断是否需要初始化
+     */
+    int countAllByPlanId(@Param("planId") Long planId);
+
+    /**
      * 根据教学计划ID逻辑删除
      */
     int deleteByPlanId(@Param("planId") Long planId);

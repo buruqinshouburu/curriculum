@@ -43,6 +43,12 @@
         ORDER BY sort ASC, id ASC
     </select>
 
+    <select id="countAllByPlanId" resultType="int">
+        SELECT COUNT(1)
+        FROM t_csys_teaching_plan_condition
+        WHERE plan_id = #{planId}
+    </select>
+
     <update id="deleteByPlanId">
         UPDATE t_csys_teaching_plan_condition SET sysflag = 2 WHERE plan_id = #{planId}
     </update>
