@@ -125,11 +125,17 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_PUBLICATION_METHOD = "sys_publication_method";
     /** 条件类型字典 type */
     private static final String DICT_CONDITION_TYPE = "sys_condition_type";
+    /** 开课学期字典 type */
+    private static final String DICT_OPEN_SEMESTER = "cur_open_semester";
+    /** 修读性质/课程属性字典 type */
+    private static final String DICT_COURSE_ATTRIBUTE = "cur_course_attribute";
     /**
      * 教员职称字典 type 候选（线上可能命名不一，按顺序合并；命中即译）。
      * 未配置时保留原值，避免空字典把编码冲掉。
      */
     private static final String[] DICT_PROFESSIONAL_TITLE_CANDIDATES = {
+            "sys_teacher_professional",
+            "sys_teacher_professional_title",
             "sys_professional_title",
             "sys_teacher_title",
             "sys_plan_professional_title",
@@ -138,7 +144,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             "sys_title",
             "professional_title",
             "teacher_title",
-            "sys_teacher_professional_title",
             "sys_plan_title",
             "csys_professional_title",
             "user_professional_title"
@@ -402,8 +407,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 ? teachingPlanMapper.selectDetailByPlanId(teachingPlanId)
                 : teachingPlanMapper.selectDetailByCourseId(courseId);
         if (detail != null) {
-            // 开课学期：SQL 返回 schedule.term 字典值拼接串（如 1、3、5），翻译为中文标签
-            detail.setTerm(translateScheduleTerms(detail.getTerm()));
+            // 开课学期：优先 cur_open_semester 字典；未命中再回退 1-10 学期硬编码标签
+            detail.setTerm(translateOpenSemester(detail.getTerm()));
+            // 修读性质：cur_course_attribute
+            detail.setCourseAttr(translateDictJoined(
+                    detail.getCourseAttr(), dictValueToLabelMap(DICT_COURSE_ATTRIBUTE)));
             // 适用对象：被引用培养方案 education_level 多值顿号拼接，字典 sys_education_level 译为 label
             detail.setEducationLevel(translateDictJoined(
                     detail.getEducationLevel(), dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
@@ -450,6 +458,45 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         // 已译中文名时的兜底
         return raw.contains("公共基础");
+    }
+
+    /**
+     * 开课学期翻译：优先 cur_open_semester 字典 label，未命中再走 1-10 学期硬编码。
+     */
+    private String translateOpenSemester(String raw) {
+        if (StringUtils.isBlank(raw)) {
+            return raw;
+        }
+        Map<String, String> semesterMap = dictValueToLabelMap(DICT_OPEN_SEMESTER);
+        if (MapUtils.isNotEmpty(semesterMap)) {
+            // 片段级：先字典，再硬编码回退
+            return Arrays.stream(raw.split("[、,，;；/|]"))
+                    .map(String::trim)
+                    .filter(StringUtils::isNotBlank)
+                    .map(code -> {
+                        String label = semesterMap.get(code);
+                        if (StringUtils.isBlank(label)) {
+                            for (Map.Entry<String, String> e : semesterMap.entrySet()) {
+                                if (e.getKey() != null && e.getKey().equalsIgnoreCase(code)) {
+                                    label = e.getValue();
+                                    break;
+                                }
+                            }
+                        }
+                        if (StringUtils.isNotBlank(label) && !StringUtils.equals(label, code)) {
+                            return label;
+                        }
+                        // 已是 label
+                        if (semesterMap.containsValue(code)) {
+                            return code;
+                        }
+                        return translateOneScheduleTerm(code);
+                    })
+                    .filter(StringUtils::isNotBlank)
+                    .distinct()
+                    .collect(Collectors.joining("、"));
+        }
+        return translateScheduleTerms(raw);
     }
 
     /**
@@ -606,12 +653,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         String rawEducationLevel = nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel());
         m.setEducationLevel(translateDictJoined(rawEducationLevel, dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
         m.setMajorName(nz(detail == null ? null : detail.getMajorName(), course.getMajorName()));
-        m.setTerm(nz(detail == null ? null : detail.getTerm(), course.getOpenTerm()));
+        // 开课学期：detail 已译；回退 course.openTerm 时再译 cur_open_semester
+        String rawTerm = nz(detail == null ? null : detail.getTerm(), course.getOpenTerm());
+        m.setTerm(translateOpenSemester(rawTerm));
         // 课程模块：detail 已译 name；若仍是 id 串则再译（多值、/, 分隔），未命中保留原值
         String rawCourseModule = nz(detail == null ? null : detail.getCourseModule(), course.getCourseModule());
         String courseModuleName = translateJoinedCodes(rawCourseModule, getCourseModuleIdToNameMap());
         m.setCourseModule(StringUtils.isNotBlank(courseModuleName) ? courseModuleName : rawCourseModule);
-        m.setCourseAttr(nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr()));
+        // 修读性质：detail 已译；回退 course 原值时再译 cur_course_attribute
+        String rawCourseAttr = nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr());
+        m.setCourseAttr(translateDictJoined(rawCourseAttr, dictValueToLabelMap(DICT_COURSE_ATTRIBUTE)));
         m.setScoreRule(plan == null ? null : plan.getScoreRule());
 
         if (planId != null) {
@@ -845,7 +896,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             a.setMechanism(translateDictJoined(a.getMechanism(), mechanismMap));
             // 成绩评定制也可能存字典 value，写入评定机制列前一并翻译
             a.setScoreSystem(translateDictJoined(a.getScoreSystem(), mechanismMap));
-            a.setStandard(translateDictJoined(a.getStandard(), standardMap));
+            // 评价标准多值存逗号串：按 sys_evaluation_standard 译 label 后仍用 , 拼接
+            a.setStandard(translateDictJoined(a.getStandard(), standardMap, ","));
         }
     }
 
@@ -924,14 +976,23 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     /**
      * 多值字典编码翻译：支持 、,，;；/| 分隔；命中 map 用 label，否则原样保留。
+     * 默认用顿号拼接。
      */
     private String translateDictJoined(String raw, Map<String, String> valueToLabel) {
+        return translateDictJoined(raw, valueToLabel, "、");
+    }
+
+    /**
+     * 多值字典编码翻译，可指定拼接符（评价标准用逗号）。
+     */
+    private String translateDictJoined(String raw, Map<String, String> valueToLabel, String joiner) {
         if (StringUtils.isBlank(raw)) {
             return raw;
         }
         if (MapUtils.isEmpty(valueToLabel)) {
             return raw;
         }
+        String join = joiner == null ? "、" : joiner;
         String trimmed = raw.trim();
         // 若整串已是某个 label / 已登记 key，直接返回名称
         if (valueToLabel.containsKey(trimmed)) {
@@ -942,7 +1003,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         return Arrays.stream(raw.split("[、,，;；/|]"))
                 .map(String::trim)
-                .map(s -> s.replace("\u3000", "").trim())
+                .map(s -> s.replace("　", "").trim())
                 .filter(StringUtils::isNotBlank)
                 .map(code -> {
                     String label = valueToLabel.get(code);
@@ -957,7 +1018,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     }
                     return code;
                 })
-                .collect(Collectors.joining("、"));
+                .collect(Collectors.joining(join));
     }
 
     /** 培养方案小标题：名称（版本） */
@@ -1502,7 +1563,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (ObjectUtils.isEmpty(list)) {
             return map;
         }
-        for (StandardGraduation g : list) {
+        // 接口已返回树：索引时打平 children，避免只登记根节点名称
+        List<StandardGraduation> flat = new ArrayList<>();
+        flattenGraduationTree(list, flat);
+        for (StandardGraduation g : flat) {
             if (g == null || StringUtils.isBlank(g.getName())) {
                 continue;
             }
@@ -1514,6 +1578,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
         }
         return map;
+    }
+
+    private void flattenGraduationTree(List<StandardGraduation> nodes, List<StandardGraduation> out) {
+        if (ObjectUtils.isEmpty(nodes)) {
+            return;
+        }
+        for (StandardGraduation g : nodes) {
+            if (g == null) {
+                continue;
+            }
+            out.add(g);
+            flattenGraduationTree(g.getChildren(), out);
+        }
     }
 
     /** 名称查候选：先原样，再忽略空白差异；查不到返回 null */

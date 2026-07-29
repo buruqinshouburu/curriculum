@@ -613,15 +613,33 @@ public class CourseTeachingPlanGenerator {
                 row.hours = hours;
                 row.firstOfDesign = (p == 0);
                 // 单元段首：全文连续相同单元只在段首写值
-                if (flat.isEmpty()) {
-                    row.firstOfUnit = true;
-                } else {
-                    String prevUnit = flat.get(flat.size() - 1).unitName;
-                    row.firstOfUnit = !StringUtils.equals(
-                            StringUtils.defaultString(prevUnit),
-                            StringUtils.defaultString(row.unitName));
-                }
                 flat.add(row);
+            }
+        }
+        // 先按知识单元排序，再标记连续相同单元的段首，便于合并
+        flat.sort((a, b) -> {
+            String ua = StringUtils.defaultString(a.unitName);
+            String ub = StringUtils.defaultString(b.unitName);
+            int c = ua.compareTo(ub);
+            if (c != 0) {
+                return c;
+            }
+            // 同单元内保持设计序号、知识点相对顺序
+            int d = Integer.compare(a.designIndex, b.designIndex);
+            if (d != 0) {
+                return d;
+            }
+            return StringUtils.defaultString(a.pointName).compareTo(StringUtils.defaultString(b.pointName));
+        });
+        for (int i = 0; i < flat.size(); i++) {
+            KnowledgeDesignRow row = flat.get(i);
+            if (i == 0) {
+                row.firstOfUnit = true;
+            } else {
+                String prevUnit = flat.get(i - 1).unitName;
+                row.firstOfUnit = !StringUtils.equals(
+                        StringUtils.defaultString(prevUnit),
+                        StringUtils.defaultString(row.unitName));
             }
         }
         return flat;
@@ -818,9 +836,9 @@ public class CourseTeachingPlanGenerator {
         }
         boolean practiceLike = itemType != null && itemType == 2;
         List<String> order = practiceLike ? PRACTICE_DETAIL_ORDER : EXPERIMENT_DETAIL_ORDER;
-        // 样图固定 4 行
+        // 实践项目：无「拟解决的复杂问题」行；实验仍固定 4 行
         List<String> required = practiceLike
-                ? Arrays.asList("complex_problem", "main_task", "overall_design", "outcome_requirement")
+                ? Arrays.asList("main_task", "overall_design", "outcome_requirement")
                 : Arrays.asList("purpose_task", "content_requirement", "result_requirement", "teaching_design");
         List<TeachingPlanPracticeItemDetail> ordered = new ArrayList<>();
         Set<String> used = new LinkedHashSet<>();
@@ -834,9 +852,12 @@ public class CourseTeachingPlanGenerator {
             ordered.add(d);
             used.add(type);
         }
-        // 其余类型按优先序追加
+        // 其余类型按优先序追加（实践项目跳过 complex_problem）
         for (String type : order) {
             if (used.contains(type)) {
+                continue;
+            }
+            if (practiceLike && "complex_problem".equals(type)) {
                 continue;
             }
             TeachingPlanPracticeItemDetail d = byType.get(type);
@@ -846,6 +867,9 @@ public class CourseTeachingPlanGenerator {
             }
         }
         for (Map.Entry<String, TeachingPlanPracticeItemDetail> e : byType.entrySet()) {
+            if (practiceLike && "complex_problem".equals(e.getKey())) {
+                continue;
+            }
             if (!used.contains(e.getKey())) {
                 ordered.add(e.getValue());
             }
@@ -1267,7 +1291,8 @@ public class CourseTeachingPlanGenerator {
                 }
                 seenKeys.add(key);
             }
-            if (StringUtils.isNotBlank(title)) {
+            // 大标题已是「三、课程概述」时，不再输出同名小标题
+            if (StringUtils.isNotBlank(title) && !isCourseOverviewTitle(title)) {
                 h3(doc, title);
             }
             if (StringUtils.isNotBlank(s.getContent())) {
@@ -1284,6 +1309,18 @@ public class CourseTeachingPlanGenerator {
      * 章节去重 key：优先规范化标题，其次编码。
      * 去掉空白/全角空格，统一小写；标题含「课程概念」时归并为同一 key。
      */
+    /** 是否与大标题「三、课程概述」重复的小标题 */
+    private static boolean isCourseOverviewTitle(String title) {
+        String t = StringUtils.trimToEmpty(title)
+                .replace(" ", "")
+                .replace("　", "")
+                .replace("	", "");
+        // 去掉常见序号前缀：三、 / 3. / （三）
+        t = t.replaceAll("^[0-9一二三四五六七八九十]+[、.．]\\s*", "");
+        t = t.replaceAll("^[（(][0-9一二三四五六七八九十]+[)）]", "");
+        return "课程概述".equals(t) || "courseoverview".equalsIgnoreCase(t);
+    }
+
     private static String normalizeSectionKey(String title, String code) {
         String t = StringUtils.trimToEmpty(title)
                 .replace(" ", "")
@@ -1412,12 +1449,29 @@ public class CourseTeachingPlanGenerator {
         return b == null ? "" : b;
     }
 
-    /** 拼接课程毕业要求名称 */
+    /** 拼接课程毕业要求名称（兼容树结构，递归 children） */
     private String joinGraduations(List<StandardGraduation> grads) {
         if (ObjectUtils.isEmpty(grads)) {
             return "";
         }
-        return grads.stream().map(StandardGraduation::getName).filter(StringUtils::isNotBlank).collect(Collectors.joining("、"));
+        List<String> names = new ArrayList<>();
+        collectGraduationNames(grads, names);
+        return names.stream().filter(StringUtils::isNotBlank).distinct().collect(Collectors.joining("、"));
+    }
+
+    private void collectGraduationNames(List<StandardGraduation> grads, List<String> names) {
+        if (ObjectUtils.isEmpty(grads)) {
+            return;
+        }
+        for (StandardGraduation g : grads) {
+            if (g == null) {
+                continue;
+            }
+            if (StringUtils.isNotBlank(g.getName())) {
+                names.add(g.getName());
+            }
+            collectGraduationNames(g.getChildren(), names);
+        }
     }
 
     private List<TeachingPlanObjective> filterObjective(List<TeachingPlanObjective> list, String key) {

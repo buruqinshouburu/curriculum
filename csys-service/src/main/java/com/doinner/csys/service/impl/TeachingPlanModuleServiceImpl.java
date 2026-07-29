@@ -20,6 +20,7 @@ import com.doinner.csys.dao.TeachingPlanTextbookMapper;
 import com.doinner.csys.domain.Course;
 import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.StandardGraduation;
+import com.doinner.csys.utils.TreeBuilderUtils;
 import com.doinner.csys.domain.TeachingPlan;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
@@ -62,6 +63,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.HashMap;
 
 /**
  * 课程教学计划各模块 Service 实现(AGENTS 任务 6-17)。
@@ -498,7 +500,85 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             return new ArrayList<>();
         }
         List<StandardGraduation> list = standardGraduationMapper.selectStandardGraduationByIds(graduationIds);
-        return list == null ? new ArrayList<>() : list;
+        if (list == null) {
+            return new ArrayList<>();
+        }
+        // 前端绑定弹框需要树：补全祖先后挂 children
+        return buildGraduationTree(list);
+    }
+
+    /**
+     * 将扁平毕业要求补全父链后构建树（children）。
+     * 若父节点不在当前绑定集合中，向上查询补齐，避免 buildRootTree 根为空。
+     */
+    private List<StandardGraduation> buildGraduationTree(List<StandardGraduation> flat) {
+        if (ObjectUtils.isEmpty(flat)) {
+            return new ArrayList<>();
+        }
+        Map<Long, StandardGraduation> byId = new HashMap<>();
+        for (StandardGraduation g : flat) {
+            if (g == null || g.getId() == null) {
+                continue;
+            }
+            // 清空旧 children，避免脏数据
+            g.setChildren(new ArrayList<>());
+            byId.put(g.getId(), g);
+        }
+        // 补全祖先
+        Set<Long> missingParents = new HashSet<>();
+        for (StandardGraduation g : byId.values()) {
+            Long pid = g.getParentId();
+            if (pid != null && pid != -1L && !byId.containsKey(pid)) {
+                missingParents.add(pid);
+            }
+        }
+        int guard = 0;
+        while (!missingParents.isEmpty() && guard++ < 20) {
+            List<Long> batch = new ArrayList<>(missingParents);
+            missingParents.clear();
+            List<StandardGraduation> parents = standardGraduationMapper.selectStandardGraduationByIds(batch);
+            if (ObjectUtils.isEmpty(parents)) {
+                break;
+            }
+            for (StandardGraduation p : parents) {
+                if (p == null || p.getId() == null || byId.containsKey(p.getId())) {
+                    continue;
+                }
+                p.setChildren(new ArrayList<>());
+                byId.put(p.getId(), p);
+                Long pid = p.getParentId();
+                if (pid != null && pid != -1L && !byId.containsKey(pid)) {
+                    missingParents.add(pid);
+                }
+            }
+        }
+        List<StandardGraduation> all = new ArrayList<>(byId.values());
+        List<StandardGraduation> tree = TreeBuilderUtils.buildRootTree(all);
+        if (ObjectUtils.isEmpty(tree)) {
+            // 兜底：父不在集合且非 -1 时，把「父不在 map 中」的节点当根
+            List<StandardGraduation> roots = new ArrayList<>();
+            Map<Long, StandardGraduation> map = new HashMap<>();
+            for (StandardGraduation g : all) {
+                map.put(g.getId(), g);
+                if (g.getChildren() == null) {
+                    g.setChildren(new ArrayList<>());
+                }
+            }
+            for (StandardGraduation g : all) {
+                Long pid = g.getParentId();
+                if (pid == null || pid == -1L || !map.containsKey(pid)) {
+                    roots.add(g);
+                } else {
+                    StandardGraduation parent = map.get(pid);
+                    if (parent.getChildren() == null) {
+                        parent.setChildren(new ArrayList<>());
+                    }
+                    parent.getChildren().add(g);
+                }
+            }
+            return roots;
+        }
+        return tree;
     }
 
     @Override
