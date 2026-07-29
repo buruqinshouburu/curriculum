@@ -76,14 +76,19 @@ public class WordUtil {
      * @param title    标题文本
      */
     public static void createTitle(XWPFDocument document, String title) {
+        createTitle(document, title, "微软雅黑", 18);
+    }
+
+    /**
+     * 创建文档标题（可指定字体字号）。教学计划可传黑体/五号。
+     */
+    public static void createTitle(XWPFDocument document, String title, String fontFamily, double fontSizePt) {
         XWPFParagraph titleParagraph = document.createParagraph();
         titleParagraph.setAlignment(ParagraphAlignment.CENTER);
 
         XWPFRun titleRun = titleParagraph.createRun();
-        titleRun.setText(title);
-        titleRun.setBold(true);
-        titleRun.setFontSize(18);
-        titleRun.setFontFamily("微软雅黑");
+        titleRun.setText(title == null ? "" : title);
+        applyRunFont(titleRun, fontFamily, fontSizePt, true);
 
         // 添加空行
         document.createParagraph();
@@ -97,6 +102,14 @@ public class WordUtil {
      * @param level    标题级别（1-6）
      */
     public static void createHeading(XWPFDocument document, String text, int level) {
+        createHeading(document, text, level, "微软雅黑", getFontSizeByLevel(level));
+    }
+
+    /**
+     * 创建标题（可指定字体字号）。教学计划章节标题用黑体五号。
+     */
+    public static void createHeading(XWPFDocument document, String text, int level,
+                                     String fontFamily, double fontSizePt) {
         XWPFParagraph paragraph = document.createParagraph();
         paragraph.setAlignment(ParagraphAlignment.LEFT);
 
@@ -106,16 +119,16 @@ public class WordUtil {
             paragraph.setStyle(styleId);
         }
 
-        paragraph.getCTP().addNewPPr().addNewOutlineLvl().setVal(BigInteger.valueOf(level - 1));
-        paragraph.getCTP().addNewPPr().addNewInd().setFirstLine(BigInteger.valueOf(120 * (level - 1)));
+        CTPPr pPr = paragraph.getCTP().isSetPPr() ? paragraph.getCTP().getPPr() : paragraph.getCTP().addNewPPr();
+        if (!pPr.isSetOutlineLvl()) {
+            pPr.addNewOutlineLvl();
+        }
+        pPr.getOutlineLvl().setVal(BigInteger.valueOf(Math.max(level, 1) - 1));
+        CTInd ind = pPr.isSetInd() ? pPr.getInd() : pPr.addNewInd();
+        ind.setFirstLine(BigInteger.valueOf(120L * Math.max(level - 1, 0)));
         XWPFRun run = paragraph.createRun();
-        run.setText(text);
-        run.setBold(true);
-
-        // 根据级别设置字体大小
-        int fontSize = getFontSizeByLevel(level);
-        run.setFontSize(fontSize);
-        run.setFontFamily("微软雅黑");
+        run.setText(text == null ? "" : text);
+        applyRunFont(run, fontFamily, fontSizePt, true);
     }
 
     /**
@@ -176,20 +189,30 @@ public class WordUtil {
      * @param style    样式（可为 null）
      */
     public static void createParagraph(XWPFDocument document, String text, String style) {
+        createParagraph(document, text, style, "宋体", 12);
+    }
+
+    /**
+     * 创建普通段落（可指定字体字号）。教学计划正文用仿宋_GB2312 五号。
+     */
+    public static void createParagraph(XWPFDocument document, String text, String style,
+                                       String fontFamily, double fontSizePt) {
         XWPFParagraph paragraph = document.createParagraph();
         paragraph.setAlignment(ParagraphAlignment.LEFT);
 
         if (style != null) {
             paragraph.setStyle(style);
         }
-        // 首行缩进2字符（firstLineChars=200）；同时给 firstLine=480twips(2×小四12pt) 作兼容回退
-        CTInd ind = paragraph.getCTP().addNewPPr().addNewInd();
+        // 首行缩进2字符（firstLineChars=200）；同时给 firstLine 作兼容回退
+        CTPPr pPr = paragraph.getCTP().isSetPPr() ? paragraph.getCTP().getPPr() : paragraph.getCTP().addNewPPr();
+        CTInd ind = pPr.isSetInd() ? pPr.getInd() : pPr.addNewInd();
         ind.setFirstLineChars(BigInteger.valueOf(200));
-        ind.setFirstLine(BigInteger.valueOf(480));
+        // 2 字符近似：按字号换算 twips（1pt≈20twips）
+        long firstLineTwips = Math.round(fontSizePt * 20 * 2);
+        ind.setFirstLine(BigInteger.valueOf(firstLineTwips));
         XWPFRun run = paragraph.createRun();
-        run.setText(text);
-        run.setFontSize(12);
-        run.setFontFamily("宋体");
+        run.setText(text == null ? "" : text);
+        applyRunFont(run, fontFamily, fontSizePt, false);
     }
 
     /**
@@ -261,6 +284,16 @@ public class WordUtil {
      * @param width  单元格宽度
      */
     public static void setCellText(XWPFTableCell cell, String text, boolean isBold, String width) {
+        // 兼容旧调用：默认宋体 9pt
+        setCellText(cell, text, isBold, width, "宋体", 9);
+    }
+
+    /**
+     * 设置表格单元格内容（可指定字体字号）。
+     * 教学计划：表头黑体五号，表内容宋体五号。
+     */
+    public static void setCellText(XWPFTableCell cell, String text, boolean isBold, String width,
+                                   String fontFamily, double fontSizePt) {
         // 清空单元格默认段落
         if (ObjectUtils.isEmpty(cell)) {
             return;
@@ -277,13 +310,119 @@ public class WordUtil {
         if (width != null && !width.isEmpty()) {
             cell.setWidth(width);
         }
-        // 设置文本
-        XWPFRun run = paragraph.createRun();
-        run.setFontFamily("宋体");
-        run.setText(text);
-        run.setFontSize(9);
-        if (isBold) {
-            run.setBold(true);
+        // 设置文本（支持 \n 多行）
+        String cellText = text == null ? "" : text;
+        String[] lines = cellText.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                paragraph.createRun().addBreak();
+            }
+            XWPFRun run = paragraph.createRun();
+            run.setText(lines[i] == null ? "" : lines[i]);
+            applyRunFont(run, fontFamily, fontSizePt, isBold);
+        }
+    }
+
+    /**
+     * 按列宽数组初始化表格网格（不等宽列，如实践表缩窄序号列）。
+     */
+    public static void initTableGrid(XWPFTable table, int[] colWidthsDxa) {
+        if (table == null || colWidthsDxa == null || colWidthsDxa.length == 0) {
+            return;
+        }
+        int totalCols = colWidthsDxa.length;
+        CTTbl ctTbl = table.getCTTbl();
+
+        CTTblPr tblPr = ctTbl.getTblPr() != null ? ctTbl.getTblPr() : ctTbl.addNewTblPr();
+        CTTblWidth tblInd = tblPr.isSetTblInd() ? tblPr.getTblInd() : tblPr.addNewTblInd();
+        tblInd.setType(STTblWidth.DXA);
+        tblInd.setW(BigInteger.ZERO);
+
+        int totalWidth = 0;
+        for (int w : colWidthsDxa) {
+            totalWidth += w;
+        }
+        CTTblWidth tblW = tblPr.isSetTblW() ? tblPr.getTblW() : tblPr.addNewTblW();
+        tblW.setType(STTblWidth.DXA);
+        tblW.setW(BigInteger.valueOf(totalWidth));
+
+        CTTblLayoutType layout = tblPr.isSetTblLayout() ? tblPr.getTblLayout() : tblPr.addNewTblLayout();
+        layout.setType(STTblLayoutType.FIXED);
+
+        CTJcTable jc = tblPr.getJc() != null ? tblPr.getJc() : tblPr.addNewJc();
+        jc.setVal(STJcTable.LEFT);
+
+        CTTblBorders borders = tblPr.isSetTblBorders() ? tblPr.getTblBorders() : tblPr.addNewTblBorders();
+        setTableBorders(borders);
+
+        CTTblCellMar cellMar = tblPr.isSetTblCellMar() ? tblPr.getTblCellMar() : tblPr.addNewTblCellMar();
+        setCellMargin(cellMar, 80, 80, 40, 40);
+
+        if (ctTbl.getTblGrid() != null) {
+            ctTbl.setTblGrid(null);
+        }
+        CTTblGrid tblGrid = ctTbl.addNewTblGrid();
+        for (int w : colWidthsDxa) {
+            CTTblGridCol gridCol = tblGrid.addNewGridCol();
+            gridCol.setW(BigInteger.valueOf(w));
+        }
+
+        for (XWPFTableRow row : table.getRows()) {
+            while (row.getTableCells().size() < totalCols) {
+                row.addNewTableCell();
+            }
+            while (row.getTableCells().size() > totalCols) {
+                row.removeCell(totalCols);
+            }
+            for (int c = 0; c < totalCols; c++) {
+                XWPFTableCell cell = row.getTableCells().get(c);
+                CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
+                CTTblWidth cellW = tcPr.isSetTcW() ? tcPr.getTcW() : tcPr.addNewTcW();
+                cellW.setType(STTblWidth.DXA);
+                cellW.setW(BigInteger.valueOf(colWidthsDxa[c]));
+
+                for (XWPFParagraph p : cell.getParagraphs()) {
+                    CTP ctp = p.getCTP();
+                    CTPPr ppr = ctp.isSetPPr() ? ctp.getPPr() : ctp.addNewPPr();
+                    CTInd ind = ppr.isSetInd() ? ppr.getInd() : ppr.addNewInd();
+                    ind.setLeft(BigInteger.ZERO);
+                    ind.setFirstLine(BigInteger.ZERO);
+                }
+            }
+        }
+    }
+
+    /**
+     * 同时设置 ascii / hAnsi / eastAsia 字体，避免中文在 Word 中回退。
+     * 支持小数 pt（如五号 10.5）：通过 half-points 写入 sz/szCs。
+     * 兼容 POI 5.x ooxml-lite：CTRPr 使用 *Array 访问器，而不是旧版 isSetSz/getSz。
+     */
+    public static void applyRunFont(XWPFRun run, String fontFamily, double fontSizePt, boolean bold) {
+        if (run == null) {
+            return;
+        }
+        String family = (fontFamily == null || fontFamily.isEmpty()) ? "宋体" : fontFamily;
+        run.setFontFamily(family);
+        run.setBold(bold);
+        // 半磅：1pt = 2 half-points
+        long halfPoints = Math.max(1, Math.round(fontSizePt * 2));
+        CTR ctr = run.getCTR();
+        CTRPr rPr = ctr.isSetRPr() ? ctr.getRPr() : ctr.addNewRPr();
+
+        CTFonts fonts = (rPr.sizeOfRFontsArray() > 0) ? rPr.getRFontsArray(0) : rPr.addNewRFonts();
+        fonts.setAscii(family);
+        fonts.setHAnsi(family);
+        fonts.setEastAsia(family);
+        fonts.setCs(family);
+
+        CTHpsMeasure sz = (rPr.sizeOfSzArray() > 0) ? rPr.getSzArray(0) : rPr.addNewSz();
+        sz.setVal(BigInteger.valueOf(halfPoints));
+        CTHpsMeasure szCs = (rPr.sizeOfSzCsArray() > 0) ? rPr.getSzCsArray(0) : rPr.addNewSzCs();
+        szCs.setVal(BigInteger.valueOf(halfPoints));
+
+        if (bold) {
+            CTOnOff b = (rPr.sizeOfBArray() > 0) ? rPr.getBArray(0) : rPr.addNewB();
+            b.setVal(true);
         }
     }
 

@@ -26,10 +26,13 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -53,6 +56,21 @@ public class CourseTeachingPlanGenerator {
 
     /** 单列宽度(dxa)，合并列时按 span 倍数设置 */
     private static final int COL_W = 1000;
+
+    /** 五号字 ≈ 10.5 磅 */
+    private static final double FONT_SIZE_WUHAO = 10.5;
+    /** 章节标题：黑体五号 */
+    private static final String FONT_HEADING = "黑体";
+    /** 正文：仿宋_GB2312 五号 */
+    private static final String FONT_BODY = "仿宋_GB2312";
+    /** 表头：黑体五号 */
+    private static final String FONT_TABLE_HEADER = "黑体";
+    /** 表内容：宋体五号 */
+    private static final String FONT_TABLE_BODY = "宋体";
+
+    /** 考核类别：1 总结性考核，2 形成性考核（展示文案按产品要求，非库注释「终结性」） */
+    private static final int ASSESS_CAT_SUMMATIVE = 1;
+    private static final int ASSESS_CAT_FORMATIVE = 2;
 
     /** 目标/达成设计类型关键字（objectiveTypeCode / designTypeCode 为字典编码，按包含匹配） */
     private static final String KEY_KNOWLEDGE = "知识";
@@ -107,7 +125,7 @@ public class CourseTeachingPlanGenerator {
     // ============================ type=1 课程教学计划（9 节） ============================
 
     private void generateCourseDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
-        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》课程教学计划");
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》课程教学计划", FONT_HEADING, FONT_SIZE_WUHAO);
 
         // 一、课程基本信息
         h1(doc, "一、课程基本信息");
@@ -132,15 +150,15 @@ public class CourseTeachingPlanGenerator {
         // 六、课程目标与教学实现设计
         h1(doc, "六、课程目标与教学实现设计");
         // 说明：教学环节/教法/学法取字典表 label 拼接（由 Service 预填）
-        WordUtil.createParagraph(doc, "说明：", null);
+        bodyParagraph(doc, "说明：");
         if (StringUtils.isNotBlank(m.getTeachingLinkNote())) {
-            WordUtil.createParagraph(doc, m.getTeachingLinkNote(), null);
+            bodyParagraph(doc, m.getTeachingLinkNote());
         }
         if (StringUtils.isNotBlank(m.getTeachingMethodNote())) {
-            WordUtil.createParagraph(doc, m.getTeachingMethodNote(), null);
+            bodyParagraph(doc, m.getTeachingMethodNote());
         }
         if (StringUtils.isNotBlank(m.getLearningMethodNote())) {
-            WordUtil.createParagraph(doc, m.getLearningMethodNote(), null);
+            bodyParagraph(doc, m.getLearningMethodNote());
         }
         h2(doc, "（一）知识目标和教学实现设计");
         targetDesignTable(filterDesign(m.getTargetDesigns(), KEY_KNOWLEDGE), doc);
@@ -168,7 +186,7 @@ public class CourseTeachingPlanGenerator {
     // ============================ type=3 实验课程教学计划（7 节） ============================
 
     private void generateExperimentCourseDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
-        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实验课程教学计划");
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实验课程教学计划", FONT_HEADING, FONT_SIZE_WUHAO);
 
         h1(doc, "一、课程基本信息");
         experimentBasicInfoTable(m, doc);
@@ -196,7 +214,7 @@ public class CourseTeachingPlanGenerator {
     // ============================ type=2 实践训练课目教学计划（7 节） ============================
 
     private void generatePracticeSubjectDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
-        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实践训练课目教学计划");
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实践训练课目教学计划", FONT_HEADING, FONT_SIZE_WUHAO);
 
         h1(doc, "一、课目基本信息");
         practiceSubjectBasicInfoTable(m, doc);
@@ -223,7 +241,7 @@ public class CourseTeachingPlanGenerator {
     // ============================ type=4 实践项目教学计划（5 节） ============================
 
     private void generatePracticeProjectDoc(CourseTeachingPlanModel m, XWPFDocument doc) {
-        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实践项目教学计划");
+        WordUtil.createTitle(doc, "《" + str(m.getCourseName()) + "》实践项目教学计划", FONT_HEADING, FONT_SIZE_WUHAO);
 
         h1(doc, "一、项目基本信息");
         practiceProjectBasicInfoTable(m, doc);
@@ -259,15 +277,18 @@ public class CourseTeachingPlanGenerator {
         // R4 学时 | 讲授 | {teachHours} | 学分 | {credit}(合并 4-5)
         setCell(t, 4, 0, "学时", true);
         setCell(t, 4, 1, "讲授", true);
-        setCell(t, 4, 2, m.getTeachHours(), false);
+        setCell(t, 4, 2, formatHours(m.getTeachHours()), false);
         setCell(t, 4, 3, "学分", true);
-        setCell(t, 4, 4, m.getCredit(), false);
+        setCell(t, 4, 4, formatHours(m.getCredit()), false);
         WordUtil.mergeCellsHorizontal(t, 4, 4, 5);
-        // R5 | 实践 | {practiceHours} | (3-5 合并空)
+        // R5 学时纵合 | 实践 | {practiceHours} | 学分标签/值纵合（与学时块对齐）
         WordUtil.mergeCellsVertical(t, 0, 4, 5);
         setCell(t, 5, 1, "实践", true);
-        setCell(t, 5, 2, m.getPracticeHours(), false);
-        WordUtil.mergeCellsHorizontal(t, 5, 3, 5);
+        setCell(t, 5, 2, formatHours(m.getPracticeHours()), false);
+        setCell(t, 5, 3, "", false);
+        setCell(t, 5, 4, "", false);
+        WordUtil.mergeCellsVertical(t, 3, 4, 5);
+        WordUtil.mergeCellsVertical(t, 4, 4, 5);
         // R6 适用对象 | 适用专业 | 开课学期 | 课程模块 | 修读性质(合并 4-5)
         setCell(t, 6, 0, "适用对象", true);
         setCell(t, 6, 1, "适用专业", true);
@@ -298,9 +319,9 @@ public class CourseTeachingPlanGenerator {
         labelValue(t, 3, 0, 1, "课程教学计划启用时间", m.getEnabledTerm(), cols - 1);
         // R4 学时 | {hours} | 学分 | {credit} | (空)
         setCell(t, 4, 0, "学时", true);
-        setCell(t, 4, 1, m.getHours(), false);
+        setCell(t, 4, 1, formatHours(m.getHours()), false);
         setCell(t, 4, 2, "学分", true);
-        setCell(t, 4, 3, m.getCredit(), false);
+        setCell(t, 4, 3, formatHours(m.getCredit()), false);
         setCell(t, 4, 4, "", false);
         // R5 适用对象 | 适用专业 | 开课学期 | 课程模块 | 修读性质
         setCell(t, 5, 0, "适用对象", true);
@@ -482,7 +503,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 1;
                 setCell(t, r, 0, c.getTitle(), false);
                 setCell(t, r, 1, c.getContent(), false);
-                setCell(t, r, 2, toStr(c.getHours()), false);
+                setCell(t, r, 2, formatHours(c.getHours()), false);
             }
         } else {
             setCell(t, 1, 0, "", false);
@@ -523,25 +544,15 @@ public class CourseTeachingPlanGenerator {
         for (int i = 0; i < flat.size(); i++) {
             KnowledgeDesignRow row = flat.get(i);
             int r = i + 1;
-            // 仅在设计块首行写入共享列文案；后续行靠纵向合并显示
-            if (row.firstOfDesign) {
-                setCell(t, r, 0, String.valueOf(row.designIndex), false);
-                setCell(t, r, 3, row.objectiveText, false);
-                setCell(t, r, 4, row.contentText, false);
-                setCell(t, r, 5, row.teachingLink, false);
-                setCell(t, r, 6, row.teachingMethod, false);
-                setCell(t, r, 7, row.learningMethod, false);
-                setCell(t, r, 8, row.hours, false);
-            } else {
-                setCell(t, r, 0, "", false);
-                setCell(t, r, 3, "", false);
-                setCell(t, r, 4, "", false);
-                setCell(t, r, 5, "", false);
-                setCell(t, r, 6, "", false);
-                setCell(t, r, 7, "", false);
-                setCell(t, r, 8, "", false);
-            }
-            // 知识单元：块内连续相同单元仅在段首写值
+            // 后面几列不再纵向合并：每行独立写出
+            setCell(t, r, 0, String.valueOf(row.designIndex), false);
+            setCell(t, r, 3, row.objectiveText, false);
+            setCell(t, r, 4, row.contentText, false);
+            setCell(t, r, 5, row.teachingLink, false);
+            setCell(t, r, 6, row.teachingMethod, false);
+            setCell(t, r, 7, row.learningMethod, false);
+            setCell(t, r, 8, row.hours, false);
+            // 仅相同知识单元列合并：段首写值，其余空
             if (row.firstOfUnit) {
                 setCell(t, r, 1, row.unitName, false);
             } else {
@@ -549,8 +560,7 @@ public class CourseTeachingPlanGenerator {
             }
             setCell(t, r, 2, row.pointName, false);
         }
-        // 纵向合并：先按设计块合并共享列，再按单元段合并知识单元列
-        mergeKnowledgeDesignSharedColumns(t, flat);
+        // 只合并相同知识单元列
         mergeKnowledgeUnitColumn(t, flat);
     }
 
@@ -575,8 +585,7 @@ public class CourseTeachingPlanGenerator {
             String teachingLink = str(d.getTeachingLink());
             String teachingMethod = str(d.getTeachingMethod());
             String learningMethod = str(d.getLearningMethod());
-            String hours = toStr(d.getHours());
-            int startIdx = flat.size();
+            String hours = formatHours(d.getHours());
             for (int p = 0; p < points.size(); p++) {
                 TeachingPlanTargetDesign.KnowledgePointItem item = points.get(p);
                 KnowledgeDesignRow row = new KnowledgeDesignRow();
@@ -590,11 +599,11 @@ public class CourseTeachingPlanGenerator {
                 row.learningMethod = learningMethod;
                 row.hours = hours;
                 row.firstOfDesign = (p == 0);
-                // 单元段首：首行，或与上一行单元名不同
-                if (p == 0) {
+                // 单元段首：全文连续相同单元只在段首写值
+                if (flat.isEmpty()) {
                     row.firstOfUnit = true;
                 } else {
-                    String prevUnit = flat.get(startIdx + p - 1).unitName;
+                    String prevUnit = flat.get(flat.size() - 1).unitName;
                     row.firstOfUnit = !StringUtils.equals(
                             StringUtils.defaultString(prevUnit),
                             StringUtils.defaultString(row.unitName));
@@ -625,41 +634,14 @@ public class CourseTeachingPlanGenerator {
         return one;
     }
 
-    /** 同一条设计多行：合并序号、支撑目标、教学内容、教学环节、教法、学法、学时 */
-    private void mergeKnowledgeDesignSharedColumns(XWPFTable t, List<KnowledgeDesignRow> flat) {
-        int i = 0;
-        while (i < flat.size()) {
-            int start = i;
-            int designIndex = flat.get(i).designIndex;
-            i++;
-            while (i < flat.size() && flat.get(i).designIndex == designIndex) {
-                i++;
-            }
-            int end = i - 1;
-            if (end > start) {
-                int startRow = start + 1; // 表头占第 0 行
-                int endRow = end + 1;
-                WordUtil.mergeCellsVertical(t, 0, startRow, endRow);
-                WordUtil.mergeCellsVertical(t, 3, startRow, endRow);
-                WordUtil.mergeCellsVertical(t, 4, startRow, endRow);
-                WordUtil.mergeCellsVertical(t, 5, startRow, endRow);
-                WordUtil.mergeCellsVertical(t, 6, startRow, endRow);
-                WordUtil.mergeCellsVertical(t, 7, startRow, endRow);
-                WordUtil.mergeCellsVertical(t, 8, startRow, endRow);
-            }
-        }
-    }
-
-    /** 同一条设计内连续相同知识单元纵向合并 */
+    /** 连续相同知识单元纵向合并（仅知识单元列；其它列不合并） */
     private void mergeKnowledgeUnitColumn(XWPFTable t, List<KnowledgeDesignRow> flat) {
         int i = 0;
         while (i < flat.size()) {
             int start = i;
-            int designIndex = flat.get(i).designIndex;
             String unitName = StringUtils.defaultString(flat.get(i).unitName);
             i++;
             while (i < flat.size()
-                    && flat.get(i).designIndex == designIndex
                     && StringUtils.equals(unitName, StringUtils.defaultString(flat.get(i).unitName))) {
                 i++;
             }
@@ -721,49 +703,70 @@ public class CourseTeachingPlanGenerator {
      * 每个项目占多行，明细类型作为子行填入“主要内容与教学设计”列。
      */
     private void practiceItemTable(List<TeachingPlanPracticeItem> items, Map<Long, List<TeachingPlanPracticeItemDetail>> detailMap, XWPFDocument doc) {
-        int cols = 3;
+        // 序号 | 项目名称 | 主要内容 | 教学设计；序号列缩窄
+        int cols = 4;
+        int[] colWidths = new int[]{600, 1600, 2400, 2400};
         if (ObjectUtils.isEmpty(items)) {
-            XWPFTable t = createTable(doc, 2, cols);
+            XWPFTable t = createTable(doc, 2, cols, colWidths);
             setCell(t, 0, 0, "序号", true);
             setCell(t, 0, 1, "项目名称", true);
-            setCell(t, 0, 2, "主要内容与教学设计", true);
-            setCell(t, 1, 0, "", false);
-            setCell(t, 1, 1, "", false);
-            setCell(t, 1, 2, "", false);
+            setCell(t, 0, 2, "主要内容", true);
+            setCell(t, 0, 3, "教学设计", true);
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
             return;
         }
-        // 计算总行数：表头 + 每项目 max(1, 明细数)
-        int rows = 1;
-        for (TeachingPlanPracticeItem it : items) {
-            rows += Math.max(1, size(detailMap == null ? null : detailMap.get(it.getId())));
-        }
-        XWPFTable t = createTable(doc, rows, cols);
-        setCell(t, 0, 0, "序号", true);
-        setCell(t, 0, 1, "项目名称", true);
-        setCell(t, 0, 2, "主要内容与教学设计", true);
-        int r = 1;
+        List<PracticeItemRow> flat = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             TeachingPlanPracticeItem it = items.get(i);
             List<TeachingPlanPracticeItemDetail> details = detailMap == null ? null : detailMap.get(it.getId());
-            int start = r;
-            if (ObjectUtils.isEmpty(details)) {
-                setCell(t, r, 2, "", false);
-                r++;
-            } else {
+            List<String> mainParts = new ArrayList<>();
+            List<String> designParts = new ArrayList<>();
+            if (ObjectUtils.isNotEmpty(details)) {
                 for (TeachingPlanPracticeItemDetail d : details) {
-                    String label = DETAIL_LABEL.getOrDefault(d.getDetailType(), d.getDetailType());
-                    setCell(t, r, 2, label + "：" + str(d.getContent()), false);
-                    r++;
+                    if (d == null) {
+                        continue;
+                    }
+                    String type = d.getDetailType();
+                    String label = DETAIL_LABEL.getOrDefault(type, type);
+                    String line = StringUtils.isBlank(label)
+                            ? str(d.getContent())
+                            : label + "：" + str(d.getContent());
+                    if ("teaching_design".equals(type) || "overall_design".equals(type)) {
+                        designParts.add(line);
+                    } else {
+                        mainParts.add(line);
+                    }
                 }
             }
-            // 序号 + 项目名称 纵向合并
-            setCell(t, start, 0, String.valueOf(i + 1), false);
-            setCell(t, start, 1, it.getName(), false);
-            if (r - 1 > start) {
-                WordUtil.mergeCellsVertical(t, 0, start, r - 1);
-                WordUtil.mergeCellsVertical(t, 1, start, r - 1);
-            }
+            PracticeItemRow row = new PracticeItemRow();
+            row.index = i + 1;
+            row.name = it.getName();
+            row.mainContent = String.join("\n", mainParts);
+            row.teachingDesign = String.join("\n", designParts);
+            flat.add(row);
         }
+        XWPFTable t = createTable(doc, 1 + flat.size(), cols, colWidths);
+        setCell(t, 0, 0, "序号", true);
+        setCell(t, 0, 1, "项目名称", true);
+        setCell(t, 0, 2, "主要内容", true);
+        setCell(t, 0, 3, "教学设计", true);
+        for (int i = 0; i < flat.size(); i++) {
+            PracticeItemRow row = flat.get(i);
+            int r = i + 1;
+            setCell(t, r, 0, String.valueOf(row.index), false);
+            setCell(t, r, 1, row.name, false);
+            setCell(t, r, 2, row.mainContent, false);
+            setCell(t, r, 3, row.teachingDesign, false);
+        }
+    }
+
+    private static class PracticeItemRow {
+        int index;
+        String name;
+        String mainContent;
+        String teachingDesign;
     }
 
     /**
@@ -783,7 +786,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 1;
                 setCell(t, r, 0, String.valueOf(i + 1), false);
                 setCell(t, r, 1, it.getName(), false);
-                setCell(t, r, 2, toStr(it.getHours()), false);
+                setCell(t, r, 2, formatHours(it.getHours()), false);
                 setCell(t, r, 3, it.getGroupInfo(), false);
                 setCell(t, r, 4, it.getExperimentNature(), false);
                 setCell(t, r, 5, it.getStudyNature(), false);
@@ -800,8 +803,41 @@ public class CourseTeachingPlanGenerator {
      * 考核评价表（type1 八、type3 六、type2 六）：考核项目 | 考核方式 | 评定 / 机制 | 权重 | 评价标准 + 计分规则行
      */
     private void assessmentTable(List<TeachingPlanAssessment> assessments, String scoreRule, XWPFDocument doc) {
+        // 表头不变；考核项目下按 assessmentCategory 分两类：1 总结性考核 / 2 形成性考核
         int cols = 5;
-        int rows = 1 + Math.max(size(assessments), 1) + 1;
+        List<TeachingPlanAssessment> summative = new ArrayList<>();
+        List<TeachingPlanAssessment> formative = new ArrayList<>();
+        List<TeachingPlanAssessment> others = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(assessments)) {
+            for (TeachingPlanAssessment a : assessments) {
+                if (a == null) {
+                    continue;
+                }
+                Integer cat = a.getAssessmentCategory();
+                if (cat != null && cat == ASSESS_CAT_SUMMATIVE) {
+                    summative.add(a);
+                } else if (cat != null && cat == ASSESS_CAT_FORMATIVE) {
+                    formative.add(a);
+                } else {
+                    others.add(a);
+                }
+            }
+        }
+        int dataRows = 0;
+        if (!summative.isEmpty()) {
+            dataRows += 1 + summative.size();
+        }
+        if (!formative.isEmpty()) {
+            dataRows += 1 + formative.size();
+        }
+        if (!others.isEmpty()) {
+            // 无类别或其它类别：不加类别行，直接列项目
+            dataRows += others.size();
+        }
+        if (dataRows == 0) {
+            dataRows = 1;
+        }
+        int rows = 1 + dataRows + 1;
         XWPFTable t = createTable(doc, rows, cols);
         setCell(t, 0, 0, "考核项目", true);
         setCell(t, 0, 1, "考核方式", true);
@@ -809,25 +845,63 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 0, 3, "权重", true);
         setCell(t, 0, 4, "评价标准", true);
         int r = 1;
-        if (ObjectUtils.isNotEmpty(assessments)) {
-            for (TeachingPlanAssessment a : assessments) {
-                setCell(t, r, 0, a.getAssessmentItem(), false);
-                setCell(t, r, 1, a.getMethod(), false);
-                setCell(t, r, 2, joinStr(a.getMechanism(), a.getScoreSystem()), false);
-                setCell(t, r, 3, toStr(a.getWeight()), false);
-                setCell(t, r, 4, a.getStandard(), false);
+        boolean wrote = false;
+        if (!summative.isEmpty()) {
+            writeAssessmentCategoryBlock(t, r, cols, "总结性考核", summative);
+            r += 1 + summative.size();
+            wrote = true;
+        }
+        if (!formative.isEmpty()) {
+            writeAssessmentCategoryBlock(t, r, cols, "形成性考核", formative);
+            r += 1 + formative.size();
+            wrote = true;
+        }
+        if (!others.isEmpty()) {
+            for (TeachingPlanAssessment a : others) {
+                writeAssessmentDataRow(t, r, a);
                 r++;
+                wrote = true;
             }
-        } else {
+        }
+        if (!wrote) {
             for (int c = 0; c < cols; c++) {
-                setCell(t, 1, c, "", false);
+                setCell(t, r, c, "", false);
             }
-            r = 2;
+            r++;
         }
         // 计分规则行
         setCell(t, r, 0, "计分规则", true);
         setCell(t, r, 1, StringUtils.isBlank(scoreRule) ? "" : scoreRule, false);
         WordUtil.mergeCellsHorizontal(t, r, 1, cols - 1);
+    }
+
+    /** 写入类别标题行（整行合并）+ 该类别下考核明细 */
+    private void writeAssessmentCategoryBlock(XWPFTable t, int startRow, int cols,
+                                              String categoryName, List<TeachingPlanAssessment> list) {
+        setCell(t, startRow, 0, categoryName, true);
+        for (int c = 1; c < cols; c++) {
+            setCell(t, startRow, c, "", false);
+        }
+        WordUtil.mergeCellsHorizontal(t, startRow, 0, cols - 1);
+        int r = startRow + 1;
+        for (TeachingPlanAssessment a : list) {
+            writeAssessmentDataRow(t, r, a);
+            r++;
+        }
+    }
+
+    private void writeAssessmentDataRow(XWPFTable t, int r, TeachingPlanAssessment a) {
+        if (a == null) {
+            for (int c = 0; c < 5; c++) {
+                setCell(t, r, c, "", false);
+            }
+            return;
+        }
+        setCell(t, r, 0, a.getAssessmentItem(), false);
+        setCell(t, r, 1, a.getMethod(), false);
+        setCell(t, r, 2, joinStr(a.getMechanism(), a.getScoreSystem()), false);
+        setCell(t, r, 3, formatHours(a.getWeight()), false);
+        setCell(t, r, 4, a.getStandard(), false);
     }
 
     /** 教材表：教材性质 | 教材名称 | 第一作者 | 版次 | 出版（颁发）单位 | 出版（颁发）时间 | ISBN号（统一书号） | 出版方式 */
@@ -1059,39 +1133,64 @@ public class CourseTeachingPlanGenerator {
     // ============================ 渲染小工具 ============================
 
     private void h1(XWPFDocument doc, String text) {
-        WordUtil.createHeading(doc, text, 1);
+        WordUtil.createHeading(doc, text, 1, FONT_HEADING, FONT_SIZE_WUHAO);
     }
 
     private void h2(XWPFDocument doc, String text) {
-        WordUtil.createHeading(doc, text, 2);
+        WordUtil.createHeading(doc, text, 2, FONT_HEADING, FONT_SIZE_WUHAO);
     }
 
     private void h3(XWPFDocument doc, String text) {
-        WordUtil.createHeading(doc, text, 3);
+        WordUtil.createHeading(doc, text, 3, FONT_HEADING, FONT_SIZE_WUHAO);
     }
 
-    /** 渲染文本章节：每段 h3 标题 + 内容段落（\n 分行）；富文本 HTML 标签剥离为纯文本 */
+    private void bodyParagraph(XWPFDocument doc, String text) {
+        WordUtil.createParagraph(doc, text, null, FONT_BODY, FONT_SIZE_WUHAO);
+    }
+
+    /**
+     * 渲染文本章节：每段 h3 标题 + 内容段落（\n 分行）；富文本 HTML 标签剥离为纯文本。
+     * 同名 sectionTitle 仅保留第一次，去掉重复的「课程概念」等小节。
+     */
     private void renderSections(XWPFDocument doc, List<TeachingPlanSection> sections) {
         if (ObjectUtils.isEmpty(sections)) {
             return;
         }
+        Set<String> seenTitles = new LinkedHashSet<>();
         for (TeachingPlanSection s : sections) {
-            if (StringUtils.isNotBlank(s.getSectionTitle())) {
-                h3(doc, s.getSectionTitle());
+            if (s == null) {
+                continue;
+            }
+            String title = StringUtils.trimToEmpty(s.getSectionTitle());
+            if (StringUtils.isNotBlank(title)) {
+                if (seenTitles.contains(title)) {
+                    // 重复标题整段跳过（含其内容）
+                    continue;
+                }
+                seenTitles.add(title);
+                h3(doc, title);
             }
             if (StringUtils.isNotBlank(s.getContent())) {
                 String plain = stripHtml(s.getContent());
                 String[] lines = plain.split("\n", -1);
                 for (String line : lines) {
-                    WordUtil.createParagraph(doc, line, null);
+                    bodyParagraph(doc, line);
                 }
             }
         }
     }
 
     private XWPFTable createTable(XWPFDocument doc, int rows, int cols) {
+        return createTable(doc, rows, cols, null);
+    }
+
+    private XWPFTable createTable(XWPFDocument doc, int rows, int cols, int[] colWidthsDxa) {
         XWPFTable table = doc.createTable(rows, cols);
-        WordUtil.initTableGrid(table, cols, COL_W);
+        if (colWidthsDxa != null && colWidthsDxa.length == cols) {
+            WordUtil.initTableGrid(table, colWidthsDxa);
+        } else {
+            WordUtil.initTableGrid(table, cols, COL_W);
+        }
         table.setWidthType(TableWidthType.PCT);
         table.setWidth("100%");
         return table;
@@ -1103,7 +1202,9 @@ public class CourseTeachingPlanGenerator {
             r = t.createRow();
         }
         XWPFTableCell cell = r.getCell(col);
-        WordUtil.setCellText(cell, str(text), bold, w(1));
+        // 表头黑体五号，表内容宋体五号；宽度交给 initTableGrid，避免实践表序号列被等宽冲掉
+        String font = bold ? FONT_TABLE_HEADER : FONT_TABLE_BODY;
+        WordUtil.setCellText(cell, str(text), bold, null, font, FONT_SIZE_WUHAO);
     }
 
     /** 标签列(labelCol) + 值(从 valueCol 起合并到 cols-1) */
@@ -1121,6 +1222,31 @@ public class CourseTeachingPlanGenerator {
 
     private static String str(String s) {
         return s == null ? "" : s;
+    }
+
+    /**
+     * 学时/学分/权重等数值展示：整数不带小数；有小数则去掉尾随 0。
+     * 兼容 BigDecimal / Number / 数字字符串。
+     */
+    private static String formatHours(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof BigDecimal) {
+            return ((BigDecimal) value).stripTrailingZeros().toPlainString();
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue()).stripTrailingZeros().toPlainString();
+        }
+        String raw = StringUtils.trimToEmpty(String.valueOf(value));
+        if (raw.isEmpty()) {
+            return "";
+        }
+        try {
+            return new BigDecimal(raw).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException ignore) {
+            return raw;
+        }
     }
 
     private static String toStr(Object o) {

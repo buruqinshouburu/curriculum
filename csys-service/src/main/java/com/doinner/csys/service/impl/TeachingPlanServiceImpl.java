@@ -125,6 +125,25 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_PUBLICATION_METHOD = "sys_publication_method";
     /** 条件类型字典 type */
     private static final String DICT_CONDITION_TYPE = "sys_condition_type";
+    /**
+     * 教员职称字典 type 候选（线上可能命名不一，按顺序合并；命中即译）。
+     * 未配置时保留原值，避免空字典把编码冲掉。
+     */
+    private static final String[] DICT_PROFESSIONAL_TITLE_CANDIDATES = {
+            "sys_professional_title",
+            "sys_teacher_title",
+            "sys_plan_professional_title",
+            "sys_job_title",
+            "sys_user_title"
+    };
+    /** 教员职责字典 type 候选 */
+    private static final String[] DICT_TEACHER_DUTY_CANDIDATES = {
+            "sys_teacher_duty",
+            "sys_plan_teacher_duty",
+            "sys_plan_duty",
+            "sys_duty",
+            "sys_teacher_responsibility"
+    };
 
     @Resource
     private TeachingPlanMapper teachingPlanMapper;
@@ -390,17 +409,37 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     }
 
     /**
-     * 源课是否公共基础课程：t_csys_course.course_Module == DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE。
+     * 源课是否公共基础课程：t_csys_course.course_Module 命中公共基础模块 id（可多值分隔）。
      */
     private boolean isPublicFoundationCourseModule(Long sourceCourseId) {
         if (sourceCourseId == null) {
             return false;
         }
         CourseVo course = courseMapper.selectCourseById(sourceCourseId);
-        if (course == null || StringUtils.isBlank(course.getCourseModule())) {
+        if (course == null) {
             return false;
         }
-        return Objects.equals(course.getCourseModule(), DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+        return isPublicFoundationCourseModuleValue(course.getCourseModule());
+    }
+
+    /** 课程模块字段是否表示公共基础（等值、多值包含、或名称含「公共基础」）。 */
+    private boolean isPublicFoundationCourseModuleValue(String courseModule) {
+        if (StringUtils.isBlank(courseModule)) {
+            return false;
+        }
+        String raw = courseModule.trim();
+        String generalId = DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE;
+        if (Objects.equals(raw, generalId)) {
+            return true;
+        }
+        // 多值：id 用 、/, 分隔
+        for (String part : raw.split("[、,/，]")) {
+            if (StringUtils.isNotBlank(part) && Objects.equals(part.trim(), generalId)) {
+                return true;
+            }
+        }
+        // 已译中文名时的兜底
+        return raw.contains("公共基础");
     }
 
     /**
@@ -566,14 +605,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         m.setScoreRule(plan == null ? null : plan.getScoreRule());
 
         if (planId != null) {
-            m.setTeachers(listTeacher(planId));
+            List<TeachingPlanTeacher> teachers = listTeacher(planId);
+            // 职称/职责：字典 value 译为名称后再写入 Word
+            translateTeacherDictFields(teachers);
+            m.setTeachers(teachers);
             m.setSections(listSection(planId));
 
             // 按培养方案分组加载目标 + 支撑毕业要求（多方案多表）
-            // 公共基础：plan 级单组（scheme_id IS NULL），Word 只出一张表、无方案小标题
+            // 公共基础：plan 级单组（scheme_id IS NULL），Word 只出一张表、无方案小标题；
+            // 支撑毕业要求取该公共课目标上绑定的毕业要求，不按专业/培养方案拆表
             List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = new ArrayList<>();
             boolean publicFoundation = isPublicFoundationCourseModule(course.getId())
-                    || Objects.equals(course.getCourseModule(), DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+                    || isPublicFoundationCourseModuleValue(course.getCourseModule())
+                    || isPublicFoundationCourseModuleValue(detail == null ? null : detail.getCourseModule());
             if (publicFoundation) {
                 CourseTeachingPlanModel.SchemeObjectiveGroup g =
                         new CourseTeachingPlanModel.SchemeObjectiveGroup();
@@ -704,6 +748,49 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 ? null : "教法主要包括：" + methods + "。");
         m.setLearningMethodNote(StringUtils.isBlank(learnings)
                 ? null : "学法主要包括：" + learnings + "。");
+    }
+
+    /**
+     * 教员团队：职称/职责 字典编码译为 label（可多值顿号/逗号分隔）。
+     * 已是 label 或未命中字典时保留原文。
+     */
+    private void translateTeacherDictFields(List<TeachingPlanTeacher> teachers) {
+        if (ObjectUtils.isEmpty(teachers)) {
+            return;
+        }
+        Map<String, String> titleMap = dictValueToLabelMapCandidates(DICT_PROFESSIONAL_TITLE_CANDIDATES);
+        Map<String, String> dutyMap = dictValueToLabelMapCandidates(DICT_TEACHER_DUTY_CANDIDATES);
+        for (TeachingPlanTeacher t : teachers) {
+            if (t == null) {
+                continue;
+            }
+            t.setProfessionalTitle(translateDictJoined(t.getProfessionalTitle(), titleMap));
+            t.setDuty(translateDictJoined(t.getDuty(), dutyMap));
+        }
+    }
+
+    /** 多个字典 type 合并为 value->label；后出现的 type 不覆盖已有 value。 */
+    private Map<String, String> dictValueToLabelMapCandidates(String... dictTypes) {
+        if (dictTypes == null || dictTypes.length == 0) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> map = new LinkedHashMap<>();
+        for (String type : dictTypes) {
+            if (StringUtils.isBlank(type)) {
+                continue;
+            }
+            Map<String, String> one = dictValueToLabelMap(type);
+            if (MapUtils.isEmpty(one)) {
+                continue;
+            }
+            for (Map.Entry<String, String> e : one.entrySet()) {
+                if (e.getKey() == null || map.containsKey(e.getKey())) {
+                    continue;
+                }
+                map.put(e.getKey(), e.getValue());
+            }
+        }
+        return map;
     }
 
     /**
@@ -891,7 +978,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (val != null) {
             return val.stripTrailingZeros().toPlainString();
         }
-        return fallback == null ? "" : fallback.toString();
+        if (fallback == null) {
+            return "";
+        }
+        // Double 常见 32.0 -> 32
+        return BigDecimal.valueOf(fallback).stripTrailingZeros().toPlainString();
     }
 
     // ============ 教员团队 ============
