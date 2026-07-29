@@ -134,7 +134,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             "sys_teacher_title",
             "sys_plan_professional_title",
             "sys_job_title",
-            "sys_user_title"
+            "sys_user_title",
+            "sys_title",
+            "professional_title",
+            "teacher_title",
+            "sys_teacher_professional_title",
+            "sys_plan_title",
+            "csys_professional_title",
+            "user_professional_title"
     };
     /** 教员职责字典 type 候选 */
     private static final String[] DICT_TEACHER_DUTY_CANDIDATES = {
@@ -142,7 +149,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             "sys_plan_teacher_duty",
             "sys_plan_duty",
             "sys_duty",
-            "sys_teacher_responsibility"
+            "sys_teacher_responsibility",
+            "teacher_duty",
+            "plan_teacher_duty",
+            "sys_responsibility"
     };
 
     @Resource
@@ -833,6 +843,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             a.setAssessmentItem(translateDictJoined(a.getAssessmentItem(), itemMap));
             a.setMethod(translateDictJoined(a.getMethod(), methodMap));
             a.setMechanism(translateDictJoined(a.getMechanism(), mechanismMap));
+            // 成绩评定制也可能存字典 value，写入评定机制列前一并翻译
+            a.setScoreSystem(translateDictJoined(a.getScoreSystem(), mechanismMap));
             a.setStandard(translateDictJoined(a.getStandard(), standardMap));
         }
     }
@@ -873,7 +885,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
     }
 
-    /** 字典 type → value:label 映射（保持字典顺序） */
+    /** 字典 type → value:label 映射（保持字典顺序；同时登记 trim 后的 key） */
     private Map<String, String> dictValueToLabelMap(String dictType) {
         List<SysDictData> list = CurDictUtils.getDictData(dictType);
         if (ObjectUtils.isEmpty(list)) {
@@ -884,7 +896,15 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             if (d == null || StringUtils.isBlank(d.getDictValue())) {
                 continue;
             }
-            map.put(d.getDictValue(), StringUtils.defaultIfBlank(d.getDictLabel(), d.getDictValue()));
+            String value = d.getDictValue().trim();
+            String label = StringUtils.defaultIfBlank(d.getDictLabel(), value).trim();
+            map.putIfAbsent(value, label);
+            // 兼容前后空格 / 全角空格存库
+            map.putIfAbsent(d.getDictValue(), label);
+            if (StringUtils.isNotBlank(label)) {
+                // 已是中文名称时，翻译仍返回名称
+                map.putIfAbsent(label, label);
+            }
         }
         return map;
     }
@@ -903,7 +923,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     }
 
     /**
-     * 多值字典编码翻译：支持 、 与 , 分隔；命中 map 用 label，否则原样保留。
+     * 多值字典编码翻译：支持 、,，;；/| 分隔；命中 map 用 label，否则原样保留。
      */
     private String translateDictJoined(String raw, Map<String, String> valueToLabel) {
         if (StringUtils.isBlank(raw)) {
@@ -912,16 +932,30 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (MapUtils.isEmpty(valueToLabel)) {
             return raw;
         }
-        // 若整串已是某个 label，直接返回
-        if (valueToLabel.containsValue(raw.trim())) {
-            return raw.trim();
+        String trimmed = raw.trim();
+        // 若整串已是某个 label / 已登记 key，直接返回名称
+        if (valueToLabel.containsKey(trimmed)) {
+            return valueToLabel.get(trimmed);
         }
-        return Arrays.stream(raw.split("[、,]"))
+        if (valueToLabel.containsValue(trimmed)) {
+            return trimmed;
+        }
+        return Arrays.stream(raw.split("[、,，;；/|]"))
                 .map(String::trim)
+                .map(s -> s.replace("\u3000", "").trim())
                 .filter(StringUtils::isNotBlank)
                 .map(code -> {
                     String label = valueToLabel.get(code);
-                    return StringUtils.isNotBlank(label) ? label : code;
+                    if (StringUtils.isNotBlank(label)) {
+                        return label;
+                    }
+                    // 忽略大小写再试一次
+                    for (Map.Entry<String, String> e : valueToLabel.entrySet()) {
+                        if (e.getKey() != null && e.getKey().equalsIgnoreCase(code)) {
+                            return e.getValue();
+                        }
+                    }
+                    return code;
                 })
                 .collect(Collectors.joining("、"));
     }
