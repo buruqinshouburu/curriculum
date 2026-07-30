@@ -431,8 +431,8 @@
             plan.id                AS teaching_plan_id,
             course.name            AS course_name,
             course.code            AS course_code,
-            course.en_name         AS course_en_name,
-            plan.source_course_en_name AS source_course_en_name,
+
+            plan.source_course_en_name AS course_en_name,
             course.type            AS course_type,
             course.version         AS enabled_term,
             <include refid="quoteAggregateColumns"/>,
