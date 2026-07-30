@@ -33,6 +33,7 @@ import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
@@ -1203,6 +1204,52 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Transactional(rollbackFor = Exception.class)
     public void deleteCondition(Long id) {
         teachingPlanConditionMapper.deleteById(id);
+    }
+
+    /**
+     * 条件保障大保存（整表重建）。
+     * 先按 planId 逻辑删除该教学计划下全部旧条件，再按 conditions 批量写入；
+     * conditions 空/null = 清空。planId 以入参顶层为准覆盖每行，sort 缺省按序回填。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveConditions(TeachingPlanConditionSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        Long planId = saveVo.getPlanId();
+        // 过滤空行
+        List<TeachingPlanCondition> rows = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(saveVo.getConditions())) {
+            for (TeachingPlanCondition c : saveVo.getConditions()) {
+                if (c != null) {
+                    rows.add(c);
+                }
+            }
+        }
+        // 整表重建：先逻辑删除旧记录
+        teachingPlanConditionMapper.deleteByPlanId(planId);
+        if (rows.isEmpty()) {
+            return;
+        }
+        // planId 以顶层为准；补 sort/sysflag/审计字段
+        int index = 0;
+        for (TeachingPlanCondition c : rows) {
+            c.setId(null);
+            c.setPlanId(planId);
+            if (c.getSort() == null) {
+                c.setSort(++index);
+            } else {
+                index = c.getSort();
+            }
+            UserUtils.reflash(c);
+            c.setSysflag(0);
+        }
+        if (rows.size() == 1) {
+            teachingPlanConditionMapper.insert(rows.get(0));
+        } else {
+            teachingPlanConditionMapper.insertBatch(rows);
+        }
     }
 
     // ============ 18. 实施步骤 ============

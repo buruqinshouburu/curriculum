@@ -12,6 +12,7 @@ import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
@@ -167,6 +168,12 @@ public interface TeachingPlanModuleService {
     void updateCondition(TeachingPlanCondition condition);
 
     void deleteCondition(Long id);
+
+    /**
+     * 条件保障大保存（整表重建）：先按 planId 逻辑删除旧记录，再按 conditions 批量写入。
+     * conditions 为空/null = 清空该 plan 全部条件；每行 planId 以入参顶层为准覆盖。
+     */
+    void saveConditions(TeachingPlanConditionSaveVo saveVo);
 
     List<TeachingPlanProcessStep> listProcessStep(Long planId);
 
