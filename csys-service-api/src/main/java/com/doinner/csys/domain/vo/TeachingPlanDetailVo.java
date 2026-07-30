@@ -8,7 +8,7 @@ import java.math.BigDecimal;
  * 逻辑（实时取数，保证课程相关字段与总库一致）：
  * 1) 课程名称/编号/英文名/类型/学时/学分等课程字段一律取自 t_csys_course；
  *    教学计划表上的 source_* 快照字段已废弃，不再作为详情来源。
- * 2) 仅 teachingPlanId / scoreRule 来自 t_csys_teaching_plan（教学计划自身字段）；
+ * 2) teachingPlanId / scoreRule / sourceCourseEnName 来自 t_csys_teaching_plan（教学计划自身字段）；
  *    启用时间 enabledTerm 取自 t_csys_course.version（课程版本/启用年份）。
  * 3) 适用对象/适用专业/修读性质/课程模块：被引用课程 c2 + 被引用培养方案 ts 聚合（多值顿号分隔），
  *    无引用时回退总库课程自身字段。
@@ -33,6 +33,12 @@ public class TeachingPlanDetailVo {
 
     /** 课程英文名称（实时取自 t_csys_course.en_name） */
     private String courseEnName;
+
+    /**
+     * 教学计划表上的源课英文名快照（t_csys_teaching_plan.source_course_en_name）。
+     * 仅 teachingPlanId 存在时有值；无计划时为 null。
+     */
+    private String sourceCourseEnName;
 
     /** 课程类型(与教学计划类型同一取值)：1课程 2实践训练课目 3实验课程 4实践项目 */
     private String type;
@@ -121,6 +127,14 @@ public class TeachingPlanDetailVo {
 
     public void setCourseEnName(String courseEnName) {
         this.courseEnName = courseEnName;
+    }
+
+    public String getSourceCourseEnName() {
+        return sourceCourseEnName;
+    }
+
+    public void setSourceCourseEnName(String sourceCourseEnName) {
+        this.sourceCourseEnName = sourceCourseEnName;
     }
 
     public String getType() {
