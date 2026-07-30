@@ -1,0 +1,69 @@
+{
+  "info": {
+    "_postman_id": "20260730-093551-condition-batch-save",
+    "name": "TeachingPlan - 教学条件及资源大保存 (20260730)",
+    "description": "TeachingPlanController 新增接口文档（前端联调）。\n\n【本次变更摘要 20260730】\n新增 POST /teachingPlan/condition/save —— 教学条件及资源「大保存」。\n背景：原 POST /teachingPlan/condition 只能单条新增条件保障；现一次提交多条 condition 记录。\n\n基址: {{baseUrl}} + context-path /csys\n控制器: @RequestMapping(\"/teachingPlan\")\n统一返回 Message: { code, msg }\n\n【保存语义】整表重建：\n1. 先按 planId 逻辑删除该教学计划下全部旧条件 (sysflag=2)\n2. 再按 conditions 批量 insert（id 强制置空，视为新增）\n3. conditions 传空列表或 null = 清空该 plan 全部条件\n4. 每行 planId 以入参顶层 planId 为准覆盖（不信任逐行 planId）\n5. sort 缺省时按列表顺序自增回填；sysflag=0；审计字段由后端回填\n\n表: t_csys_teaching_plan_condition\n字段: id, planId, conditionType(教室/平台/实验室/场地/装备等), requirement, sort\n\n建议前端流程:\n  GET /teachingPlan/condition/list?planId={{planId}}  (首访按字典 sys_condition_type 自动初始化)\n  -> 表格编辑 conditionType / requirement / sort\n  -> POST /teachingPlan/condition/save  一次提交全部行\n原有 POST/PUT/DELETE /teachingPlan/condition 单条接口仍保留，可并用。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:9219", "description": "服务地址。bootstrap: port=9219, context-path=/csys" },
+    { "key": "planId", "value": "55", "description": "教学计划id t_csys_teaching_plan.id" }
+  ],
+  "item": [
+    {
+      "name": "8. 教学条件 condition",
+      "item": [
+        {
+          "name": "大保存 POST /condition/save (整表重建，一次多条)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"conditions\": [\n    {\n      \"conditionType\": \"多媒体教室\",\n      \"requirement\": \"可容纳60人，具备投影与网络\",\n      \"sort\": 1\n    },\n    {\n      \"conditionType\": \"实验平台\",\n      \"requirement\": \"提供虚拟仿真实验环境，支持并发50节点\",\n      \"sort\": 2\n    },\n    {\n      \"conditionType\": \"装备器材\",\n      \"requirement\": \"按分组配备实验套件\",\n      \"sort\": 3\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/condition/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "condition", "save"]
+            },
+            "description": "POST /teachingPlan/condition/save\n\n入参 TeachingPlanConditionSaveVo:\n  - planId      Long, 必填, 教学计划id（整表重建 owner）\n  - conditions  List<TeachingPlanCondition>, 可空\n      每行字段: conditionType(条件类型), requirement(有关要求), sort(排序,可空)\n      id 无需传（强制置空按新增处理）；planId 无需逐行传（以顶层为准）\n\n保存语义（整表重建）:\n  1) 按 planId 逻辑删除该教学计划下全部旧条件\n  2) 按 conditions 批量 insert\n  3) conditions 空/null = 清空全部条件\n\n返回 Message { code, msg }，code=200 即成功。\n事务保证：删除与插入同事务，失败整体回滚。"
+          },
+          "response": [
+            {
+              "name": "成功",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+              "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "清空全部 POST /condition/save (空列表)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{planId}},\n  \"conditions\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/condition/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["csys", "teachingPlan", "condition", "save"]
+            },
+            "description": "conditions 传空列表 = 清空该 plan 下全部条件（逻辑删除 sysflag=2）。"
+          }
+        }
+      ]
+    }
+  ]
+}

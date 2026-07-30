@@ -18,6 +18,7 @@ import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
+import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
@@ -556,6 +557,19 @@ public class TeachingPlanController {
     @DeleteMapping("/condition/{id}")
     public Message deleteCondition(@PathVariable("id") Long id) {
         teachingPlanModuleService.deleteCondition(id);
+        return Message.success();
+    }
+
+    /**
+     * 教学条件及资源大保存（整表重建，一次多条）。
+     * 先按 planId 逻辑删除该教学计划下全部旧条件，再按 conditions 批量写入；
+     * conditions 传空列表或 null = 清空全部。每行 planId 以入参顶层 planId 为准。
+     * 用于替代逐条 POST /condition 的新增，前端表格一次提交多条条件类型/有关要求。
+     */
+    @ApiOperation("条件保障大保存（整表重建，一次多条）")
+    @PostMapping("/condition/save")
+    public Message saveConditions(@RequestBody TeachingPlanConditionSaveVo saveVo) {
+        teachingPlanModuleService.saveConditions(saveVo);
         return Message.success();
     }
 
