@@ -448,4 +448,76 @@
         WHERE plan.id = #{teachingPlanId}
           AND plan.sysflag = 0
     </select>
+
+    <!--
+        支撑课程被引用侧聚合(原始值)：以 sc(t_csys_course) 为支撑课程别名。
+        - courseAttrRaw：c2.course_attr 去重顿号拼接，回退 sc.course_attr(与 quoteAggregateColumns 同模式)
+        - termRaw：t_csys_training_scheme_course_schedule.term(1-10) 经 c2->tcs->ts 去重升序拼接；
+          无被调用(tcs)时为 NULL，Service 层回退课程子表 semester_Schedule+spring_Autumn 拼接。
+    -->
+    <resultMap id="TeachingPlanSupportingAggResult" type="com.doinner.csys.domain.vo.TeachingPlanSupportingAggVo">
+        <result column="course_id" property="courseId" jdbcType="BIGINT"/>
+        <result column="course_attr_raw" property="courseAttrRaw" jdbcType="VARCHAR"/>
+        <result column="term_raw" property="termRaw" jdbcType="VARCHAR"/>
+    </resultMap>
+    <select id="selectSupportingAgg" resultMap="TeachingPlanSupportingAggResult">
+        SELECT
+            sc.id AS course_id,
+            COALESCE(
+              (SELECT GROUP_CONCAT(DISTINCT c2.course_attr SEPARATOR '、')
+                 FROM t_csys_course c2
+                WHERE c2.source_id = sc.id AND c2.sysflag = 0
+                  AND c2.course_attr IS NOT NULL AND c2.course_attr != ''),
+              sc.course_attr) AS course_attr_raw,
+            (SELECT GROUP_CONCAT(DISTINCT tcs.term ORDER BY tcs.term SEPARATOR '、')
+               FROM t_csys_course c2
+               INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+               INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
+              WHERE c2.source_id = sc.id AND c2.sysflag = 0
+                AND tcs.term IS NOT NULL) AS term_raw
+        FROM t_csys_course sc
+        WHERE sc.sysflag = 0
+          AND sc.id IN
+        <foreach collection="courseIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <!--
+        支撑课程被调用课 c2 的时间安排对 (time_Week, unit) 去重。
+        返回 CourseSchedule(courseId/timeWeek/unit)；某支撑课无 c2 时不返回该 courseId 行。
+    -->
+    <select id="selectSupportingTimePairs" resultType="com.doinner.csys.domain.CourseSchedule">
+        SELECT DISTINCT
+            sc.id AS courseId,
+            c2.time_Week AS timeWeek,
+            c2.unit AS unit
+        FROM t_csys_course sc
+        INNER JOIN t_csys_course c2 ON c2.source_id = sc.id AND c2.sysflag = 0
+        WHERE sc.sysflag = 0
+          AND (c2.time_Week IS NOT NULL OR c2.unit IS NOT NULL)
+          AND sc.id IN
+        <foreach collection="courseIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <!--
+        批量查课程子表 t_csys_course_ref_schedule 行，供学期安排无被调用时回退拼接。
+        返回 CourseSchedule(courseId/semesterSchedule/springAutumn/timeWeek/unit)。
+    -->
+    <select id="selectCourseRefScheduleBatch" resultType="com.doinner.csys.domain.CourseSchedule">
+        SELECT
+            course_id AS courseId,
+            semester_Schedule AS semesterSchedule,
+            spring_Autumn AS springAutumn,
+            time_Week AS timeWeek,
+            unit AS unit
+        FROM t_csys_course_ref_schedule
+        WHERE course_id IN
+        <foreach collection="courseIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY course_id, id
+    </select>
 </mapper>

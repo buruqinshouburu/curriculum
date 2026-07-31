@@ -1,6 +1,7 @@
 package com.doinner.csys.domain.vo;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 教学计划详情返回。
@@ -16,6 +17,13 @@ import java.math.BigDecimal;
  * 4) 开课学期 term：取培养方案关联的课程执行方案 t_csys_training_scheme_course_schedule.term
  *    （字典值 1-10，对应第一学年（秋）~第五学年（春）），跨全部引用培养方案去重后升序拼接；
  *    Service 层会翻译为中文标签；无排课记录时回退 course.open_term。
+ * 5) type=4 实践项目：
+ *    - timeArrangement 时间安排：course.time_Week + unit（字典 sys_course_unit 译中，形如「16周」），
+ *      优先被调用课程 c2 聚合，无则回退总库课程自身；学期安排(term)与修读性质(courseAttr)同主课程规则。
+ *    - supportingCourses 支撑课程或实践训练科目：源课 before_course_id（支撑课程）+ after_course_id（支撑训练课目）
+ *      解析为列表，每条带回 term/timeArrangement/courseAttr（取值同上，优先被调用课程 c2 多值拼接，无则回退自身）。
+ *    - 学期安排统一为「第N学年秋/春」无括号形式：培养方案排课 term(1-10) 转换；无被调用回退课程子表
+ *      t_csys_course_ref_schedule 的 semester_Schedule + spring_Autumn 拼接。
  */
 public class TeachingPlanDetailVo {
 
@@ -88,6 +96,19 @@ public class TeachingPlanDetailVo {
      * 前端可据此隐藏培养方案 tab、objective/tree 可不传 schemeId。
      */
     private Boolean publicFoundation;
+
+    /**
+     * 时间安排（type=4 实践项目基本信息表用）：course.time_Week + unit 译中，形如「16周」。
+     * 优先被调用课程 c2 聚合，无则回退总库课程自身。
+     */
+    private String timeArrangement;
+
+    /**
+     * 支撑课程或实践训练科目（type=4 实践项目）。
+     * 源课 before_course_id（支撑课程，refType=1）+ after_course_id（支撑训练课目，refType=2）解析为列表；
+     * 每条带回 学期安排/时间安排/修读性质。非 type=4 为 null。
+     */
+    private List<TeachingPlanSupportingCourseVo> supportingCourses;
 
     public Long getCourseId() {
         return courseId;
@@ -247,5 +268,21 @@ public class TeachingPlanDetailVo {
 
     public void setPublicFoundation(Boolean publicFoundation) {
         this.publicFoundation = publicFoundation;
+    }
+
+    public String getTimeArrangement() {
+        return timeArrangement;
+    }
+
+    public void setTimeArrangement(String timeArrangement) {
+        this.timeArrangement = timeArrangement;
+    }
+
+    public List<TeachingPlanSupportingCourseVo> getSupportingCourses() {
+        return supportingCourses;
+    }
+
+    public void setSupportingCourses(List<TeachingPlanSupportingCourseVo> supportingCourses) {
+        this.supportingCourses = supportingCourses;
     }
 }

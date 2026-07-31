@@ -61,6 +61,8 @@ public class CourseTeachingPlanModel {
     private String courseAttr;
     /** 计分规则（来自教学计划 score_rule） */
     private String scoreRule;
+    /** 时间安排（type=4 实践项目基本信息表用，time_Week + unit 译中，形如「16周」） */
+    private String timeArrangement;
     /** 支撑课程或实践训练课目（实践项目模板基本信息表用，文本） */
     private String supportingCourses;
 
@@ -228,6 +230,14 @@ public class CourseTeachingPlanModel {
 
     public void setScoreRule(String scoreRule) {
         this.scoreRule = scoreRule;
+    }
+
+    public String getTimeArrangement() {
+        return timeArrangement;
+    }
+
+    public void setTimeArrangement(String timeArrangement) {
+        this.timeArrangement = timeArrangement;
     }
 
     public String getSupportingCourses() {

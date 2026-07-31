@@ -370,7 +370,7 @@ public class CourseTeachingPlanGenerator {
         // R4 值
         setCell(t, 4, 0, m.getEducationLevel(), false);
         setCell(t, 4, 1, m.getMajorName(), false);
-        setCell(t, 4, 2, m.getHours(), false);
+        setCell(t, 4, 2, m.getTimeArrangement(), false);
         setCell(t, 4, 3, m.getTerm(), false);
         setCell(t, 4, 4, m.getCourseAttr(), false);
         // R5 备注
@@ -393,7 +393,7 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 3, 4, "修读性质", true);
         setCell(t, 4, 0, m.getEducationLevel(), false);
         setCell(t, 4, 1, m.getMajorName(), false);
-        setCell(t, 4, 2, m.getHours(), false);
+        setCell(t, 4, 2, m.getTimeArrangement(), false);
         setCell(t, 4, 3, m.getTerm(), false);
         setCell(t, 4, 4, m.getCourseAttr(), false);
         // R5 支撑课程或实践训练课目

@@ -18,6 +18,7 @@ import com.doinner.csys.dao.TeachingPlanTextbookMapper;
 import com.doinner.csys.dao.StandardMajorMapper;
 import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
 import com.doinner.csys.domain.Course;
+import com.doinner.csys.domain.CourseSchedule;
 import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.StandardMajor;
 import com.doinner.csys.domain.TeachingPlan;
@@ -32,6 +33,7 @@ import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.vo.CourseIdAndName;
 import com.doinner.csys.domain.vo.CourseVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanImportIssueVo;
@@ -42,6 +44,8 @@ import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportingAggVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportingCourseVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
 import com.doinner.csys.entity.csys.TeachingPlanWordImporter;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
@@ -84,6 +88,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -129,6 +134,12 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_OPEN_SEMESTER = "cur_open_semester";
     /** 修读性质/课程属性字典 type */
     private static final String DICT_COURSE_ATTRIBUTE = "cur_course_attribute";
+    /** 学年安排字典 type（第一学年…第五学年/贯穿四年/多学期安排） */
+    private static final String DICT_SEMESTER_ARRANGE = "cur_semester_arrange";
+    /** 学期安排季节字典 type（秋/春） */
+    private static final String DICT_SEMESTER_ARRANGE_SEASON = "cur_semester_arrange_season";
+    /** 时间安排单位字典 type（sys_course_unit：1=周 2=学时） */
+    private static final String DICT_SYS_COURSE_UNIT = "sys_course_unit";
     /**
      * 教员职称字典 type 候选（线上可能命名不一，按顺序合并；命中即译）。
      * 未配置时保留原值，避免空字典把编码冲掉。
@@ -233,16 +244,17 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private String teachingPlanCategoryId;
 
     /**
-     * 开课学期字典 1-10：第一学年（秋）~第五学年（春）。
+     * 开课学期字典 1-10：第一学年秋~第五学年春（统一无括号形式「第N学年秋/春」）。
      * 与 t_csys_training_scheme_course_schedule.term 字典值对齐；下标 0 占位。
+     * term 奇数=秋、偶数=春：1第一学年秋,2第一学年春,3第二学年秋,…,10第五学年春。
      */
     private static final String[] SCHEDULE_TERM_LABELS = {
             "",
-            "第一学年（秋）", "第一学年（春）",
-            "第二学年（秋）", "第二学年（春）",
-            "第三学年（秋）", "第三学年（春）",
-            "第四学年（秋）", "第四学年（春）",
-            "第五学年（秋）", "第五学年（春）"
+            "第一学年秋", "第一学年春",
+            "第二学年秋", "第二学年春",
+            "第三学年秋", "第三学年春",
+            "第四学年秋", "第四学年春",
+            "第五学年秋", "第五学年春"
     };
 
     @Override
@@ -422,8 +434,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             // 公共基础标记：按源课 course_Module 原 id 判定（detail.courseModule 已是名称）
             detail.setPublicFoundation(isPublicFoundationCourseModule(
                     courseId != null ? courseId : detail.getCourseId()));
+            // type=4 实践项目：补时间安排 + 支撑课程或实践训练科目列表
+            if (isPracticeProjectType(detail.getType())) {
+                Long mainCourseId = courseId != null ? courseId : detail.getCourseId();
+                detail.setTimeArrangement(resolveMainTimeArrangement(mainCourseId));
+                detail.setSupportingCourses(buildSupportingCourses(mainCourseId));
+            }
         }
         return detail;
+    }
+
+    /** 课程类型是否为实践项目(type=4) */
+    private boolean isPracticeProjectType(String type) {
+        return "4".equals(StringUtils.trimToEmpty(type));
     }
 
     /**
@@ -461,40 +484,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     }
 
     /**
-     * 开课学期翻译：优先 cur_open_semester 字典 label，未命中再走 1-10 学期硬编码。
+     * 开课学期翻译：统一为「第N学年秋/春」无括号形式。
+     * 数字片段(1-10)走 {@link #SCHEDULE_TERM_LABELS}；非数字(open_term 文本回退)原样保留。
+     * 不再让 cur_open_semester 字典覆盖数字值，保证教学计划学期安排格式统一。
      */
     private String translateOpenSemester(String raw) {
         if (StringUtils.isBlank(raw)) {
             return raw;
-        }
-        Map<String, String> semesterMap = dictValueToLabelMap(DICT_OPEN_SEMESTER);
-        if (MapUtils.isNotEmpty(semesterMap)) {
-            // 片段级：先字典，再硬编码回退
-            return Arrays.stream(raw.split("[、,，;；/|]"))
-                    .map(String::trim)
-                    .filter(StringUtils::isNotBlank)
-                    .map(code -> {
-                        String label = semesterMap.get(code);
-                        if (StringUtils.isBlank(label)) {
-                            for (Map.Entry<String, String> e : semesterMap.entrySet()) {
-                                if (e.getKey() != null && e.getKey().equalsIgnoreCase(code)) {
-                                    label = e.getValue();
-                                    break;
-                                }
-                            }
-                        }
-                        if (StringUtils.isNotBlank(label) && !StringUtils.equals(label, code)) {
-                            return label;
-                        }
-                        // 已是 label
-                        if (semesterMap.containsValue(code)) {
-                            return code;
-                        }
-                        return translateOneScheduleTerm(code);
-                    })
-                    .filter(StringUtils::isNotBlank)
-                    .distinct()
-                    .collect(Collectors.joining("、"));
         }
         return translateScheduleTerms(raw);
     }
@@ -527,6 +523,289 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             // 非数字：可能是 open_term 回退的中文文本，原样返回
         }
         return code;
+    }
+
+    // ============================ type=4 实践项目：支撑课程/时间安排 ============================
+
+    /**
+     * 主课程(实践项目)时间安排：优先被调用课程 c2 的 (time_Week, unit) 对去重拼接；无被调用回退总库课程自身。
+     * unit 字典 sys_course_unit 译中，形如「16周」。
+     */
+    private String resolveMainTimeArrangement(Long courseId) {
+        if (courseId == null) {
+            return null;
+        }
+        Map<String, String> unitMap = dictValueToLabelMap(DICT_SYS_COURSE_UNIT);
+        List<CourseSchedule> pairs = teachingPlanMapper.selectSupportingTimePairs(Collections.singletonList(courseId));
+        if (CollectionUtils.isNotEmpty(pairs)) {
+            String joined = pairs.stream()
+                    .map(p -> formatTimeWeekUnit(p.getTimeWeek(), p.getUnit(), unitMap))
+                    .filter(StringUtils::isNotBlank)
+                    .distinct()
+                    .collect(Collectors.joining("、"));
+            if (StringUtils.isNotBlank(joined)) {
+                return joined;
+            }
+        }
+        CourseVo self = courseMapper.selectCourseById(courseId);
+        return self == null ? null : formatTimeWeekUnit(self.getTimeWeek(), self.getUnit(), unitMap);
+    }
+
+    /**
+     * 组装支撑课程或实践训练科目列表(type=4)。
+     * 源课 before_course_id(支撑课程,refType=1) + after_course_id(支撑训练课目,refType=2) 解析为列表；
+     * 每条带回 学期安排/时间安排/修读性质，优先被调用课程 c2 多值拼接，无则回退自身。
+     */
+    private List<TeachingPlanSupportingCourseVo> buildSupportingCourses(Long sourceCourseId) {
+        if (sourceCourseId == null) {
+            return Collections.emptyList();
+        }
+        CourseVo source = courseMapper.selectCourseById(sourceCourseId);
+        if (source == null) {
+            return Collections.emptyList();
+        }
+        List<Long> beforeIds = parseCourseIdCsv(source.getBeforeCourseId());
+        List<Long> afterIds = parseCourseIdCsv(source.getAfterCourseId());
+        if (beforeIds.isEmpty() && afterIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        // 去重 id 集合(保序)，供批量查询
+        List<Long> allIds = new ArrayList<>(new LinkedHashSet<>(beforeIds));
+        allIds.addAll(afterIds);
+        List<Long> distinctIds = new ArrayList<>(new LinkedHashSet<>(allIds));
+
+        Map<Long, String> nameMap = new HashMap<>();
+        List<CourseIdAndName> idAndNames = courseMapper.selectCoursesIdAndNameByIds(distinctIds);
+        if (CollectionUtils.isNotEmpty(idAndNames)) {
+            for (CourseIdAndName cn : idAndNames) {
+                if (cn != null && cn.getId() != null) {
+                    nameMap.putIfAbsent(cn.getId(), cn.getName());
+                }
+            }
+        }
+        Map<Long, TeachingPlanSupportingAggVo> aggMap = toMapByCourseId(
+                teachingPlanMapper.selectSupportingAgg(distinctIds));
+        Map<Long, List<CourseSchedule>> timePairsMap = groupByCourseId(
+                teachingPlanMapper.selectSupportingTimePairs(distinctIds));
+        Map<Long, List<CourseSchedule>> refSchedMap = groupByCourseId(
+                teachingPlanMapper.selectCourseRefScheduleBatch(distinctIds));
+        Map<Long, Course> selfMap = new HashMap<>();
+        List<Course> selfCourses = courseMapper.selectCoursesByIds(distinctIds);
+        if (CollectionUtils.isNotEmpty(selfCourses)) {
+            for (Course c : selfCourses) {
+                if (c != null && c.getId() != null) {
+                    selfMap.putIfAbsent(c.getId(), c);
+                }
+            }
+        }
+
+        Map<String, String> attrMap = dictValueToLabelMap(DICT_COURSE_ATTRIBUTE);
+        Map<String, String> unitMap = dictValueToLabelMap(DICT_SYS_COURSE_UNIT);
+        Map<String, String> semMap = dictValueToLabelMap(DICT_SEMESTER_ARRANGE);
+        Map<String, String> seasonMap = dictValueToLabelMap(DICT_SEMESTER_ARRANGE_SEASON);
+
+        List<TeachingPlanSupportingCourseVo> result = new ArrayList<>();
+        for (Long id : beforeIds) {
+            result.add(buildSupportingVo(id, 1, nameMap, aggMap, timePairsMap, refSchedMap, selfMap,
+                    attrMap, unitMap, semMap, seasonMap));
+        }
+        for (Long id : afterIds) {
+            result.add(buildSupportingVo(id, 2, nameMap, aggMap, timePairsMap, refSchedMap, selfMap,
+                    attrMap, unitMap, semMap, seasonMap));
+        }
+        return result;
+    }
+
+    private TeachingPlanSupportingCourseVo buildSupportingVo(Long id, int refType,
+                                                              Map<Long, String> nameMap,
+                                                              Map<Long, TeachingPlanSupportingAggVo> aggMap,
+                                                              Map<Long, List<CourseSchedule>> timePairsMap,
+                                                              Map<Long, List<CourseSchedule>> refSchedMap,
+                                                              Map<Long, Course> selfMap,
+                                                              Map<String, String> attrMap,
+                                                              Map<String, String> unitMap,
+                                                              Map<String, String> semMap,
+                                                              Map<String, String> seasonMap) {
+        TeachingPlanSupportingCourseVo vo = new TeachingPlanSupportingCourseVo();
+        vo.setCourseId(id);
+        vo.setRefType(refType);
+        vo.setCourseName(nameMap.get(id));
+
+        TeachingPlanSupportingAggVo agg = aggMap.get(id);
+        // 修读性质：c2 聚合回退自身(SQL 已 COALESCE，这里再兜底 self)
+        String attrRaw = agg == null ? null : agg.getCourseAttrRaw();
+        if (StringUtils.isBlank(attrRaw)) {
+            Course self = selfMap.get(id);
+            if (self != null) {
+                attrRaw = self.getCourseAttr();
+            }
+        }
+        vo.setCourseAttr(translateDictJoined(attrRaw, attrMap));
+
+        // 学期安排：优先 tcs.term(1-10) 译「第N学年秋/春」；无被调用回退子表 semester_Schedule+spring_Autumn
+        String termRaw = agg == null ? null : agg.getTermRaw();
+        String term;
+        if (StringUtils.isNotBlank(termRaw)) {
+            term = translateScheduleTerms(termRaw);
+        } else {
+            term = buildTermFromRefSchedule(refSchedMap.get(id), semMap, seasonMap);
+        }
+        vo.setTerm(term);
+
+        // 时间安排：c2 (time_Week,unit) 对去重拼接；无被调用回退自身
+        vo.setTimeArrangement(buildTimeArrangement(id, timePairsMap, selfMap.get(id), unitMap));
+        return vo;
+    }
+
+    /** 学期安排回退：课程子表 semester_Schedule(学年) + spring_Autumn(季节) 拼成「第N学年秋/春」，多行去重顿号。 */
+    private String buildTermFromRefSchedule(List<CourseSchedule> rows, Map<String, String> semMap,
+                                            Map<String, String> seasonMap) {
+        if (CollectionUtils.isEmpty(rows)) {
+            return null;
+        }
+        return rows.stream()
+                .map(r -> formatSemesterSeason(
+                        r == null ? null : r.getSemesterSchedule(),
+                        r == null ? null : r.getSpringAutumn(), semMap, seasonMap))
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.joining("、"));
+    }
+
+    /** 学年+季节 -> 「第一学年春」；学年为非第X学年值(贯穿四年/多学期安排)时原样返回学年。 */
+    private String formatSemesterSeason(String semesterCode, String seasonCode,
+                                        Map<String, String> semMap, Map<String, String> seasonMap) {
+        String year = dictLabel(semMap, semesterCode);
+        String season = dictLabel(seasonMap, seasonCode);
+        if (StringUtils.isBlank(year)) {
+            return season;
+        }
+        if (StringUtils.isBlank(season)) {
+            return year;
+        }
+        return year + season;
+    }
+
+    /** 时间安排：c2 对去重拼接；无 c2 回退自身 time_Week+unit。 */
+    private String buildTimeArrangement(Long courseId, Map<Long, List<CourseSchedule>> timePairsMap,
+                                        Course self, Map<String, String> unitMap) {
+        List<CourseSchedule> pairs = timePairsMap == null ? null : timePairsMap.get(courseId);
+        if (CollectionUtils.isNotEmpty(pairs)) {
+            String joined = pairs.stream()
+                    .map(p -> formatTimeWeekUnit(p.getTimeWeek(), p.getUnit(), unitMap))
+                    .filter(StringUtils::isNotBlank)
+                    .distinct()
+                    .collect(Collectors.joining("、"));
+            if (StringUtils.isNotBlank(joined)) {
+                return joined;
+            }
+        }
+        if (self == null) {
+            return null;
+        }
+        return formatTimeWeekUnit(self.getTimeWeek(), self.getUnit(), unitMap);
+    }
+
+    /** time_Week + unit(字典译中) -> 「16周」。time_Week 去尾零；unit 未命中字典保留原值。 */
+    private String formatTimeWeekUnit(Double timeWeek, String unitCode, Map<String, String> unitMap) {
+        String tw = "";
+        if (timeWeek != null) {
+            try {
+                tw = BigDecimal.valueOf(timeWeek).stripTrailingZeros().toPlainString();
+            } catch (NumberFormatException ignore) {
+                tw = String.valueOf(timeWeek);
+            }
+        }
+        return tw + dictLabel(unitMap, unitCode);
+    }
+
+    /** 字典 value->label 查询，未命中返回原值(null 安全)。 */
+    private String dictLabel(Map<String, String> valueToLabel, String code) {
+        if (StringUtils.isBlank(code) || MapUtils.isEmpty(valueToLabel)) {
+            return StringUtils.defaultString(code);
+        }
+        String label = valueToLabel.get(code);
+        if (StringUtils.isNotBlank(label)) {
+            return label;
+        }
+        return code;
+    }
+
+    /** 逗号分隔课程id串 -> Long 列表(过滤空白)。 */
+    private List<Long> parseCourseIdCsv(String csv) {
+        if (StringUtils.isBlank(csv)) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(csv.split("[,，、;；]"))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(s -> {
+                    try {
+                        return Long.valueOf(s);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private Map<Long, TeachingPlanSupportingAggVo> toMapByCourseId(List<TeachingPlanSupportingAggVo> list) {
+        Map<Long, TeachingPlanSupportingAggVo> map = new HashMap<>();
+        if (CollectionUtils.isEmpty(list)) {
+            return map;
+        }
+        for (TeachingPlanSupportingAggVo v : list) {
+            if (v != null && v.getCourseId() != null) {
+                map.putIfAbsent(v.getCourseId(), v);
+            }
+        }
+        return map;
+    }
+
+    private Map<Long, List<CourseSchedule>> groupByCourseId(List<CourseSchedule> list) {
+        Map<Long, List<CourseSchedule>> map = new LinkedHashMap<>();
+        if (CollectionUtils.isEmpty(list)) {
+            return map;
+        }
+        for (CourseSchedule s : list) {
+            if (s == null || s.getCourseId() == null) {
+                continue;
+            }
+            map.computeIfAbsent(s.getCourseId(), k -> new ArrayList<>()).add(s);
+        }
+        return map;
+    }
+
+    /**
+     * 将支撑课程列表扁平化为 Word 单元格文本：
+     * 「支撑课程：A、B；支撑训练课目：C」(无则对应部分省略；全空返回空串)。
+     */
+    private String flattenSupportingCourses(List<TeachingPlanSupportingCourseVo> list) {
+        if (CollectionUtils.isEmpty(list)) {
+            return "";
+        }
+        String supporting = list.stream()
+                .filter(v -> v != null && v.getRefType() != null && v.getRefType() == 1)
+                .map(TeachingPlanSupportingCourseVo::getCourseName)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
+        String training = list.stream()
+                .filter(v -> v != null && v.getRefType() != null && v.getRefType() == 2)
+                .map(TeachingPlanSupportingCourseVo::getCourseName)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
+        StringBuilder sb = new StringBuilder();
+        if (StringUtils.isNotBlank(supporting)) {
+            sb.append("支撑课程：").append(supporting);
+        }
+        if (StringUtils.isNotBlank(training)) {
+            if (sb.length() > 0) {
+                sb.append("；");
+            }
+            sb.append("支撑训练课目：").append(training);
+        }
+        return sb.toString();
     }
 
     @Override
@@ -599,6 +878,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         TeachingPlanDetailVo detail = (planId != null)
                 ? teachingPlanMapper.selectDetailByPlanId(planId)
                 : teachingPlanMapper.selectDetailByCourseId(courseId);
+        // type=4 实践项目：补时间安排 + 支撑课程列表（buildModel 读取写入 Word 基本信息表）
+        if (detail != null && isPracticeProjectType(detail.getType())) {
+            detail.setTimeArrangement(resolveMainTimeArrangement(courseId));
+            detail.setSupportingCourses(buildSupportingCourses(courseId));
+        }
 
         CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, schemes);
 
@@ -653,7 +937,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         String rawEducationLevel = nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel());
         m.setEducationLevel(translateDictJoined(rawEducationLevel, dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
         m.setMajorName(nz(detail == null ? null : detail.getMajorName(), course.getMajorName()));
-        // 开课学期：detail 已译；回退 course.openTerm 时再译 cur_open_semester
+        // 开课学期：detail 已译；回退 course.openTerm 时再译为「第N学年秋/春」
         String rawTerm = nz(detail == null ? null : detail.getTerm(), course.getOpenTerm());
         m.setTerm(translateOpenSemester(rawTerm));
         // 课程模块：detail 已译 name；若仍是 id 串则再译（多值、/, 分隔），未命中保留原值
@@ -664,6 +948,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         String rawCourseAttr = nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr());
         m.setCourseAttr(translateDictJoined(rawCourseAttr, dictValueToLabelMap(DICT_COURSE_ATTRIBUTE)));
         m.setScoreRule(plan == null ? null : plan.getScoreRule());
+        // 时间安排(type=4 基本信息表用)：detail 已取则用，否则回退 course.timeWeek+unit 译字典
+        String timeArrangement = detail == null ? null : detail.getTimeArrangement();
+        if (StringUtils.isBlank(timeArrangement)) {
+            timeArrangement = formatTimeWeekUnit(course.getTimeWeek(), course.getUnit(),
+                    dictValueToLabelMap(DICT_SYS_COURSE_UNIT));
+        }
+        m.setTimeArrangement(timeArrangement);
+        // 支撑课程或实践训练课目(type=4 基本信息表 R5)：扁平化为文本
+        m.setSupportingCourses(flattenSupportingCourses(
+                detail == null ? null : detail.getSupportingCourses()));
 
         if (planId != null) {
             List<TeachingPlanTeacher> teachers = listTeacher(planId);

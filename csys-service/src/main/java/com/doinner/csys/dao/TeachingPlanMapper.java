@@ -5,6 +5,8 @@ import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportingAggVo;
+import com.doinner.csys.domain.CourseSchedule;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -111,4 +113,31 @@ public interface TeachingPlanMapper {
      * @return 详情
      */
     TeachingPlanDetailVo selectDetailByPlanId(@Param("teachingPlanId") Long teachingPlanId);
+
+    /**
+     * 支撑课程被引用侧聚合（原始值）：每条支撑课程取修读性质(c2.course_attr 聚合回退自身)、
+     * 学期安排(t_csys_training_scheme_course_schedule.term via c2->tcs 聚合，无被调用为 null)。
+     *
+     * @param courseIds 支撑课程id集合
+     * @return 按 courseId 聚合结果
+     */
+    List<TeachingPlanSupportingAggVo> selectSupportingAgg(@Param("courseIds") List<Long> courseIds);
+
+    /**
+     * 支撑课程被调用课 c2 的时间安排对 (time_Week, unit) 去重列表。
+     * Service 层按 courseId 分组；某课程无 c2 时返回无该 courseId 行，由调用方回退课程自身字段。
+     *
+     * @param courseIds 支撑课程id集合
+     * @return (courseId, timeWeek, unit) 去重行
+     */
+    List<CourseSchedule> selectSupportingTimePairs(@Param("courseIds") List<Long> courseIds);
+
+    /**
+     * 批量查询课程子表 t_csys_course_ref_schedule 行(semester_Schedule + spring_Autumn)，
+     * 供支撑课程「无被调用」时学期安排回退拼接。
+     *
+     * @param courseIds 课程id集合
+     * @return 排课子表行
+     */
+    List<CourseSchedule> selectCourseRefScheduleBatch(@Param("courseIds") List<Long> courseIds);
 }
