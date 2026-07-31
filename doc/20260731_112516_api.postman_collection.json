@@ -154,7 +154,7 @@
             }
           ]
         },
-        "description": "课程教学计划文件生成(保持 GET)。\n\n本批次 Word 变更(type=4 基本信息表):\n- R4「时间安排」单元格由原误填总学时(hours)改为 time_Week+unit 译中(如「4周」)。\n- R5「支撑课程或实践训练课目」行由原恒空改为支撑课程/训练课目名称文本,形如「支撑课程:军事基本技能、作战指挥基础;支撑训练课目:野战生存训练」。\n- type2 实践训练课目基本信息表 R4「时间安排」同样修复(原误填总学时)。\n- 学期安排列(term)统一「第N学年秋/春」无括号格式。\n\n响应:DataSet<FileInfo>,生成并回写文件信息。"
+        "description": "课程教学计划文件生成(保持 GET)。\n\n本批次 Word 变更(type=4 基本信息表):\n- R4「时间安排」单元格由原误填总学时(hours)改为 time_Week+unit 译中(如「4周」)。\n- R5「支撑课程或实践训练课目」行由原恒空改为支撑课程/训练课目名称文本,形如「支撑课程:军事基本技能、作战指挥基础;支撑训练课目:野战生存训练」。\n- type2 实践训练课目基本信息表 R4「时间安排」同样修复(原误填总学时)。\n- 学期安排列(term)统一「第N学年秋/春」无括号格式。\n\n本批次 Word 变更(type=4 二、任务背景与目标表):\n- R2「支撑的课程目标」原写死占位文本,改为从 t_csys_teaching_plan_section 按 sectionTitle 取值(用户经 /teachingPlan/section 手动录入)。\n- R3「涉及的知识体系」原误取毕业要求(joinGraduations),改为从 sections 按 sectionTitle 取值。未录留空。\n\n响应:DataSet<FileInfo>,生成并回写文件信息。"
       },
       "response": [
         {

@@ -832,8 +832,10 @@ public class TeachingPlanWordImporter {
             if (StringUtils.isBlank(label)) {
                 continue;
             }
-            if (label.contains("支撑的课程目标") || label.contains("配套支撑课程")
-                    || label.contains("涉及的知识体系") || label.contains("团队规模")) {
+            // 「支撑的课程目标」「涉及的知识体系」由用户经 /teachingPlan/section 手动录入 section，
+            // 重新导入时一并解析回 sections（与生成器 projectBackgroundTable 取数一致）。
+            // 「配套支撑课程」「团队规模」为只读展示行，不导入。
+            if (label.contains("配套支撑课程") || label.contains("团队规模")) {
                 continue;
             }
             if (StringUtils.isBlank(value)) {

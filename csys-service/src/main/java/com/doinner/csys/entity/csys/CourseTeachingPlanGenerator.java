@@ -1182,10 +1182,12 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 0, 1, sec.getOrDefault("拟解决的复杂问题", sec.getOrDefault("complex_problem", "")), false);
         setCell(t, 1, 0, "主要任务", true);
         setCell(t, 1, 1, sec.getOrDefault("主要任务", sec.getOrDefault("main_task", "")), false);
+        // 支撑的课程目标 / 涉及的知识体系：用户经 /teachingPlan/section 手动录入 t_csys_teaching_plan_section，
+        // sectionTitle 即模板标签；按标题取值，未录则留空（不再写死占位文本）。
         setCell(t, 2, 0, "支撑的课程目标", true);
-        setCell(t, 2, 1, "从支撑课程或实践训练课目设定的课程目标中选择", false);
+        setCell(t, 2, 1, sec.getOrDefault("支撑的课程目标", sec.getOrDefault("support_course_target", "")), false);
         setCell(t, 3, 0, "涉及的知识体系", true);
-        setCell(t, 3, 1, joinGraduations(m.getCourseGraduations()), false);
+        setCell(t, 3, 1, sec.getOrDefault("涉及的知识体系", sec.getOrDefault("knowledge_system", "")), false);
     }
 
     /** 实践项目组织与实施表（type4 三）：团队组织与管理 | 团队规模 + 项目步骤 | 项目步骤 | 有关要求 */
