@@ -2326,6 +2326,24 @@
         and (c.semester_Schedule in ('6', '7') or s.semester_Schedule in ('6', '7'))
     </select>
 
+    <!-- 缺课程编号的源库课程(source_id 为空,code 为空)，刷新编号用。left join sys_dept 取 collegeName -->
+    <select id="selectCoursesWithoutCode" resultMap="CourseResult">
+        select c.id, c.type, c.version, c.college_id, c.education_level,
+               c.name, c.code, c.source_id,
+               dept.dept_name as collegeName
+        from t_csys_course c
+        left join sys_dept dept on dept.dept_id = c.college_id
+        where c.sysflag = 0
+          and c.source_id is null
+          and (c.code is null or c.code = '')
+        order by c.id asc
+    </select>
+
+    <!-- 仅回写课程编号(刷新用) -->
+    <update id="updateCourseCode">
+        update t_csys_course set code = #{code} where id = #{id}
+    </update>
+
     <delete id="removeCourseByIds">
         delete from t_csys_course where id in
         <foreach item="id" collection="ids" open="(" separator="," close=")">

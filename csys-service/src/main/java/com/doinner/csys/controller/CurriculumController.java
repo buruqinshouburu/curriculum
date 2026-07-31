@@ -119,6 +119,17 @@ public class CurriculumController {
         return DataSet.success(courseService.updateCourse(course));
     }
 
+    /**
+     * 统一刷新缺课程编号(code 为空)的源库课程编号。
+     * 规则同新增(版本-培训层次-开课单位-流水号)；version/collegeName/educationLevel 任一为空则跳过该条。
+     * 用于补 type=2/4 等历史缺编号老数据。
+     */
+    @ApiOperation("刷新缺课程编号的源库课程(按规则补编号,字段空跳过)")
+    @PostMapping("/course/refreshCode")
+    public DataSet<Map<String, Object>> refreshCourseCode() {
+        return DataSet.success(courseService.refreshCourseCode());
+    }
+
     @PostMapping(value = "/course/target/configuration")
     public DataSet courseTargetConfiguration(@RequestBody CourseTarget courseTarget) {
         return DataSet.success(courseService.courseTargetConfiguration(courseTarget));

@@ -516,6 +516,30 @@ public class CurriculumServiceImpl implements CurriculumService {
         }
     }
 
+    /**
+     * 生成课程编号；所需字段(version/collegeName/educationLevel)任一为空则返回 null（跳过）。
+     * collegeName 为空时尝试用 collegeId 解析开课单位名称补齐（与 getCourseCode 旧版一致）。
+     * 用于新增/修改(type=2/4 统一)与缺编号数据刷新。
+     */
+    private String generateCourseCodeIfReady(CourseVo course) {
+        if (course == null) {
+            return null;
+        }
+        if (StringUtils.isBlank(course.getCollegeName()) && course.getCollegeId() != null) {
+            SysDept sysDept = doinnerDeptService.getInfo(course.getCollegeId()).getData();
+            if (sysDept != null) {
+                course.setCollegeName(sysDept.getDeptName());
+            }
+        }
+        // 所需字段任一为空则跳过（避免生成无意义编号）
+        if (StringUtils.isBlank(course.getVersion())
+                || StringUtils.isBlank(course.getCollegeName())
+                || StringUtils.isBlank(course.getEducationLevel())) {
+            return null;
+        }
+        return getCourseCode_new(course);
+    }
+
     private boolean checkCourseRepetition(CourseVo course) {
         if (course.getTemplateType() == 2 || ObjectUtils.isNotEmpty(course.getSourceId())) {
             //调用的课程不进行名称查重
@@ -556,9 +580,14 @@ public class CurriculumServiceImpl implements CurriculumService {
             courseScheduleMapper.delete(course.getId());
             insertCourseSchedule(course.getId(),course.getCourseScheduleList());
         } else {
-            // 实践项目课程不用生成课程编号
-            if (StringUtils.isNotBlank(course.getType()) && !"4".equals(course.getType())) {
-                course.setCode(getCourseCode_new(course));
+            // 源库课程(source_id 为空)统一生成课程编号(含 type=2/4 实践训练课目/实践项目)；
+            // 调用课程(source_id 非空)由 copyCourse 继承源课 code，不在此生成。
+            // 所需字段(version/collegeName/educationLevel)任一为空则跳过(不生成无意义编号)。
+            if (course.getSourceId() == null) {
+                String code = generateCourseCodeIfReady(course);
+                if (StringUtils.isNotBlank(code)) {
+                    course.setCode(code);
+                }
             }
             courseMapper.insertCourse(course);
             insertCourseSchedule(course.getId(),course.getCourseScheduleList());
@@ -1115,11 +1144,54 @@ public class CurriculumServiceImpl implements CurriculumService {
         return course;
     }
 
+    /**
+     * 统一刷新缺课程编号的源库课程。
+     * 规则同新增(getCourseCode_new)；version/collegeName/educationLevel 任一为空则跳过。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> refreshCourseCode() {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        List<Course> courses = courseMapper.selectCoursesWithoutCode();
+        int detected = ObjectUtils.isEmpty(courses) ? 0 : courses.size();
+        int refreshed = 0, skippedNoField = 0;
+        if (ObjectUtils.isNotEmpty(courses)) {
+            for (Course c : courses) {
+                // 复用生成逻辑：用 CourseVo 承载(getCourseCode_new 入参)
+                CourseVo vo = new CourseVo();
+                vo.setId(c.getId());
+                vo.setVersion(c.getVersion());
+                vo.setCollegeId(c.getCollegeId());
+                vo.setCollegeName(c.getCollegeName());
+                vo.setEducationLevel(c.getEducationLevel());
+                String code = generateCourseCodeIfReady(vo);
+                if (StringUtils.isBlank(code)) {
+                    skippedNoField++;
+                    continue;
+                }
+                courseMapper.updateCourseCode(c.getId(), code);
+                refreshed++;
+            }
+        }
+        summary.put("detected", detected);
+        summary.put("refreshed", refreshed);
+        summary.put("skippedNoField", skippedNoField);
+        return summary;
+    }
+
     private void updateInvokeCourse(CourseVo newCourse) {
         courseMapper.updateInvokeCourse(newCourse);
     }
 
     private void updateCourseCode(CourseVo sourceCourse, CourseVo newCourse) {
+        // code 为空(如 type=4 老数据从未生成) -> 直接补生成(字段空跳过)
+        if (StringUtils.isBlank(newCourse.getCode())) {
+            String code = generateCourseCodeIfReady(newCourse);
+            if (StringUtils.isNotBlank(code)) {
+                newCourse.setCode(code);
+            }
+            return;
+        }
         if(sourceCourse.getVersion().equals(newCourse.getVersion())
                 &&sourceCourse.getEducationLevel().equals(newCourse.getEducationLevel())
                 &&sourceCourse.getCollegeId()==newCourse.getCollegeId()) {

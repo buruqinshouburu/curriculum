@@ -61,6 +61,14 @@ public interface CurriculumService {
      */
     CourseVo updateCourse(CourseVo course);
 
+    /**
+     * 统一刷新缺课程编号(code 为空)的源库课程编号。
+     * 规则与新增一致(版本-培训层次-开课单位-流水号)；version/collegeName/educationLevel 任一为空则跳过该条。
+     *
+     * @return 结果汇总(detected/refreshed/skippedNoField)
+     */
+    Map<String, Object> refreshCourseCode();
+
     CourseTarget courseTargetConfiguration(CourseTarget courseTarget);
 
     /**

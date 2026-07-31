@@ -241,6 +241,17 @@ public interface CourseMapper {
      */
     List<Long> selectLegacyScheduleCourseIds();
 
+    /**
+     * 查询缺课程编号(code 为空)的源库课程(source_id 为空)，供统一刷新编号。
+     * 返回 id/type/version/collegeId/educationLevel(+ collegeName 经 sys_dept join)。
+     */
+    List<Course> selectCoursesWithoutCode();
+
+    /**
+     * 仅回写课程编号(刷新用，避免全字段 updateCourse 副作用)。
+     */
+    int updateCourseCode(@Param("id") Long id, @Param("code") String code);
+
     int removeCourseByIds(@Param("ids") List<Long> ids);
 
     void updateEnableFlag(@Param("id") Long courseId,@Param("enableFlag") Integer enableFlag);
