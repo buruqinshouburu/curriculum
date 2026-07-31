@@ -8,6 +8,7 @@ import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTeacher;
@@ -71,6 +72,8 @@ public class CourseTeachingPlanModel {
     private List<TeachingPlanTeacher> teachers;
     /** 文本章节（任务背景/总体设计/课程概述/组织方式等大段文本） */
     private List<TeachingPlanSection> sections;
+    /** 实施步骤/项目步骤（type4 组织与实施「项目步骤|有关要求」数据行） */
+    private List<TeachingPlanProcessStep> processSteps;
     /** 教学计划目标（知识/能力/素质）；兼容单方案，多方案时优先用 schemeObjectiveGroups */
     private List<TeachingPlanObjective> objectives;
     /** 目标支撑毕业要求：objectiveId -> refs（与 objectives 对应的兼容字段） */
@@ -262,6 +265,14 @@ public class CourseTeachingPlanModel {
 
     public void setSections(List<TeachingPlanSection> sections) {
         this.sections = sections;
+    }
+
+    public List<TeachingPlanProcessStep> getProcessSteps() {
+        return processSteps;
+    }
+
+    public void setProcessSteps(List<TeachingPlanProcessStep> processSteps) {
+        this.processSteps = processSteps;
     }
 
     public List<TeachingPlanObjective> getObjectives() {

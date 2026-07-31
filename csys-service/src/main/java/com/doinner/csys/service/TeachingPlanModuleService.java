@@ -18,6 +18,7 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
+import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 
@@ -174,6 +175,16 @@ public interface TeachingPlanModuleService {
      * conditions 为空/null = 清空该 plan 全部条件；每行 planId 以入参顶层为准覆盖。
      */
     void saveConditions(TeachingPlanConditionSaveVo saveVo);
+
+    /**
+     * 实践项目(type=4)「三、组织与实施」整表大保存。
+     * - teamScale/division：复用 t_csys_teaching_plan_section（sectionTitle=团队规模/分工方式），按 planId+title upsert；
+     *   null 不改，空串清空。
+     * - steps：t_csys_teaching_plan_process_step 整表重建（deleteByPlanId + insertBatch）；空/null=清空。
+     *
+     * @param saveVo 入参
+     */
+    void saveOrganization(TeachingPlanOrganizationSaveVo saveVo);
 
     List<TeachingPlanProcessStep> listProcessStep(Long planId);
 

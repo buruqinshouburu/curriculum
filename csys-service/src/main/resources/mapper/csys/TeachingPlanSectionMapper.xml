@@ -45,6 +45,17 @@
         ORDER BY sort ASC, id ASC
     </select>
 
+    <select id="selectByPlanIdAndTitle" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_section
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+          AND section_title = #{sectionTitle}
+        ORDER BY id ASC
+        LIMIT 1
+    </select>
+
     <update id="deleteByPlanId">
         UPDATE t_csys_teaching_plan_section SET sysflag = 2 WHERE plan_id = #{planId}
     </update>

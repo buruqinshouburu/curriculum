@@ -29,6 +29,7 @@ import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTeacher;
@@ -965,6 +966,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             translateTeacherDictFields(teachers);
             m.setTeachers(teachers);
             m.setSections(listSection(planId));
+            // 实施步骤/项目步骤（type4 组织与实施「项目步骤|有关要求」数据行）
+            m.setProcessSteps(teachingPlanModuleService.listProcessStep(planId));
 
             // 按培养方案分组加载目标 + 支撑毕业要求（多方案多表）
             // 公共基础：plan 级单组（scheme_id IS NULL），Word 只出一张表、无方案小标题；
@@ -1678,6 +1681,16 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 teachingPlanSectionMapper.insert(s);
             }
             result.addCount("section", parsed.sections.size());
+        }
+        // 项目步骤（type4 组织与实施）
+        if (ObjectUtils.isNotEmpty(parsed.processSteps)) {
+            for (TeachingPlanProcessStep step : parsed.processSteps) {
+                step.setId(null);
+                step.setPlanId(planId);
+                prepareEntity(step);
+                teachingPlanProcessStepMapper.insert(step);
+            }
+            result.addCount("processStep", parsed.processSteps.size());
         }
         // 目标 + 支撑毕业要求
         int objCount = 0;

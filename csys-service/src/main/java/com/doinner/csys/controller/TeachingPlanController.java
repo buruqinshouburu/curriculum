@@ -27,6 +27,7 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
+import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
@@ -570,6 +571,19 @@ public class TeachingPlanController {
     @PostMapping("/condition/save")
     public Message saveConditions(@RequestBody TeachingPlanConditionSaveVo saveVo) {
         teachingPlanModuleService.saveConditions(saveVo);
+        return Message.success();
+    }
+
+    /**
+     * 实践项目(type=4)「三、组织与实施」整表大保存。
+     * 前端该页面团队规模/分工方式/项目步骤同页一次提交：
+     * - teamScale/division：复用 t_csys_teaching_plan_section(sectionTitle=团队规模/分工方式) upsert；null 不改，空串清空。
+     * - steps：t_csys_teaching_plan_process_step 整表重建；空/null=清空项目步骤。
+     */
+    @ApiOperation("组织与实施大保存(团队规模/分工方式/项目步骤)")
+    @PostMapping("/organization/save")
+    public Message saveOrganization(@RequestBody TeachingPlanOrganizationSaveVo saveVo) {
+        teachingPlanModuleService.saveOrganization(saveVo);
         return Message.success();
     }
 

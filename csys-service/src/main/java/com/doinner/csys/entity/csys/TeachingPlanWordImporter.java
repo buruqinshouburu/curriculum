@@ -6,6 +6,7 @@ import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTeacher;
@@ -97,6 +98,7 @@ public class TeachingPlanWordImporter {
         public String scoreRule;
         public List<TeachingPlanTeacher> teachers = new ArrayList<>();
         public List<TeachingPlanSection> sections = new ArrayList<>();
+        public List<TeachingPlanProcessStep> processSteps = new ArrayList<>();
         public List<ParsedObjective> objectives = new ArrayList<>();
         public List<TeachingPlanContent> contents = new ArrayList<>();
         public List<TeachingPlanTargetDesign> targetDesigns = new ArrayList<>();
@@ -850,35 +852,64 @@ public class TeachingPlanWordImporter {
         }
     }
 
+    /**
+     * 解析 type4「三、组织与实施」表。
+     * 表结构：
+     *   团队组织与管理 | 团队规模 | <团队规模值>     -> section(sectionTitle=团队规模)
+     *   (合并)        | 分工方式 | <分工方式值>     -> section(sectionTitle=分工方式)
+     *   项目实施      | 项目步骤 | 有关要求         -> 表头(跳过)
+     *   (合并)        | <stepName> | <requirement> -> processStep
+     * 「团队规模」「分工方式」按 C1 标签识别；项目步骤数据行在「项目实施」表头行之后。
+     */
     private void parseOrganizationSteps(List<List<String>> grid, ParseResult result) {
-        // 找「实施步骤」表头行
-        int start = 0;
+        // 1) 团队规模 / 分工方式：按 C1 标签取 C2 值，存为 section
+        for (List<String> row : grid) {
+            String c1 = cell(row, 1);
+            String c2 = row.size() > 2 ? cell(row, 2) : "";
+            if ("团队规模".equals(c1) || "分工方式".equals(c1)) {
+                if (StringUtils.isBlank(c2)) {
+                    continue;
+                }
+                TeachingPlanSection s = new TeachingPlanSection();
+                s.setSectionTitle(c1);
+                s.setSectionCode("团队规模".equals(c1) ? "team_scale" : "division");
+                s.setContent(c2);
+                s.setSort(result.sections.size() + 1);
+                result.sections.add(s);
+            }
+        }
+        // 2) 项目步骤数据行：定位「项目实施」表头行，其后每行 C1=stepName、C2=requirement
+        int start = -1;
         for (int r = 0; r < grid.size(); r++) {
             String c0 = cell(grid.get(r), 0);
-            if ("实施步骤".equals(c0) || "项目步骤".equals(c0)) {
+            String c1 = cell(grid.get(r), 1);
+            if ("项目实施".equals(c0) || "项目步骤".equals(c0) || "项目步骤".equals(c1)
+                    || "实施步骤".equals(c0) || "实施步骤".equals(c1)) {
                 start = r + 1;
                 break;
             }
-            if ("组织方式".equals(c0) || "团队组织与管理".equals(c0)) {
-                continue;
-            }
         }
+        if (start < 0) {
+            return;
+        }
+        int idx = 0;
         for (int r = start; r < grid.size(); r++) {
             List<String> row = grid.get(r);
-            String title = cell(row, 0);
+            String stepName = cell(row, 1);
             String req = row.size() > 2 ? cell(row, 2) : cell(row, 1);
-            if (StringUtils.isBlank(title) && StringUtils.isBlank(req)) {
+            // 遇到下一个分组/表头（如非空 C0 且非项目实施）则结束步骤区
+            String c0 = cell(row, 0);
+            if (StringUtils.isNotBlank(c0) && !"项目实施".equals(c0) && !"实施步骤".equals(c0)) {
+                break;
+            }
+            if (StringUtils.isBlank(stepName) && StringUtils.isBlank(req)) {
                 continue;
             }
-            if ("实施步骤".equals(title) || "项目步骤".equals(title) || "组织方式".equals(title)) {
-                continue;
-            }
-            TeachingPlanSection s = new TeachingPlanSection();
-            s.setSectionTitle(StringUtils.defaultIfBlank(title, "步骤" + (result.sections.size() + 1)));
-            s.setSectionCode("step_" + (result.sections.size() + 1));
-            s.setContent(req);
-            s.setSort(result.sections.size() + 1);
-            result.sections.add(s);
+            TeachingPlanProcessStep step = new TeachingPlanProcessStep();
+            step.setStepName(stepName);
+            step.setRequirement(req);
+            step.setSort(++idx);
+            result.processSteps.add(step);
         }
     }
 

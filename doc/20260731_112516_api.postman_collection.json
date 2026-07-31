@@ -131,6 +131,42 @@
       ]
     },
     {
+      "name": "组织与实施大保存(团队规模/分工方式/项目步骤)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" },
+          { "key": "Authorization", "value": "Bearer {{token}}", "type": "text", "description": "鉴权令牌(按网关实际填写)" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": {{teachingPlanId}},\n  \"teamScale\": \"可根据学员数量灵活设置，每组8-10人\",\n  \"division\": \"按小组分工，设组长1名负责统筹\",\n  \"steps\": [\n    { \"stepName\": \"需求分析\", \"requirement\": \"明确项目目标与边界，输出需求说明\", \"sort\": 1 },\n    { \"stepName\": \"方案设计\", \"requirement\": \"完成总体方案与技术路线\", \"sort\": 2 },\n    { \"stepName\": \"实施与验证\", \"requirement\": \"按方案实施并验证结果\", \"sort\": 3 }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/teachingPlan/organization/save",
+          "host": ["{{baseUrl}}"],
+          "path": ["teachingPlan", "organization", "save"]
+        },
+        "description": "实践项目(type=4)「三、组织与实施」整表大保存(本批次新增)。\n\n前端该页面团队规模/分工方式/项目步骤同页一次提交：\n- teamScale(团队规模)、division(分工方式)：复用 t_csys_teaching_plan_section(sectionTitle=团队规模/分工方式) upsert。\n  null=不改原值；空串=清空；非空=写入/更新。\n- steps(项目步骤列表 stepName+requirement+sort)：t_csys_teaching_plan_process_step 整表重建(先逻辑删除该 plan 旧步骤再批量写入)。\n  空列表/null=清空项目步骤。\n\n替代逐条 POST /teachingPlan/processStep 的新增。响应 Message(无 data)。"
+      },
+      "response": [
+        {
+          "name": "保存成功",
+          "originalRequest": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/teachingPlan/organization/save", "host": ["{{baseUrl}}"], "path": ["teachingPlan", "organization", "save"] }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{ "key": "Content-Type", "value": "application/json;charset=UTF-8" }],
+          "cookie": [],
+          "body": "{\n  \"code\": 200,\n  \"msg\": \"操作成功\",\n  \"data\": null\n}"
+        }
+      ]
+    },
+    {
       "name": "课程教学计划文件生成(type4基本信息表修复)",
       "request": {
         "method": "GET",

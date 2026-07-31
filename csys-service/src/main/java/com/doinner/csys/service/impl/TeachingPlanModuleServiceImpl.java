@@ -15,6 +15,7 @@ import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
 import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
 import com.doinner.csys.dao.TeachingPlanRefMapper;
+import com.doinner.csys.dao.TeachingPlanSectionMapper;
 import com.doinner.csys.dao.TeachingPlanTargetDesignMapper;
 import com.doinner.csys.dao.TeachingPlanTextbookMapper;
 import com.doinner.csys.domain.Course;
@@ -31,6 +32,7 @@ import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
+import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
@@ -39,6 +41,7 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
+import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.CourseVo;
 import com.doinner.csys.entity.csys.model.DictContent;
@@ -120,6 +123,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TeachingPlanProcessStepMapper teachingPlanProcessStepMapper;
+
+    @Resource
+    private TeachingPlanSectionMapper teachingPlanSectionMapper;
 
     @Resource
     private TeachingPlanRefMapper teachingPlanRefMapper;
@@ -1250,6 +1256,77 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         } else {
             teachingPlanConditionMapper.insertBatch(rows);
         }
+    }
+
+    // ============ 18b. 实践项目组织与实施大保存(type4) ============
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveOrganization(TeachingPlanOrganizationSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        Long planId = saveVo.getPlanId();
+        // 团队规模 / 分工方式：复用 section，按 planId+sectionTitle upsert。null 不改，空串清空。
+        upsertSection(planId, "团队规模", "team_scale", saveVo.getTeamScale());
+        upsertSection(planId, "分工方式", "division", saveVo.getDivision());
+
+        // 项目步骤：整表重建（先逻辑删除旧步骤，再批量写入）
+        List<TeachingPlanProcessStep> steps = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(saveVo.getSteps())) {
+            for (TeachingPlanProcessStep s : saveVo.getSteps()) {
+                if (s != null) {
+                    steps.add(s);
+                }
+            }
+        }
+        teachingPlanProcessStepMapper.deleteByPlanId(planId);
+        if (steps.isEmpty()) {
+            return;
+        }
+        int index = 0;
+        for (TeachingPlanProcessStep s : steps) {
+            s.setId(null);
+            s.setPlanId(planId);
+            if (s.getSort() == null) {
+                s.setSort(++index);
+            } else {
+                index = s.getSort();
+            }
+            UserUtils.reflash(s);
+            s.setSysflag(0);
+        }
+        if (steps.size() == 1) {
+            teachingPlanProcessStepMapper.insert(steps.get(0));
+        } else {
+            teachingPlanProcessStepMapper.insertBatch(steps);
+        }
+    }
+
+    /**
+     * 按 planId + sectionTitle upsert 一条 section。
+     * value 为 null：不改原值；为空串：清空 content（保留行）；非空：写入/更新 content。
+     */
+    private void upsertSection(Long planId, String sectionTitle, String sectionCode, String value) {
+        if (value == null) {
+            return;
+        }
+        TeachingPlanSection exist = teachingPlanSectionMapper.selectByPlanIdAndTitle(planId, sectionTitle);
+        if (exist != null) {
+            exist.setContent(value);
+            UserUtils.reflash(exist);
+            teachingPlanSectionMapper.updateById(exist);
+            return;
+        }
+        TeachingPlanSection s = new TeachingPlanSection();
+        s.setPlanId(planId);
+        s.setSectionTitle(sectionTitle);
+        s.setSectionCode(sectionCode);
+        s.setContent(value);
+        s.setSort(0);
+        UserUtils.reflash(s);
+        s.setSysflag(0);
+        teachingPlanSectionMapper.insert(s);
     }
 
     // ============ 18. 实施步骤 ============

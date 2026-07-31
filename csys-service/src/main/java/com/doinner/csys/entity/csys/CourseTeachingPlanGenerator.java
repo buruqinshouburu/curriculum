@@ -8,6 +8,7 @@ import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
 import com.doinner.csys.domain.TeachingPlanTeacher;
@@ -1190,26 +1191,48 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 3, 1, sec.getOrDefault("涉及的知识体系", sec.getOrDefault("knowledge_system", "")), false);
     }
 
-    /** 实践项目组织与实施表（type4 三）：团队组织与管理 | 团队规模 + 项目步骤 | 项目步骤 | 有关要求 */
+    /**
+     * 实践项目组织与实施表（type4 三）：3 列。
+     * 结构：
+     * R0 团队组织与管理(C0,跨R0-R1) | 团队规模(C1) | 团队规模值(C2,取 section「团队规模」)
+     * R1 (合并)                    | 分工方式(C1) | 分工方式值(C2,取 section「分工方式」)
+     * R2 项目实施(C0,跨R2~末行)    | 项目步骤(C1) | 有关要求(C2)  ← 表头
+     * R3..                          | stepName    | requirement   ← 取 processSteps
+     * 团队规模/分工方式无值时 C2 留空（不再写死默认提示）；无 processSteps 时项目实施仅留表头一行。
+     */
     private void projectOrganizationTable(CourseTeachingPlanModel m, XWPFDocument doc) {
         int cols = 3;
-        List<TeachingPlanSection> sections = m.getSections();
-        int rows = 2 + size(sections);
-        XWPFTable t = createTable(doc, Math.max(rows, 3), cols);
+        Map<String, String> sec = sectionsMap(m.getSections());
+        List<TeachingPlanProcessStep> steps = m.getProcessSteps();
+        int stepRows = Math.max(size(steps), 1);
+        int rows = 2 + 1 + stepRows; // 团队组织2行 + 项目实施表头1行 + 步骤行(至少1行占位)
+        XWPFTable t = createTable(doc, rows, cols);
+        // R0-R1 团队组织与管理
         setCell(t, 0, 0, "团队组织与管理", true);
         setCell(t, 0, 1, "团队规模", true);
-        setCell(t, 0, 2, "可根据学员数量灵活设置", false);
-        setCell(t, 1, 0, "项目实施", true);
-        setCell(t, 1, 1, "项目步骤", true);
-        setCell(t, 1, 2, "有关要求", true);
-        if (ObjectUtils.isNotEmpty(sections)) {
-            for (int i = 0; i < sections.size(); i++) {
-                TeachingPlanSection s = sections.get(i);
-                int r = i + 2;
-                setCell(t, r, 0, "", false);
-                setCell(t, r, 1, s.getSectionTitle(), false);
-                setCell(t, r, 2, stripHtml(s.getContent()), false);
+        setCell(t, 0, 2, sec.getOrDefault("团队规模", sec.getOrDefault("team_scale", "")), false);
+        setCell(t, 1, 1, "分工方式", true);
+        setCell(t, 1, 2, sec.getOrDefault("分工方式", sec.getOrDefault("division", "")), false);
+        WordUtil.mergeCellsVertical(t, 0, 0, 1);
+        // R2 项目实施表头 + R3.. 步骤行
+        int implStart = 2;
+        setCell(t, implStart, 0, "项目实施", true);
+        setCell(t, implStart, 1, "项目步骤", true);
+        setCell(t, implStart, 2, "有关要求", true);
+        if (ObjectUtils.isNotEmpty(steps)) {
+            for (int i = 0; i < steps.size(); i++) {
+                TeachingPlanProcessStep s = steps.get(i);
+                int r = implStart + 1 + i;
+                setCell(t, r, 1, str(s.getStepName()), false);
+                setCell(t, r, 2, stripHtml(s.getRequirement()), false);
             }
+            if (steps.size() > 1) {
+                WordUtil.mergeCellsVertical(t, 0, implStart, implStart + steps.size());
+            }
+        } else {
+            // 无步骤：项目实施仅表头一行，C0 无需合并（单行）
+            setCell(t, implStart + 1, 1, "", false);
+            setCell(t, implStart + 1, 2, "", false);
         }
     }
 

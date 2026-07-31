@@ -36,6 +36,12 @@ public interface TeachingPlanSectionMapper {
     List<TeachingPlanSection> selectByPlanId(@Param("planId") Long planId);
 
     /**
+     * 根据教学计划ID + sectionTitle 精确查询单条（用于团队规模/分工方式等按标题 upsert）。
+     * 同 planId+title 理论唯一；若存在多条历史数据，取 id 最小一条。
+     */
+    TeachingPlanSection selectByPlanIdAndTitle(@Param("planId") Long planId, @Param("sectionTitle") String sectionTitle);
+
+    /**
      * 根据教学计划ID逻辑删除
      */
     int deleteByPlanId(@Param("planId") Long planId);
