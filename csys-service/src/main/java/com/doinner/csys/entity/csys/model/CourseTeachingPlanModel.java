@@ -6,6 +6,7 @@ import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
+import com.doinner.csys.domain.TeachingPlanObjectiveAssessment;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
@@ -106,6 +107,8 @@ public class CourseTeachingPlanModel {
     private Map<Long, List<TeachingPlanPracticeItemDetail>> itemDetailMap;
     /** 考核评价 */
     private List<TeachingPlanAssessment> assessments;
+    /** 普通课程的课程目标-考核评价关联，用于第八点新增达成分析表 */
+    private List<TeachingPlanObjectiveAssessment> objectiveAssessments;
     /** 教材 */
     private List<TeachingPlanTextbook> textbooks;
     /** 条件保障 */
@@ -361,6 +364,14 @@ public class CourseTeachingPlanModel {
 
     public void setAssessments(List<TeachingPlanAssessment> assessments) {
         this.assessments = assessments;
+    }
+
+    public List<TeachingPlanObjectiveAssessment> getObjectiveAssessments() {
+        return objectiveAssessments;
+    }
+
+    public void setObjectiveAssessments(List<TeachingPlanObjectiveAssessment> objectiveAssessments) {
+        this.objectiveAssessments = objectiveAssessments;
     }
 
     public List<TeachingPlanTextbook> getTextbooks() {

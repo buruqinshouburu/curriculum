@@ -48,6 +48,9 @@ public class TeachingPlanObjective extends AbstractDoinnerLogicalDelBaseEntity {
      */
     private Integer sourceMode;
 
+    /** 课程目标权重，普通课程目标权重合计必须为 1 */
+    private java.math.BigDecimal weight;
+
     /**
      * 排序
      */
@@ -115,6 +118,14 @@ public class TeachingPlanObjective extends AbstractDoinnerLogicalDelBaseEntity {
 
     public void setSourceMode(Integer sourceMode) {
         this.sourceMode = sourceMode;
+    }
+
+    public java.math.BigDecimal getWeight() {
+        return weight;
+    }
+
+    public void setWeight(java.math.BigDecimal weight) {
+        this.weight = weight;
     }
 
     public Integer getSort() {

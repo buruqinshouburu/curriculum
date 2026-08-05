@@ -1073,6 +1073,12 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             List<TeachingPlanAssessment> assessments = teachingPlanModuleService.listAssessment(planId);
             translateAssessmentDictFields(assessments);
             m.setAssessments(assessments);
+            // 普通课程第八点新增目标达成考核表所需关联数据
+            if (plan.getPlanType() != null && plan.getPlanType() == 1) {
+                m.setObjectiveAssessments(teachingPlanModuleService.listObjectiveAssessment(planId, null));
+            } else {
+                m.setObjectiveAssessments(new ArrayList<>());
+            }
             List<TeachingPlanTextbook> textbooks = teachingPlanModuleService.listTextbook(planId);
             translateTextbookDictFields(textbooks);
             m.setTextbooks(textbooks);

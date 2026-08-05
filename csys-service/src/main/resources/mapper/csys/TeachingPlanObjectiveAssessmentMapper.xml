@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanObjectiveAssessmentMapper">
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanObjectiveAssessment">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
+        <result column="objective_id" property="objectiveId" jdbcType="BIGINT"/>
+        <result column="assessment_id" property="assessmentId" jdbcType="BIGINT"/>
+        <result column="assessment_item" property="assessmentItem" jdbcType="VARCHAR"/>
+        <result column="weight" property="weight" jdbcType="DECIMAL"/>
+        <result column="assessment_item_content" property="assessmentItemContent" jdbcType="LONGVARCHAR"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+    <sql id="Base_Column_List">
+        id, plan_id, scheme_id, objective_id, assessment_id, assessment_item, weight, assessment_item_content,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_objective_assessment
+        (plan_id, scheme_id, objective_id, assessment_id, assessment_item, weight, assessment_item_content,
+         creator, create_time, last_modifier, last_modified_time, remark, sysflag)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.planId}, #{item.schemeId}, #{item.objectiveId}, #{item.assessmentId}, #{item.assessmentItem},
+             #{item.weight}, #{item.assessmentItemContent}, #{item.creator}, #{item.createTime}, #{item.lastModifier},
+             #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag})
+        </foreach>
+    </insert>
+    <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_objective_assessment
+        WHERE plan_id = #{planId} AND sysflag = 0
+        <if test="schemeId != null">AND scheme_id = #{schemeId}</if>
+        ORDER BY objective_id ASC, id ASC
+    </select>
+    <update id="deleteByPlanAndScheme">
+        UPDATE t_csys_teaching_plan_objective_assessment SET sysflag = 2
+        WHERE plan_id = #{planId}
+        <if test="schemeId != null">AND scheme_id = #{schemeId}</if>
+    </update>
+</mapper>

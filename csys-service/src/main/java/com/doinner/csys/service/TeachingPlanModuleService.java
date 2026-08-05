@@ -56,6 +56,9 @@ public interface TeachingPlanModuleService {
 
     Long addObjective(TeachingPlanObjective objective);
 
+    /** 课程目标、支撑毕业要求、权重整表保存。 */
+    void saveObjectivesBatch(com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo saveVo);
+
     void updateObjective(TeachingPlanObjective objective);
 
     void deleteObjective(Long id);
@@ -89,6 +92,10 @@ public interface TeachingPlanModuleService {
     List<StandardGraduation> listCourseGraduation(Long courseId);
 
     List<TeachingPlanObjectiveRef> listObjectiveRef(Long objectiveId);
+
+    List<com.doinner.csys.domain.TeachingPlanObjectiveAssessment> listObjectiveAssessment(Long planId, Long schemeId);
+
+    void saveObjectiveAssessmentBatch(com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo saveVo);
 
     Long addObjectiveRef(TeachingPlanObjectiveRef ref);
 

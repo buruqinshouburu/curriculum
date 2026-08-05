@@ -11,6 +11,7 @@ import com.doinner.csys.dao.TeachingPlanContentMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
+import com.doinner.csys.dao.TeachingPlanObjectiveAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
 import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
@@ -27,6 +28,7 @@ import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
+import com.doinner.csys.domain.TeachingPlanObjectiveAssessment;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
@@ -38,8 +40,10 @@ import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
@@ -58,6 +62,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -96,6 +101,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TeachingPlanObjectiveRefMapper teachingPlanObjectiveRefMapper;
+
+    @Resource
+    private TeachingPlanObjectiveAssessmentMapper teachingPlanObjectiveAssessmentMapper;
 
     @Resource
     private TeachingPlanContentMapper teachingPlanContentMapper;
@@ -353,6 +361,63 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         UserUtils.reflash(objective);
         teachingPlanObjectiveMapper.insert(objective);
         return objective.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveObjectivesBatch(TeachingPlanObjectiveBatchSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(saveVo.getPlanId());
+        if (plan == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + saveVo.getPlanId());
+        }
+        List<TeachingPlanObjectiveSaveVo> rows = saveVo.getObjectives();
+        if (plan.getPlanType() != null && plan.getPlanType() == 1 && ObjectUtils.isNotEmpty(rows)) {
+            BigDecimal total = BigDecimal.ZERO;
+            for (TeachingPlanObjectiveSaveVo row : rows) {
+                if (row == null || row.getObjective() == null || row.getObjective().getWeight() == null) {
+                    throw new IllegalArgumentException("普通课程每个课程目标都必须填写权重");
+                }
+                if (row.getObjective().getWeight().compareTo(BigDecimal.ZERO) < 0) {
+                    throw new IllegalArgumentException("课程目标权重不能小于0");
+                }
+                total = total.add(row.getObjective().getWeight());
+            }
+            if (total.compareTo(BigDecimal.ONE) != 0) {
+                throw new IllegalArgumentException("课程目标权重合计必须等于1，当前为" + total.stripTrailingZeros().toPlainString());
+            }
+        }
+        teachingPlanObjectiveRefMapper.deleteByPlanId(saveVo.getPlanId());
+        teachingPlanObjectiveMapper.deleteByPlanId(saveVo.getPlanId());
+        if (ObjectUtils.isEmpty(rows)) {
+            return;
+        }
+        int sort = 1;
+        for (TeachingPlanObjectiveSaveVo row : rows) {
+            if (row == null || row.getObjective() == null) {
+                continue;
+            }
+            TeachingPlanObjective objective = row.getObjective();
+            objective.setId(null);
+            objective.setPlanId(saveVo.getPlanId());
+            if (objective.getSchemeId() == null) {
+                objective.setSchemeId(saveVo.getSchemeId());
+            }
+            boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
+            if (publicFoundation) {
+                objective.setSchemeId(null);
+            }
+            validateObjectiveForInsert(objective, publicFoundation);
+            if (objective.getSort() == null) {
+                objective.setSort(sort);
+            }
+            sort++;
+            UserUtils.reflash(objective);
+            teachingPlanObjectiveMapper.insert(objective);
+            insertObjectiveRefs(objective.getId(), objective.getPlanId(), objective.getSchemeId(), row.getRefs());
+        }
     }
 
     /**
@@ -777,6 +842,38 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Transactional(rollbackFor = Exception.class)
     public void deleteObjectiveRef(Long id) {
         teachingPlanObjectiveRefMapper.deleteById(id);
+    }
+
+    @Override
+    public List<TeachingPlanObjectiveAssessment> listObjectiveAssessment(Long planId, Long schemeId) {
+        if (planId == null) {
+            return new ArrayList<>();
+        }
+        return teachingPlanObjectiveAssessmentMapper.selectByPlanAndScheme(planId, schemeId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveObjectiveAssessmentBatch(TeachingPlanObjectiveAssessmentSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        teachingPlanObjectiveAssessmentMapper.deleteByPlanAndScheme(saveVo.getPlanId(), saveVo.getSchemeId());
+        if (ObjectUtils.isEmpty(saveVo.getItems())) {
+            return;
+        }
+        List<TeachingPlanObjectiveAssessment> items = new ArrayList<>();
+        for (TeachingPlanObjectiveAssessment item : saveVo.getItems()) {
+            if (item == null || item.getObjectiveId() == null) {
+                throw new IllegalArgumentException("objectiveId 不能为空");
+            }
+            item.setId(null);
+            item.setPlanId(saveVo.getPlanId());
+            item.setSchemeId(saveVo.getSchemeId());
+            UserUtils.reflash(item);
+            items.add(item);
+        }
+        teachingPlanObjectiveAssessmentMapper.insertBatch(items);
     }
 
     // ============ 10. 教学内容与学时安排 ============

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.doinner.csys.dao.TeachingPlanObjectiveMapper">
 
@@ -11,6 +11,7 @@
         <result column="objective_type_name" property="objectiveTypeName" jdbcType="VARCHAR"/>
         <result column="content" property="content" jdbcType="LONGVARCHAR"/>
         <result column="source_mode" property="sourceMode" jdbcType="TINYINT"/>
+        <result column="weight" property="weight" jdbcType="DECIMAL"/>
         <result column="sort" property="sort" jdbcType="INTEGER"/>
         <result column="creator" property="creator" jdbcType="VARCHAR"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
@@ -21,28 +22,28 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
+        id, plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, weight, sort,
         creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_objective (
-            plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort,
+            plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, weight, sort,
             creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
                 #{item.planId}, #{item.schemeId}, #{item.majorId}, #{item.objectiveTypeCode}, #{item.objectiveTypeName},
-                #{item.content}, #{item.sourceMode}, #{item.sort}, #{item.creator}, #{item.createTime},
+                #{item.content}, #{item.sourceMode}, #{item.weight}, #{item.sort}, #{item.creator}, #{item.createTime},
                 #{item.lastModifier}, #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
             )
         </foreach>
     </insert>
 
     <!--
-        onlyNullScheme=true  → scheme_id IS NULL（公共基础单组）
-        onlyNullScheme=false + schemeId 非空 → scheme_id = #{schemeId}
-        onlyNullScheme=false + schemeId 空  → 不过滤 scheme（全量，兼容 options）
+        onlyNullScheme=true  鈫?scheme_id IS NULL锛堝叕鍏卞熀纭€鍗曠粍锛?
+        onlyNullScheme=false + schemeId 闈炵┖ 鈫?scheme_id = #{schemeId}
+        onlyNullScheme=false + schemeId 绌? 鈫?涓嶈繃婊?scheme锛堝叏閲忥紝鍏煎 options锛?
     -->
     <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
         SELECT
@@ -61,7 +62,7 @@
         ORDER BY objective_type_code ASC, sort ASC, id ASC
     </select>
 
-    <!-- schemeId 可选：目标选项接口按 plan 汇总全部方案下同类型目标；onlyNullScheme 同 selectByPlanAndScheme -->
+    <!-- schemeId 鍙€夛細鐩爣閫夐」鎺ュ彛鎸?plan 姹囨€诲叏閮ㄦ柟妗堜笅鍚岀被鍨嬬洰鏍囷紱onlyNullScheme 鍚?selectByPlanAndScheme -->
     <select id="selectByPlanAndSchemeAndType" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
@@ -97,6 +98,7 @@
             <if test="objectiveTypeName != null">objective_type_name,</if>
             <if test="content != null">content,</if>
             <if test="sourceMode != null">source_mode,</if>
+            <if test="weight != null">weight,</if>
             <if test="sort != null">sort,</if>
             <if test="creator != null">creator,</if>
             <if test="createTime != null">create_time,</if>
@@ -113,6 +115,7 @@
             <if test="objectiveTypeName != null">#{objectiveTypeName},</if>
             <if test="content != null">#{content},</if>
             <if test="sourceMode != null">#{sourceMode},</if>
+            <if test="weight != null">#{weight},</if>
             <if test="sort != null">#{sort},</if>
             <if test="creator != null">#{creator},</if>
             <if test="createTime != null">#{createTime},</if>
@@ -133,6 +136,7 @@
             <if test="objectiveTypeName != null">objective_type_name = #{objectiveTypeName},</if>
             <if test="content != null">content = #{content},</if>
             <if test="sourceMode != null">source_mode = #{sourceMode},</if>
+            <if test="weight != null">weight = #{weight},</if>
             <if test="sort != null">sort = #{sort},</if>
             <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
             <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
@@ -143,7 +147,8 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, plan_id, scheme_id, major_id, objective_type_code, objective_type_name, content, source_mode, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        SELECT
+        <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_objective
         WHERE id = #{id}
           AND sysflag = 0
@@ -158,8 +163,8 @@
     </update>
 
     <!--
-        与 /quoteMajor 同源：源课 -> 调用课 c2 -> 排课 tcs -> 培养方案 ts.major_id -> 专业名。
-        修复原 SQL 错误地将 course.id 与 scheme_ref_major.major_id 关联。
+        涓?/quoteMajor 鍚屾簮锛氭簮璇?-> 璋冪敤璇?c2 -> 鎺掕 tcs -> 鍩瑰吇鏂规 ts.major_id -> 涓撲笟鍚嶃€?
+        淇鍘?SQL 閿欒鍦板皢 course.id 涓?scheme_ref_major.major_id 鍏宠仈銆?
     -->
     <select id="selectMajorByCourseId" resultType="com.doinner.csys.domain.vo.TeachingPlanMajorVo">
         SELECT ts.major_id AS id,

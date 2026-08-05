@@ -6,6 +6,7 @@ import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
+import com.doinner.csys.domain.TeachingPlanObjectiveAssessment;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
@@ -187,6 +188,7 @@ public class CourseTeachingPlanGenerator {
         // 八、考核评价
         h1(doc, "八、考核评价");
         assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+        objectiveAssessmentTable(m, doc);
 
         // 九、教学条件
         h1(doc, "九、教学条件");
@@ -959,12 +961,12 @@ public class CourseTeachingPlanGenerator {
         int r = 1;
         boolean wrote = false;
         if (!summative.isEmpty()) {
-            writeAssessmentCategoryRows(t, r, "总结性考核", summative);
+            writeAssessmentCategoryRows(t, r, "终结性考核", summative);
             r += summative.size();
             wrote = true;
         }
         if (!formative.isEmpty()) {
-            writeAssessmentCategoryRows(t, r, "形成性考核", formative);
+            writeAssessmentCategoryRows(t, r, "过程性考核", formative);
             r += formative.size();
             wrote = true;
         }
@@ -1023,6 +1025,172 @@ public class CourseTeachingPlanGenerator {
         setCell(t, r, 3, firstNonBlank(a.getMechanism(), a.getScoreSystem()), false);
         setCell(t, r, 4, formatHours(a.getWeight()), false);
         setCell(t, r, 5, a.getStandard(), false);
+    }
+
+    /**
+     * 普通课程第八点新增「课程目标达成考核设计」表。
+     * 过程性考核按第八点 category=2 动态生成列；存在总结性考核时增加固定「期末考试」列。
+     */
+    private void objectiveAssessmentTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        List<TeachingPlanAssessment> assessments = m.getAssessments();
+        List<TeachingPlanAssessment> formative = new ArrayList<>();
+        boolean hasSummative = false;
+        if (ObjectUtils.isNotEmpty(assessments)) {
+            for (TeachingPlanAssessment a : assessments) {
+                if (a == null) {
+                    continue;
+                }
+                if (Integer.valueOf(2).equals(a.getAssessmentCategory())) {
+                    formative.add(a);
+                } else if (Integer.valueOf(1).equals(a.getAssessmentCategory())) {
+                    hasSummative = true;
+                }
+            }
+        }
+        List<TeachingPlanObjective> objectives = flattenObjectives(m);
+        int cols = 1 + formative.size() + (hasSummative ? 1 : 0) + 2;
+        int rows = 2 + Math.max(objectives.size(), 1);
+        XWPFTable t = createTable(doc, rows, cols);
+
+        int col = 0;
+        setCell(t, 0, col, "课程目标", true);
+        setCell(t, 1, col, "", true);
+        WordUtil.mergeCellsVertical(t, col, 0, 1);
+        col++;
+        if (!formative.isEmpty()) {
+            setCell(t, 0, col, "过程性考核占比", true);
+            for (int i = 0; i < formative.size(); i++) {
+                setCell(t, 1, col + i, formative.get(i).getAssessmentItem(), true);
+            }
+            if (formative.size() > 1) {
+                WordUtil.mergeCellsHorizontal(t, 0, col, col + formative.size() - 1);
+            }
+            col += formative.size();
+        }
+        if (hasSummative) {
+            setCell(t, 0, col, "终结性考核占比", true);
+            setCell(t, 1, col, "期末考试", true);
+            col++;
+        }
+        setCell(t, 0, col, "课程目标权重", true);
+        setCell(t, 1, col, "", true);
+        WordUtil.mergeCellsVertical(t, col, 0, 1);
+        col++;
+        setCell(t, 0, col, "考核评价内容", true);
+        setCell(t, 1, col, "", true);
+        WordUtil.mergeCellsVertical(t, col, 0, 1);
+
+        if (objectives.isEmpty()) {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 2, c, "", false);
+            }
+            return;
+        }
+        Map<Long, List<TeachingPlanObjectiveAssessment>> relationMap = new HashMap<>();
+        if (ObjectUtils.isNotEmpty(m.getObjectiveAssessments())) {
+            for (TeachingPlanObjectiveAssessment relation : m.getObjectiveAssessments()) {
+                if (relation == null || relation.getObjectiveId() == null) {
+                    continue;
+                }
+                relationMap.computeIfAbsent(relation.getObjectiveId(), k -> new ArrayList<>()).add(relation);
+            }
+        }
+        for (int i = 0; i < objectives.size(); i++) {
+            TeachingPlanObjective objective = objectives.get(i);
+            int r = i + 2;
+            col = 0;
+            setCell(t, r, col++, objective.getContent(), false);
+            List<TeachingPlanObjectiveAssessment> relations = relationMap.get(objective.getId());
+            for (TeachingPlanAssessment assessment : formative) {
+                setCell(t, r, col++, formatPercent(findRelationWeight(relations, assessment)), false);
+            }
+            if (hasSummative) {
+                // 总结性考核列固定展示期末考试，优先匹配 category=1 的考核记录
+                TeachingPlanAssessment finalAssessment = findSummative(assessments);
+                setCell(t, r, col++, formatPercent(findRelationWeight(relations, finalAssessment)), false);
+            }
+            setCell(t, r, col++, formatPercent(objective.getWeight()), false);
+            setCell(t, r, col, joinRelationContents(relations), false);
+        }
+    }
+
+    private List<TeachingPlanObjective> flattenObjectives(CourseTeachingPlanModel m) {
+        List<TeachingPlanObjective> result = new ArrayList<>();
+        Set<Long> ids = new LinkedHashSet<>();
+        if (ObjectUtils.isNotEmpty(m.getSchemeObjectiveGroups())) {
+            for (CourseTeachingPlanModel.SchemeObjectiveGroup group : m.getSchemeObjectiveGroups()) {
+                if (group == null || ObjectUtils.isEmpty(group.getObjectives())) {
+                    continue;
+                }
+                for (TeachingPlanObjective objective : group.getObjectives()) {
+                    if (objective != null && (objective.getId() == null || ids.add(objective.getId()))) {
+                        result.add(objective);
+                    }
+                }
+            }
+        } else if (ObjectUtils.isNotEmpty(m.getObjectives())) {
+            result.addAll(m.getObjectives());
+        }
+        return result;
+    }
+
+    private TeachingPlanAssessment findSummative(List<TeachingPlanAssessment> assessments) {
+        if (ObjectUtils.isEmpty(assessments)) {
+            return null;
+        }
+        for (TeachingPlanAssessment a : assessments) {
+            if (a != null && Integer.valueOf(1).equals(a.getAssessmentCategory())) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal findRelationWeight(List<TeachingPlanObjectiveAssessment> relations,
+                                          TeachingPlanAssessment assessment) {
+        if (ObjectUtils.isEmpty(relations) || assessment == null) {
+            return null;
+        }
+        for (TeachingPlanObjectiveAssessment relation : relations) {
+            if (relation == null) {
+                continue;
+            }
+            if (assessment.getId() != null && assessment.getId().equals(relation.getAssessmentId())) {
+                return relation.getWeight();
+            }
+            if (StringUtils.isNotBlank(relation.getAssessmentItem())
+                    && StringUtils.equals(relation.getAssessmentItem(), assessment.getAssessmentItem())) {
+                return relation.getWeight();
+            }
+        }
+        return null;
+    }
+
+    private String joinRelationContents(List<TeachingPlanObjectiveAssessment> relations) {
+        if (ObjectUtils.isEmpty(relations)) {
+            return "";
+        }
+        return relations.stream()
+                .map(TeachingPlanObjectiveAssessment::getAssessmentItemContent)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.joining("；"));
+    }
+
+    private String formatPercent(Object value) {
+        if (value == null) {
+            return "";
+        }
+        BigDecimal number;
+        try {
+            number = value instanceof BigDecimal ? (BigDecimal) value : new BigDecimal(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return str(String.valueOf(value));
+        }
+        if (number.abs().compareTo(BigDecimal.ONE) <= 0) {
+            number = number.multiply(BigDecimal.valueOf(100));
+        }
+        return formatHours(number) + "%";
     }
 
     /** 教材表：教材性质 | 教材名称 | 第一作者 | 版次 | 出版（颁发）单位 | 出版（颁发）时间 | ISBN号（统一书号） | 出版方式 */

@@ -9,6 +9,7 @@ import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
+import com.doinner.csys.domain.TeachingPlanObjectiveAssessment;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
@@ -26,6 +27,8 @@ import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
@@ -245,6 +248,16 @@ public class TeachingPlanController {
      * 仅新增目标类型与内容（不含毕业要求绑定）。
      * 绑定请走 POST /objectiveRef/save。
      */
+    /**
+     * 课程目标、支撑毕业要求、权重大保存；按 planId 删除旧目标及绑定后重建。
+     */
+    @ApiOperation("课程目标与支撑毕业要求大保存")
+    @PostMapping("/objective/batchSave")
+    public Message saveObjectivesBatch(@RequestBody TeachingPlanObjectiveBatchSaveVo saveVo) {
+        teachingPlanModuleService.saveObjectivesBatch(saveVo);
+        return Message.success();
+    }
+
     @ApiOperation("新增教学计划目标（仅类型与内容）")
     @PostMapping("/objective")
     public DataSet<Long> addObjective(@RequestBody TeachingPlanObjective objective) {
@@ -328,6 +341,23 @@ public class TeachingPlanController {
     @DeleteMapping("/objectiveRef/{id}")
     public Message deleteObjectiveRef(@PathVariable("id") Long id) {
         teachingPlanModuleService.deleteObjectiveRef(id);
+        return Message.success();
+    }
+
+    /** 课程目标与考核评价关联列表。 */
+    @ApiOperation("课程目标与考核评价关联列表")
+    @GetMapping("/objectiveAssessment/list")
+    public DataSet<List<TeachingPlanObjectiveAssessment>> objectiveAssessmentList(
+            @RequestParam("planId") Long planId,
+            @RequestParam(value = "schemeId", required = false) Long schemeId) {
+        return DataSet.success(teachingPlanModuleService.listObjectiveAssessment(planId, schemeId));
+    }
+
+    /** 课程目标与考核评价关联批量保存。 */
+    @ApiOperation("课程目标与考核评价关联批量保存")
+    @PostMapping("/objectiveAssessment/batchSave")
+    public Message saveObjectiveAssessmentBatch(@RequestBody TeachingPlanObjectiveAssessmentSaveVo saveVo) {
+        teachingPlanModuleService.saveObjectiveAssessmentBatch(saveVo);
         return Message.success();
     }
 
