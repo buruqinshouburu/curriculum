@@ -1084,14 +1084,14 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 1, col, "", true);
         WordUtil.mergeCellsVertical(t, col, 0, 1);
 
-        // 纵向合并使用原始列索引，必须在横向合并移除单元格前完成。
-        if (formative.size() > 1) {
-            WordUtil.mergeCellsHorizontal(t, 0, 1, formative.size());
-        }
+        // 横向合并会移除单元格，按原始列索引从右向左合并，避免前一组移除单元格后影响后一组下标。
         if (summative.size() > 1) {
             int summativeStart = 1 + formative.size();
             WordUtil.mergeCellsHorizontal(t, 0, summativeStart,
                     summativeStart + summative.size() - 1);
+        }
+        if (formative.size() > 1) {
+            WordUtil.mergeCellsHorizontal(t, 0, 1, formative.size());
         }
 
         if (objectives.isEmpty()) {
