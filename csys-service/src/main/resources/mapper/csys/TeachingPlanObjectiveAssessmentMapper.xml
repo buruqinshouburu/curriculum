@@ -44,4 +44,8 @@
         WHERE plan_id = #{planId}
         <if test="schemeId != null">AND scheme_id = #{schemeId}</if>
     </update>
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_objective_assessment SET sysflag = 2
+        WHERE plan_id = #{planId}
+    </update>
 </mapper>

@@ -112,9 +112,17 @@ public class TeachingPlanWordImporter {
     public static class ParsedObjective {
         public TeachingPlanObjective objective = new TeachingPlanObjective();
         public List<String> graduationNames = new ArrayList<>();
+        public List<ParsedObjectiveAssessment> assessments = new ArrayList<>();
         /** 支撑毕业要求单元格原文（落库时优先整串匹配，避免名称含分隔符被拆碎） */
         public String graduationRaw;
         public String schemeTitle;
+    }
+
+    /** 课程目标达成考核评价设计表中的一项关联，待目标和考核项落库后补齐 ID。 */
+    public static class ParsedObjectiveAssessment {
+        public String assessmentItem;
+        public BigDecimal weight;
+        public String assessmentItemContent;
     }
 
     public static class ParsedPracticeItem {
@@ -248,6 +256,12 @@ public class TeachingPlanWordImporter {
         // 目标与支撑毕业要求
         if (header.contains("目标类型") && header.contains("支撑毕业要求")) {
             parseObjectives(grid, schemeTitle, result, ctx);
+            return;
+        }
+        // 课程目标达成考核评价设计：课程目标 | 过程性/终结性考核占比 | 课程目标权重 | 考核评价内容
+        if (header.contains("课程目标") && header.contains("课程目标权重")
+                && header.contains("考核评价内容")) {
+            parseObjectiveAssessmentDesign(grid, result);
             return;
         }
         // 教学内容 type1
@@ -425,6 +439,73 @@ public class TeachingPlanWordImporter {
             }
             result.objectives.add(po);
         }
+    }
+
+    private void parseObjectiveAssessmentDesign(List<List<String>> grid, ParseResult result) {
+        if (grid.size() < 2) {
+            return;
+        }
+        List<String> headerRow = grid.get(0);
+        List<String> itemRow = grid.size() > 1 ? grid.get(1) : Collections.emptyList();
+        int firstDataColumn = 1;
+        int columnCount = 0;
+        for (List<String> row : grid) {
+            columnCount = Math.max(columnCount, row == null ? 0 : row.size());
+        }
+        int weightColumn = Math.max(firstDataColumn, columnCount - 2);
+        int contentColumn = Math.max(weightColumn + 1, columnCount - 1);
+        List<String> assessmentItems = new ArrayList<>();
+
+        for (int c = firstDataColumn; c < weightColumn; c++) {
+            String item = cell(itemRow, c);
+            if (StringUtils.isBlank(item) && c < headerRow.size()) {
+                item = cell(headerRow, c);
+            }
+            assessmentItems.add(item);
+        }
+
+        for (int r = 2; r < grid.size(); r++) {
+            List<String> row = grid.get(r);
+            String objectiveText = cell(row, 0);
+            if (StringUtils.isBlank(objectiveText) || objectiveText.contains("考核评价项总占比")) {
+                continue;
+            }
+            ParsedObjective objective = findObjective(result, objectiveText);
+            if (objective == null) {
+                objective = new ParsedObjective();
+                objective.objective.setContent(objectiveText);
+                objective.objective.setSourceMode(2);
+                objective.objective.setSort(result.objectives.size() + 1);
+                result.objectives.add(objective);
+            }
+            objective.objective.setWeight(parseRatio(cell(row, weightColumn)));
+            for (int c = firstDataColumn; c < weightColumn; c++) {
+                String rawWeight = cell(row, c);
+                if (StringUtils.isBlank(rawWeight)) {
+                    continue;
+                }
+                ParsedObjectiveAssessment relation = new ParsedObjectiveAssessment();
+                int itemIndex = c - firstDataColumn;
+                relation.assessmentItem = itemIndex < assessmentItems.size()
+                        ? assessmentItems.get(itemIndex) : "";
+                relation.weight = parseRatio(rawWeight);
+                relation.assessmentItemContent = cell(row, contentColumn);
+                if (StringUtils.isNotBlank(relation.assessmentItem) && relation.weight != null) {
+                    objective.assessments.add(relation);
+                }
+            }
+        }
+    }
+
+    private ParsedObjective findObjective(ParseResult result, String content) {
+        String normalized = content == null ? "" : content.trim();
+        for (ParsedObjective objective : result.objectives) {
+            if (objective != null && objective.objective != null
+                    && normalized.equals(StringUtils.trimToEmpty(objective.objective.getContent()))) {
+                return objective;
+            }
+        }
+        return null;
     }
 
     private Long resolveSchemeId(String schemeTitle, ParseResult result, ParseContext ctx) {
@@ -711,7 +792,17 @@ public class TeachingPlanWordImporter {
     }
 
     private void parseAssessments(List<List<String>> grid, ParseResult result) {
-        boolean isOutcome = joinHeader(grid.get(0)).contains("成果");
+        String header = joinHeader(grid.get(0));
+        boolean isOutcome = header.contains("成果");
+        boolean hasCategoryColumn = false;
+        for (int r = 1; r < grid.size(); r++) {
+            String category = cell(grid.get(r), 0);
+            if ("终结性考核".equals(category) || "过程性考核".equals(category)) {
+                hasCategoryColumn = true;
+                break;
+            }
+        }
+        String lastCategory = "";
         for (int r = 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
             String c0 = cell(row, 0);
@@ -734,6 +825,17 @@ public class TeachingPlanWordImporter {
                 a.setWeight(parseDecimal(cell(row, 3)));
                 a.setStandard(cell(row, 4));
                 a.setAssessmentCategory(5);
+            } else if (hasCategoryColumn) {
+                if ("终结性考核".equals(c0) || "过程性考核".equals(c0)) {
+                    lastCategory = c0;
+                }
+                a.setAssessmentCategory("终结性考核".equals(lastCategory) ? 1
+                        : ("过程性考核".equals(lastCategory) ? 2 : null));
+                a.setAssessmentItem(cell(row, 1));
+                a.setMethod(cell(row, 2));
+                splitMechanism(cell(row, 3), a);
+                a.setWeight(parseDecimal(cell(row, 4)));
+                a.setStandard(cell(row, 5));
             } else {
                 a.setAssessmentItem(c0);
                 a.setMethod(cell(row, 1));
@@ -1122,6 +1224,17 @@ public class TeachingPlanWordImporter {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private BigDecimal parseRatio(String s) {
+        BigDecimal value = parseDecimal(s);
+        if (value == null) {
+            return null;
+        }
+        if (value.abs().compareTo(BigDecimal.ONE) > 0) {
+            return value.movePointLeft(2);
+        }
+        return value;
     }
 
     private Integer parseInt(String s) {

@@ -7,6 +7,7 @@ import com.doinner.csys.dao.TeachingPlanContentMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
+import com.doinner.csys.dao.TeachingPlanObjectiveAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
 import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
@@ -26,6 +27,7 @@ import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
+import com.doinner.csys.domain.TeachingPlanObjectiveAssessment;
 import com.doinner.csys.domain.TeachingPlanObjectiveRef;
 import com.doinner.csys.domain.TeachingPlanPracticeItem;
 import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
@@ -184,6 +186,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private TeachingPlanObjectiveMapper teachingPlanObjectiveMapper;
     @Resource
     private TeachingPlanObjectiveRefMapper teachingPlanObjectiveRefMapper;
+    @Resource
+    private TeachingPlanObjectiveAssessmentMapper teachingPlanObjectiveAssessmentMapper;
     @Resource
     private TeachingPlanContentMapper teachingPlanContentMapper;
     @Resource
@@ -1651,6 +1655,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     /** 覆盖导入：逻辑删除 plan 下各子模块（明细表物理删） */
     private void clearPlanModules(Long planId) {
         teachingPlanPracticeItemDetailMapper.deleteByPlanId(planId);
+        teachingPlanObjectiveAssessmentMapper.deleteByPlanId(planId);
         teachingPlanObjectiveRefMapper.deleteByPlanId(planId);
         teachingPlanObjectiveMapper.deleteByPlanId(planId);
         teachingPlanTeacherMapper.deleteByPlanId(planId);
@@ -1701,6 +1706,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         // 目标 + 支撑毕业要求
         int objCount = 0;
         int refCount = 0;
+        Map<String, TeachingPlanObjective> objectiveMap = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(parsed.objectives)) {
             Map<Long, Map<String, List<StandardGraduation>>> schemeGradCache = new HashMap<>();
             for (TeachingPlanWordImporter.ParsedObjective po : parsed.objectives) {
@@ -1716,6 +1722,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 prepareEntity(o);
                 teachingPlanObjectiveMapper.insert(o);
                 objCount++;
+                objectiveMap.putIfAbsent(normalizeImportKey(o.getContent()), o);
                 if (ObjectUtils.isEmpty(po.graduationNames) || o.getId() == null) {
                     continue;
                 }
@@ -1829,11 +1836,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         result.addCount("practiceItem", itemCount);
         result.addCount("practiceItemDetail", detailCount);
 
-        // 考核
+        // 考核。关联表使用 Word 中的考核项目名称，因此在字典反查前先保留名称索引；
+        // 落库后再补充编码索引，兼容字典项名称与编码两种来源。
+        Map<String, TeachingPlanAssessment> assessmentMap = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(parsed.assessments)) {
             for (TeachingPlanAssessment a : parsed.assessments) {
                 a.setId(null);
                 a.setPlanId(planId);
+                String importedAssessmentItem = a.getAssessmentItem();
                 // 字典反查已在解析阶段尽量完成；此处再补 assessment 字段
                 a.setAssessmentItem(reverseImportDict(a.getAssessmentItem(), DICT_ASSESSMENT_ITEM));
                 a.setMethod(reverseImportDict(a.getMethod(), DICT_ASSESSMENT_METHOD));
@@ -1841,8 +1851,61 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 a.setStandard(reverseImportDict(a.getStandard(), DICT_EVALUATION_STANDARD));
                 prepareEntity(a);
                 teachingPlanAssessmentMapper.insert(a);
+                if (StringUtils.isNotBlank(importedAssessmentItem)) {
+                    assessmentMap.putIfAbsent(normalizeImportKey(importedAssessmentItem), a);
+                }
+                if (StringUtils.isNotBlank(a.getAssessmentItem())) {
+                    assessmentMap.putIfAbsent(normalizeImportKey(a.getAssessmentItem()), a);
+                }
             }
             result.addCount("assessment", parsed.assessments.size());
+        }
+        // 课程目标达成考核评价设计：目标和考核项均已落库并取得 ID 后再写关联
+        if (ObjectUtils.isNotEmpty(parsed.objectives) && ObjectUtils.isNotEmpty(parsed.assessments)) {
+            List<TeachingPlanObjectiveAssessment> relations = new ArrayList<>();
+            for (TeachingPlanWordImporter.ParsedObjective parsedObjective : parsed.objectives) {
+                if (parsedObjective == null || parsedObjective.objective == null
+                        || ObjectUtils.isEmpty(parsedObjective.assessments)) {
+                    continue;
+                }
+                TeachingPlanObjective objective = objectiveMap.get(
+                        normalizeImportKey(parsedObjective.objective.getContent()));
+                if (objective == null || objective.getId() == null) {
+                    result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                            "八、考核评价", parsedObjective.objective.getContent(), "objectiveId",
+                            "未匹配到课程目标，课程目标达成考核评价设计关联已跳过"));
+                    continue;
+                }
+                for (TeachingPlanWordImporter.ParsedObjectiveAssessment parsedRelation
+                        : parsedObjective.assessments) {
+                    if (parsedRelation == null || StringUtils.isBlank(parsedRelation.assessmentItem)
+                            || parsedRelation.weight == null) {
+                        continue;
+                    }
+                    TeachingPlanAssessment assessment = assessmentMap.get(
+                            normalizeImportKey(parsedRelation.assessmentItem));
+                    if (assessment == null || assessment.getId() == null) {
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "八、考核评价", parsedObjective.objective.getContent(), "assessmentItem",
+                                "未匹配到考核评价项，关联已跳过: " + parsedRelation.assessmentItem));
+                        continue;
+                    }
+                    TeachingPlanObjectiveAssessment relation = new TeachingPlanObjectiveAssessment();
+                    relation.setPlanId(planId);
+                    relation.setSchemeId(objective.getSchemeId());
+                    relation.setObjectiveId(objective.getId());
+                    relation.setAssessmentId(assessment.getId());
+                    relation.setAssessmentItem(assessment.getAssessmentItem());
+                    relation.setWeight(parsedRelation.weight);
+                    relation.setAssessmentItemContent(parsedRelation.assessmentItemContent);
+                    prepareEntity(relation);
+                    relations.add(relation);
+                }
+            }
+            if (ObjectUtils.isNotEmpty(relations)) {
+                teachingPlanObjectiveAssessmentMapper.insertBatch(relations);
+                result.addCount("objectiveAssessment", relations.size());
+            }
         }
         // 教材
         if (ObjectUtils.isNotEmpty(parsed.textbooks)) {
@@ -1959,6 +2022,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
         }
         return label;
+    }
+
+    private String normalizeImportKey(String value) {
+        return StringUtils.defaultString(value).replaceAll("\\s+", "").trim();
     }
 }
 

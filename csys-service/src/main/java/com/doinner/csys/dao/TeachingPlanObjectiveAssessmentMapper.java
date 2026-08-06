@@ -9,4 +9,5 @@ public interface TeachingPlanObjectiveAssessmentMapper {
     int insertBatch(@Param("list") List<TeachingPlanObjectiveAssessment> list);
     List<TeachingPlanObjectiveAssessment> selectByPlanAndScheme(@Param("planId") Long planId, @Param("schemeId") Long schemeId);
     int deleteByPlanAndScheme(@Param("planId") Long planId, @Param("schemeId") Long schemeId);
+    int deleteByPlanId(@Param("planId") Long planId);
 }

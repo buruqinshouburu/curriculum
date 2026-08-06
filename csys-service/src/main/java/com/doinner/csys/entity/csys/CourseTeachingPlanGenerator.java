@@ -1050,8 +1050,10 @@ public class CourseTeachingPlanGenerator {
             }
         }
         List<TeachingPlanObjective> objectives = flattenObjectives(m);
-        int cols = 1 + formative.size() + summative.size() + 3;
-        int rows = 2 + Math.max(objectives.size(), 1);
+        int cols = 1 + formative.size() + summative.size() + 2;
+        int objectiveRows = Math.max(objectives.size(), 1);
+        int totalRow = 2 + objectiveRows;
+        int rows = totalRow + 1;
         XWPFTable t = createTable(doc, rows, cols);
 
         int col = 0;
@@ -1081,10 +1083,6 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 0, col, "考核评价内容", true);
         setCell(t, 1, col, "", true);
         WordUtil.mergeCellsVertical(t, col, 0, 1);
-        col++;
-        setCell(t, 0, col, "考核评价项总占比", true);
-        setCell(t, 1, col, "", true);
-        WordUtil.mergeCellsVertical(t, col, 0, 1);
 
         // 纵向合并使用原始列索引，必须在横向合并移除单元格前完成。
         if (formative.size() > 1) {
@@ -1100,34 +1098,70 @@ public class CourseTeachingPlanGenerator {
             for (int c = 0; c < cols; c++) {
                 setCell(t, 2, c, "", false);
             }
+        } else {
+            Map<Long, List<TeachingPlanObjectiveAssessment>> relationMap = new HashMap<>();
+            if (ObjectUtils.isNotEmpty(m.getObjectiveAssessments())) {
+                for (TeachingPlanObjectiveAssessment relation : m.getObjectiveAssessments()) {
+                    if (relation == null || relation.getObjectiveId() == null) {
+                        continue;
+                    }
+                    relationMap.computeIfAbsent(relation.getObjectiveId(), k -> new ArrayList<>()).add(relation);
+                }
+            }
+            BigDecimal[] formativeTotals = new BigDecimal[formative.size()];
+            BigDecimal[] summativeTotals = new BigDecimal[summative.size()];
+            for (int i = 0; i < formativeTotals.length; i++) {
+                formativeTotals[i] = BigDecimal.ZERO;
+            }
+            for (int i = 0; i < summativeTotals.length; i++) {
+                summativeTotals[i] = BigDecimal.ZERO;
+            }
+            for (int i = 0; i < objectives.size(); i++) {
+                TeachingPlanObjective objective = objectives.get(i);
+                int r = i + 2;
+                col = 0;
+                setCell(t, r, col++, objective.getContent(), false);
+                List<TeachingPlanObjectiveAssessment> relations = relationMap.get(objective.getId());
+                for (int assessmentIndex = 0; assessmentIndex < formative.size(); assessmentIndex++) {
+                    TeachingPlanAssessment assessment = formative.get(assessmentIndex);
+                    BigDecimal weight = findRelationWeight(relations, assessment);
+                    setCell(t, r, col++, formatPercent(weight), false);
+                    if (weight != null) {
+                        formativeTotals[assessmentIndex] = formativeTotals[assessmentIndex].add(toPercentNumber(weight));
+                    }
+                }
+                for (int assessmentIndex = 0; assessmentIndex < summative.size(); assessmentIndex++) {
+                    TeachingPlanAssessment assessment = summative.get(assessmentIndex);
+                    BigDecimal weight = findRelationWeight(relations, assessment);
+                    setCell(t, r, col++, formatPercent(weight), false);
+                    if (weight != null) {
+                        summativeTotals[assessmentIndex] = summativeTotals[assessmentIndex].add(toPercentNumber(weight));
+                    }
+                }
+                setCell(t, r, col++, formatPercent(objective.getWeight()), false);
+                setCell(t, r, col, joinRelationContents(relations), false);
+            }
+
+            col = 0;
+            setCell(t, totalRow, col++, "考核评价项总占比", true);
+            for (BigDecimal total : formativeTotals) {
+                setCell(t, totalRow, col++, formatHours(total) + "%", false);
+            }
+            for (BigDecimal total : summativeTotals) {
+                setCell(t, totalRow, col++, formatHours(total) + "%", false);
+            }
+            setCell(t, totalRow, col++, "", false);
+            setCell(t, totalRow, col, "", false);
+            if (cols - col > 1) {
+                WordUtil.mergeCellsHorizontal(t, totalRow, col, cols - 1);
+            }
             return;
         }
-        Map<Long, List<TeachingPlanObjectiveAssessment>> relationMap = new HashMap<>();
-        if (ObjectUtils.isNotEmpty(m.getObjectiveAssessments())) {
-            for (TeachingPlanObjectiveAssessment relation : m.getObjectiveAssessments()) {
-                if (relation == null || relation.getObjectiveId() == null) {
-                    continue;
-                }
-                relationMap.computeIfAbsent(relation.getObjectiveId(), k -> new ArrayList<>()).add(relation);
-            }
+        setCell(t, totalRow, 0, "考核评价项总占比", true);
+        for (int c = 1; c < cols; c++) {
+            setCell(t, totalRow, c, "", false);
         }
-        for (int i = 0; i < objectives.size(); i++) {
-            TeachingPlanObjective objective = objectives.get(i);
-            int r = i + 2;
-            col = 0;
-            setCell(t, r, col++, objective.getContent(), false);
-            List<TeachingPlanObjectiveAssessment> relations = relationMap.get(objective.getId());
-            for (TeachingPlanAssessment assessment : formative) {
-                setCell(t, r, col++, formatPercent(findRelationWeight(relations, assessment)), false);
-            }
-            for (TeachingPlanAssessment assessment : summative) {
-                setCell(t, r, col++, formatPercent(findRelationWeight(relations, assessment)), false);
-            }
-            setCell(t, r, col++, formatPercent(objective.getWeight()), false);
-            setCell(t, r, col, joinRelationContents(relations), false);
-            col++;
-            setCell(t, r, col, formatPercent(sumRelationWeights(relations, formative, summative)), false);
-        }
+        WordUtil.mergeCellsHorizontal(t, totalRow, 0, cols - 1);
     }
 
     private List<TeachingPlanObjective> flattenObjectives(CourseTeachingPlanModel m) {
@@ -1170,31 +1204,6 @@ public class CourseTeachingPlanGenerator {
         return null;
     }
 
-    private BigDecimal sumRelationWeights(List<TeachingPlanObjectiveAssessment> relations,
-                                          List<TeachingPlanAssessment> formative,
-                                          List<TeachingPlanAssessment> summative) {
-        if (ObjectUtils.isEmpty(relations)) {
-            return null;
-        }
-        List<TeachingPlanAssessment> displayedAssessments = new ArrayList<>();
-        if (ObjectUtils.isNotEmpty(formative)) {
-            displayedAssessments.addAll(formative);
-        }
-        if (ObjectUtils.isNotEmpty(summative)) {
-            displayedAssessments.addAll(summative);
-        }
-        BigDecimal total = BigDecimal.ZERO;
-        boolean hasValue = false;
-        for (TeachingPlanAssessment assessment : displayedAssessments) {
-            BigDecimal weight = findRelationWeight(relations, assessment);
-            if (weight != null) {
-                total = total.add(weight);
-                hasValue = true;
-            }
-        }
-        return hasValue ? total : null;
-    }
-
     private String joinRelationContents(List<TeachingPlanObjectiveAssessment> relations) {
         if (ObjectUtils.isEmpty(relations)) {
             return "";
@@ -1210,16 +1219,22 @@ public class CourseTeachingPlanGenerator {
         if (value == null) {
             return "";
         }
+        BigDecimal number = toPercentNumber(value);
+        return formatHours(number) + "%";
+    }
+
+    /** 将比例统一转换为百分数数值，供单元格显示和行内汇总共用。 */
+    private BigDecimal toPercentNumber(Object value) {
         BigDecimal number;
         try {
             number = value instanceof BigDecimal ? (BigDecimal) value : new BigDecimal(String.valueOf(value));
         } catch (NumberFormatException e) {
-            return str(String.valueOf(value));
+            return BigDecimal.ZERO;
         }
         if (number.abs().compareTo(BigDecimal.ONE) <= 0) {
             number = number.multiply(BigDecimal.valueOf(100));
         }
-        return formatHours(number) + "%";
+        return number;
     }
 
     /** 教材表：教材性质 | 教材名称 | 第一作者 | 版次 | 出版（颁发）单位 | 出版（颁发）时间 | ISBN号（统一书号） | 出版方式 */
