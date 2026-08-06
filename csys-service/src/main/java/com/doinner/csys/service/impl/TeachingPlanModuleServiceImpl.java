@@ -870,6 +870,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             item.setId(null);
             item.setPlanId(saveVo.getPlanId());
             item.setSchemeId(saveVo.getSchemeId());
+            item.setSysflag(0);
             UserUtils.reflash(item);
             items.add(item);
         }
@@ -1234,11 +1235,11 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (planId == null) {
             throw new IllegalArgumentException("planId 不能为空");
         }
-        // 含已删除(sysflag=2)在内都没有数据时，按字典初始化 9 条条件类型
-        int total = teachingPlanConditionMapper.countAllByPlanId(planId);
+        // 含已删除(sysflag=2)在内都没有数据时，按字典初始化 9 条条件类型  不需要初始化
+        /*int total = teachingPlanConditionMapper.countAllByPlanId(planId);
         if (total <= 0) {
             initDefaultConditions(planId);
-        }
+        }*/
         // 列表只返回有效数据(sysflag=0)
         return teachingPlanConditionMapper.selectByPlanId(planId);
     }

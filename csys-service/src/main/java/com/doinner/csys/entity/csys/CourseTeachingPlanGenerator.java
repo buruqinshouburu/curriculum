@@ -187,7 +187,9 @@ public class CourseTeachingPlanGenerator {
 
         // 八、考核评价
         h1(doc, "八、考核评价");
+        h2(doc, "（一）考核结构设计与各教学环节比例分配");
         assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+        h2(doc, "（二）课程目标达成考核评价设计");
         objectiveAssessmentTable(m, doc);
 
         // 九、教学条件
@@ -1029,12 +1031,12 @@ public class CourseTeachingPlanGenerator {
 
     /**
      * 普通课程第八点新增「课程目标达成考核设计」表。
-     * 过程性考核按第八点 category=2 动态生成列；存在总结性考核时增加固定「期末考试」列。
+     * 过程性和终结性考核均按实际配置的考核评价项动态生成列。
      */
     private void objectiveAssessmentTable(CourseTeachingPlanModel m, XWPFDocument doc) {
         List<TeachingPlanAssessment> assessments = m.getAssessments();
         List<TeachingPlanAssessment> formative = new ArrayList<>();
-        boolean hasSummative = false;
+        List<TeachingPlanAssessment> summative = new ArrayList<>();
         if (ObjectUtils.isNotEmpty(assessments)) {
             for (TeachingPlanAssessment a : assessments) {
                 if (a == null) {
@@ -1043,12 +1045,12 @@ public class CourseTeachingPlanGenerator {
                 if (Integer.valueOf(2).equals(a.getAssessmentCategory())) {
                     formative.add(a);
                 } else if (Integer.valueOf(1).equals(a.getAssessmentCategory())) {
-                    hasSummative = true;
+                    summative.add(a);
                 }
             }
         }
         List<TeachingPlanObjective> objectives = flattenObjectives(m);
-        int cols = 1 + formative.size() + (hasSummative ? 1 : 0) + 2;
+        int cols = 1 + formative.size() + summative.size() + 3;
         int rows = 2 + Math.max(objectives.size(), 1);
         XWPFTable t = createTable(doc, rows, cols);
 
@@ -1062,23 +1064,37 @@ public class CourseTeachingPlanGenerator {
             for (int i = 0; i < formative.size(); i++) {
                 setCell(t, 1, col + i, formative.get(i).getAssessmentItem(), true);
             }
-            if (formative.size() > 1) {
-                WordUtil.mergeCellsHorizontal(t, 0, col, col + formative.size() - 1);
-            }
             col += formative.size();
         }
-        if (hasSummative) {
+        if (!summative.isEmpty()) {
             setCell(t, 0, col, "终结性考核占比", true);
-            setCell(t, 1, col, "期末考试", true);
-            col++;
+            for (int i = 0; i < summative.size(); i++) {
+                setCell(t, 1, col + i, summative.get(i).getAssessmentItem(), true);
+            }
+            col += summative.size();
         }
         setCell(t, 0, col, "课程目标权重", true);
         setCell(t, 1, col, "", true);
         WordUtil.mergeCellsVertical(t, col, 0, 1);
+
         col++;
         setCell(t, 0, col, "考核评价内容", true);
         setCell(t, 1, col, "", true);
         WordUtil.mergeCellsVertical(t, col, 0, 1);
+        col++;
+        setCell(t, 0, col, "考核评价项总占比", true);
+        setCell(t, 1, col, "", true);
+        WordUtil.mergeCellsVertical(t, col, 0, 1);
+
+        // 纵向合并使用原始列索引，必须在横向合并移除单元格前完成。
+        if (formative.size() > 1) {
+            WordUtil.mergeCellsHorizontal(t, 0, 1, formative.size());
+        }
+        if (summative.size() > 1) {
+            int summativeStart = 1 + formative.size();
+            WordUtil.mergeCellsHorizontal(t, 0, summativeStart,
+                    summativeStart + summative.size() - 1);
+        }
 
         if (objectives.isEmpty()) {
             for (int c = 0; c < cols; c++) {
@@ -1104,13 +1120,13 @@ public class CourseTeachingPlanGenerator {
             for (TeachingPlanAssessment assessment : formative) {
                 setCell(t, r, col++, formatPercent(findRelationWeight(relations, assessment)), false);
             }
-            if (hasSummative) {
-                // 总结性考核列固定展示期末考试，优先匹配 category=1 的考核记录
-                TeachingPlanAssessment finalAssessment = findSummative(assessments);
-                setCell(t, r, col++, formatPercent(findRelationWeight(relations, finalAssessment)), false);
+            for (TeachingPlanAssessment assessment : summative) {
+                setCell(t, r, col++, formatPercent(findRelationWeight(relations, assessment)), false);
             }
             setCell(t, r, col++, formatPercent(objective.getWeight()), false);
             setCell(t, r, col, joinRelationContents(relations), false);
+            col++;
+            setCell(t, r, col, formatPercent(sumRelationWeights(relations, formative, summative)), false);
         }
     }
 
@@ -1134,18 +1150,6 @@ public class CourseTeachingPlanGenerator {
         return result;
     }
 
-    private TeachingPlanAssessment findSummative(List<TeachingPlanAssessment> assessments) {
-        if (ObjectUtils.isEmpty(assessments)) {
-            return null;
-        }
-        for (TeachingPlanAssessment a : assessments) {
-            if (a != null && Integer.valueOf(1).equals(a.getAssessmentCategory())) {
-                return a;
-            }
-        }
-        return null;
-    }
-
     private BigDecimal findRelationWeight(List<TeachingPlanObjectiveAssessment> relations,
                                           TeachingPlanAssessment assessment) {
         if (ObjectUtils.isEmpty(relations) || assessment == null) {
@@ -1164,6 +1168,31 @@ public class CourseTeachingPlanGenerator {
             }
         }
         return null;
+    }
+
+    private BigDecimal sumRelationWeights(List<TeachingPlanObjectiveAssessment> relations,
+                                          List<TeachingPlanAssessment> formative,
+                                          List<TeachingPlanAssessment> summative) {
+        if (ObjectUtils.isEmpty(relations)) {
+            return null;
+        }
+        List<TeachingPlanAssessment> displayedAssessments = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(formative)) {
+            displayedAssessments.addAll(formative);
+        }
+        if (ObjectUtils.isNotEmpty(summative)) {
+            displayedAssessments.addAll(summative);
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        boolean hasValue = false;
+        for (TeachingPlanAssessment assessment : displayedAssessments) {
+            BigDecimal weight = findRelationWeight(relations, assessment);
+            if (weight != null) {
+                total = total.add(weight);
+                hasValue = true;
+            }
+        }
+        return hasValue ? total : null;
     }
 
     private String joinRelationContents(List<TeachingPlanObjectiveAssessment> relations) {

@@ -224,8 +224,15 @@ public class WordUtil {
      * @param endCol   结束列号
      */
     public static void mergeCellsHorizontal(XWPFTable table, int rowIndex, int startCol, int endCol) {
+        if (table == null || rowIndex < 0 || startCol < 0 || endCol <= startCol) {
+            return;
+        }
         XWPFTableRow tableRow = table.getRow(rowIndex);
-        if(ObjectUtils.isEmpty(tableRow)){
+        if (ObjectUtils.isEmpty(tableRow) || startCol >= tableRow.getTableCells().size()) {
+            return;
+        }
+        endCol = Math.min(endCol, tableRow.getTableCells().size() - 1);
+        if (endCol <= startCol) {
             return;
         }
         XWPFTableCell firstCell = tableRow.getCell(startCol);
@@ -254,23 +261,29 @@ public class WordUtil {
      * @param endRow   结束行号
      */
     public static void mergeCellsVertical(XWPFTable table, int colIndex, int startRow, int endRow) {
+        if (table == null || colIndex < 0 || startRow < 0 || endRow < startRow) {
+            return;
+        }
         for (int r = startRow; r <= endRow; r++) {
-            if(ObjectUtils.isEmpty(table.getRow(r))) {
+            XWPFTableRow row = table.getRow(r);
+            if (ObjectUtils.isEmpty(row) || colIndex >= row.getTableCells().size()) {
                 continue;
             }
-            XWPFTableCell cell = table.getRow(r).getCell(colIndex);
-            CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
-            CTVMerge vMerge = tcPr.isSetVMerge() ? tcPr.getVMerge() : tcPr.addNewVMerge();
+            XWPFTableCell cell = row.getCell(colIndex);
+            if (cell != null) {
+                CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
+                CTVMerge vMerge = tcPr.isSetVMerge() ? tcPr.getVMerge() : tcPr.addNewVMerge();
 
-            if (r == startRow) {
-                vMerge.setVal(STMerge.RESTART);
-            } else {
-                vMerge.setVal(STMerge.CONTINUE);
-                // 清空内容
-                while (cell.getParagraphs().size() > 0) {
-                    cell.removeParagraph(0);
+                if (r == startRow) {
+                    vMerge.setVal(STMerge.RESTART);
+                } else {
+                    vMerge.setVal(STMerge.CONTINUE);
+                    // 清空内容
+                    while (cell.getParagraphs().size() > 0) {
+                        cell.removeParagraph(0);
+                    }
+                    cell.addParagraph();
                 }
-                cell.addParagraph();
             }
         }
     }
