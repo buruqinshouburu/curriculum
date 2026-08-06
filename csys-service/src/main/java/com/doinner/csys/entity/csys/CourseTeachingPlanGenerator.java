@@ -1110,6 +1110,7 @@ public class CourseTeachingPlanGenerator {
             }
             BigDecimal[] formativeTotals = new BigDecimal[formative.size()];
             BigDecimal[] summativeTotals = new BigDecimal[summative.size()];
+            BigDecimal objectiveWeightTotal = BigDecimal.ZERO;
             for (int i = 0; i < formativeTotals.length; i++) {
                 formativeTotals[i] = BigDecimal.ZERO;
             }
@@ -1139,6 +1140,9 @@ public class CourseTeachingPlanGenerator {
                     }
                 }
                 setCell(t, r, col++, formatPercent(objective.getWeight()), false);
+                if (objective.getWeight() != null) {
+                    objectiveWeightTotal = objectiveWeightTotal.add(toPercentNumber(objective.getWeight()));
+                }
                 setCell(t, r, col, joinRelationContents(relations), false);
             }
 
@@ -1150,7 +1154,7 @@ public class CourseTeachingPlanGenerator {
             for (BigDecimal total : summativeTotals) {
                 setCell(t, totalRow, col++, formatHours(total) + "%", false);
             }
-            setCell(t, totalRow, col++, "", false);
+            setCell(t, totalRow, col++, formatHours(objectiveWeightTotal) + "%", false);
             setCell(t, totalRow, col, "", false);
             if (cols - col > 1) {
                 WordUtil.mergeCellsHorizontal(t, totalRow, col, cols - 1);
