@@ -117,6 +117,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_PLAN_TEACHING_METHOD = "sys_plan_teaching_method";
     /** 学法字典 type */
     private static final String DICT_PLAN_LEARNING_METHOD = "sys_plan_learning_method";
+    /** 目标/达成设计类型字典 type（知识/能力/素质目标，dict_value 落 design_type_code） */
+    private static final String DICT_PLAN_TARGET_TYPE = "sys_plan_target_type";
     /** 适用对象/培养层次字典 type */
     private static final String DICT_EDUCATION_LEVEL = "sys_education_level";
     /** 考核项目字典 type */
@@ -1052,13 +1054,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
 
             m.setContents(teachingPlanModuleService.listContent(planId));
-            // 目标达成设计：页面已按目标名称聚合多 scheme，落库为 plan 级一张表；
-            // schemeId 传 null 不过滤，取全 plan 数据（listTargetDesign 已填充 knowledgePoints）
-            List<TeachingPlanTargetDesign> designs = new ArrayList<>();
-            designs.addAll(teachingPlanModuleService.listTargetDesign(planId, null, "知识目标"));
-            designs.addAll(teachingPlanModuleService.listTargetDesign(planId, null, "能力目标"));
-            designs.addAll(teachingPlanModuleService.listTargetDesign(planId, null, "素质目标"));
-            // 表内教学环节/教法/学法：字典编码译为 label（可多值顿号/逗号分隔）
+            // 目标达成设计：design_type_code 现存字典 value，不再按中文 type 精确查询；
+            // 一次取 plan 下全量，由生成器按 designTypeName(字典 label) 分流到知识/能力/素质三表
+            List<TeachingPlanTargetDesign> designs =
+                    teachingPlanModuleService.listTargetDesign(planId, null, null);
+            // 表内教学环节/教法/学法 + 设计类型：字典编码译为 label（可多值顿号/逗号分隔）
             translateTargetDesignDictFields(designs);
             m.setTargetDesigns(designs);
             // 第六节「说明」三段：取字典全部 label 拼接
@@ -1172,6 +1172,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         Map<String, String> linkMap = dictValueToLabelMap(DICT_PLAN_TEACHING_LINK);
         Map<String, String> methodMap = dictValueToLabelMap(DICT_PLAN_TEACHING_METHOD);
         Map<String, String> learningMap = dictValueToLabelMap(DICT_PLAN_LEARNING_METHOD);
+        Map<String, String> targetTypeMap = dictValueToLabelMap(DICT_PLAN_TARGET_TYPE);
         for (TeachingPlanTargetDesign d : designs) {
             if (d == null) {
                 continue;
@@ -1179,6 +1180,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             d.setTeachingLink(translateDictJoined(d.getTeachingLink(), linkMap));
             d.setTeachingMethod(translateDictJoined(d.getTeachingMethod(), methodMap));
             d.setLearningMethod(translateDictJoined(d.getLearningMethod(), learningMap));
+            // design_type_code 存字典 value(如 1/2/3)，译成中文 label 填 designTypeName，
+            // 供生成器按"知识/能力/素质"分流；已是中文或字典未命中时保留原文
+            d.setDesignTypeName(translateDictJoined(d.getDesignTypeCode(), targetTypeMap));
         }
     }
 

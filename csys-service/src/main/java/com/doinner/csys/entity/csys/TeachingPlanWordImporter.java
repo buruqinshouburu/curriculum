@@ -281,8 +281,8 @@ public class TeachingPlanWordImporter {
         }
         // 能力/素质达成设计
         if (header.contains("观测点") && header.contains("教学设计")) {
-            String designType = subSection.contains("素质") ? "素质目标"
-                    : (subSection.contains("能力") ? "能力目标" : "能力目标");
+            String designType = mapDesignTypeCode(
+                    subSection.contains("素质") ? "素质目标" : "能力目标", ctx);
             parseAbilityQualityDesign(grid, designType, result);
             return;
         }
@@ -577,6 +577,21 @@ public class TeachingPlanWordImporter {
         return typeName;
     }
 
+    /**
+     * 达成设计类型：中文 label -> 字典 sys_plan_target_type 的 value（与前端保存一致）。
+     * 字典未匹配时回退中文，避免导入因字典缺失而丢类型。
+     */
+    private String mapDesignTypeCode(String typeName, ParseContext ctx) {
+        if (StringUtils.isBlank(typeName)) {
+            return typeName;
+        }
+        String code = reverseDict(typeName, "sys_plan_target_type", ctx);
+        if (StringUtils.isNotBlank(code) && !code.equals(typeName)) {
+            return code;
+        }
+        return typeName;
+    }
+
     private void parseContentsType1(List<List<String>> grid, ParseResult result) {
         for (int r = 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
@@ -635,7 +650,7 @@ public class TeachingPlanWordImporter {
                 current = new TeachingPlanTargetDesign();
                 points = new ArrayList<>();
                 currentSeq = seqNum;
-                current.setDesignTypeCode("知识目标");
+                current.setDesignTypeCode(mapDesignTypeCode("知识目标", ctx));
                 current.setSort(seqNum != null ? seqNum : result.targetDesigns.size() + 1);
                 current.setObjectiveText(cell(row, 3));
                 current.setContentText(cell(row, 4));

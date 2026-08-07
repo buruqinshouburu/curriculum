@@ -562,23 +562,32 @@ public class CourseTeachingPlanGenerator {
         for (int i = 0; i < flat.size(); i++) {
             KnowledgeDesignRow row = flat.get(i);
             int r = i + 1;
-            // 后面几列不再纵向合并：每行独立写出
-            setCell(t, r, 0, String.valueOf(row.designIndex), false);
-            setCell(t, r, 3, row.objectiveText, false);
-            setCell(t, r, 4, row.contentText, false);
-            setCell(t, r, 5, row.teachingLink, false);
-            setCell(t, r, 6, row.teachingMethod, false);
-            setCell(t, r, 7, row.learningMethod, false);
-            setCell(t, r, 8, row.hours, false);
-            // 仅相同知识单元列合并：段首写值，其余空
-            if (row.firstOfUnit) {
-                setCell(t, r, 1, row.unitName, false);
+            // 同一条设计纵向合并：序号/支撑目标/教学内容/教学环节/教法/学法/学时 仅段首写值，其余留空后合并
+            if (row.firstOfDesign) {
+                setCell(t, r, 0, String.valueOf(row.designIndex), false);
+                setCell(t, r, 3, row.objectiveText, false);
+                setCell(t, r, 4, row.contentText, false);
+                setCell(t, r, 5, row.teachingLink, false);
+                setCell(t, r, 6, row.teachingMethod, false);
+                setCell(t, r, 7, row.learningMethod, false);
+                setCell(t, r, 8, row.hours, false);
             } else {
-                setCell(t, r, 1, "", false);
+                setCell(t, r, 0, "", false);
+                setCell(t, r, 3, "", false);
+                setCell(t, r, 4, "", false);
+                setCell(t, r, 5, "", false);
+                setCell(t, r, 6, "", false);
+                setCell(t, r, 7, "", false);
+                setCell(t, r, 8, "", false);
             }
+            // 知识单元：同一条设计内连续相同单元段首写值（不跨设计），其余留空后合并
+            setCell(t, r, 1, row.firstOfUnit ? row.unitName : "", false);
+            // 知识点：每行一点，不合并
             setCell(t, r, 2, row.pointName, false);
         }
-        // 只合并相同知识单元列
+        // 序号/支撑目标/教学内容/教学环节/教法/学法/学时：同一条设计的多行纵向合并
+        mergeDesignColumns(t, flat);
+        // 知识单元：仅在同一条设计内连续相同单元纵向合并（不跨设计）
         mergeKnowledgeUnitColumn(t, flat);
     }
 
@@ -617,33 +626,21 @@ public class CourseTeachingPlanGenerator {
                 row.learningMethod = learningMethod;
                 row.hours = hours;
                 row.firstOfDesign = (p == 0);
-                // 单元段首：全文连续相同单元只在段首写值
                 flat.add(row);
             }
         }
-        // 先按知识单元排序，再标记连续相同单元的段首，便于合并
-        flat.sort((a, b) -> {
-            String ua = StringUtils.defaultString(a.unitName);
-            String ub = StringUtils.defaultString(b.unitName);
-            int c = ua.compareTo(ub);
-            if (c != 0) {
-                return c;
-            }
-            // 同单元内保持设计序号、知识点相对顺序
-            int d = Integer.compare(a.designIndex, b.designIndex);
-            if (d != 0) {
-                return d;
-            }
-            return StringUtils.defaultString(a.pointName).compareTo(StringUtils.defaultString(b.pointName));
-        });
+        // 不跨设计排序：保持设计的库序（sort/id），同一条设计内知识点保持存储顺序，
+        // 否则会打乱序号、并把同一条设计跨多个知识单元的行拆散到不同单元块，造成"数据被覆盖/串行"。
+        // 仅标记「同一条设计内」连续相同知识单元的段首，便于只在该设计内合并（不跨设计）。
         for (int i = 0; i < flat.size(); i++) {
             KnowledgeDesignRow row = flat.get(i);
-            if (i == 0) {
+            KnowledgeDesignRow prev = i > 0 ? flat.get(i - 1) : null;
+            if (prev == null || prev.designIndex != row.designIndex) {
+                // 新一条设计的第一行：单元段首
                 row.firstOfUnit = true;
             } else {
-                String prevUnit = flat.get(i - 1).unitName;
                 row.firstOfUnit = !StringUtils.equals(
-                        StringUtils.defaultString(prevUnit),
+                        StringUtils.defaultString(prev.unitName),
                         StringUtils.defaultString(row.unitName));
             }
         }
@@ -670,14 +667,36 @@ public class CourseTeachingPlanGenerator {
         return one;
     }
 
-    /** 连续相同知识单元纵向合并（仅知识单元列；其它列不合并） */
+    /** 序号/支撑目标/教学内容/教学环节/教法/学法/学时：同一条设计的多行纵向合并 */
+    private void mergeDesignColumns(XWPFTable t, List<KnowledgeDesignRow> flat) {
+        int[] cols = new int[]{0, 3, 4, 5, 6, 7, 8};
+        int i = 0;
+        while (i < flat.size()) {
+            int start = i;
+            int designIdx = flat.get(i).designIndex;
+            i++;
+            while (i < flat.size() && flat.get(i).designIndex == designIdx) {
+                i++;
+            }
+            int end = i - 1;
+            if (end > start) {
+                for (int c : cols) {
+                    WordUtil.mergeCellsVertical(t, c, start + 1, end + 1);
+                }
+            }
+        }
+    }
+
+    /** 连续相同知识单元纵向合并（仅知识单元列；且只在同一条设计内合并，不跨设计） */
     private void mergeKnowledgeUnitColumn(XWPFTable t, List<KnowledgeDesignRow> flat) {
         int i = 0;
         while (i < flat.size()) {
             int start = i;
+            int designIdx = flat.get(i).designIndex;
             String unitName = StringUtils.defaultString(flat.get(i).unitName);
             i++;
             while (i < flat.size()
+                    && flat.get(i).designIndex == designIdx
                     && StringUtils.equals(unitName, StringUtils.defaultString(flat.get(i).unitName))) {
                 i++;
             }
@@ -1729,7 +1748,7 @@ public class CourseTeachingPlanGenerator {
             return new ArrayList<>();
         }
         return list.stream()
-                .filter(d -> containsAny(d.getDesignTypeCode(), key))
+                .filter(d -> containsAny(d.getDesignTypeName(), key) || containsAny(d.getDesignTypeCode(), key))
                 .collect(Collectors.toList());
     }
 

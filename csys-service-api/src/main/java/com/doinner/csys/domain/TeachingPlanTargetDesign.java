@@ -69,6 +69,11 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
     /** 教学设计（能力/素质） */
     private String teachingDesign;
     private Integer sort;
+    /**
+     * 设计类型名称（字典 sys_plan_target_type 的 label，如"知识目标"）。
+     * 仅生成 Word 时由 Service 译码填充用于分流，不入库、不由前端维护。
+     */
+    private String designTypeName;
 
     /**
      * 知识目标下绑定的单个知识点项（可属于不同知识单元）。
@@ -278,5 +283,13 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
 
     public void setSort(Integer sort) {
         this.sort = sort;
+    }
+
+    public String getDesignTypeName() {
+        return designTypeName;
+    }
+
+    public void setDesignTypeName(String designTypeName) {
+        this.designTypeName = designTypeName;
     }
 }
