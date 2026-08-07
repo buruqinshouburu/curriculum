@@ -564,7 +564,7 @@ public class CourseTeachingPlanGenerator {
             int r = i + 1;
             // 同一条设计纵向合并：序号/支撑目标/教学内容/教学环节/教法/学法/学时 仅段首写值，其余留空后合并
             if (row.firstOfDesign) {
-                setCell(t, r, 0, String.valueOf(row.designIndex), false);
+                setCell(t, r, 0, String.valueOf(row.designNo), false);
                 setCell(t, r, 3, row.objectiveText, false);
                 setCell(t, r, 4, row.contentText, false);
                 setCell(t, r, 5, row.teachingLink, false);
@@ -580,14 +580,14 @@ public class CourseTeachingPlanGenerator {
                 setCell(t, r, 7, "", false);
                 setCell(t, r, 8, "", false);
             }
-            // 知识单元：同一条设计内连续相同单元段首写值（不跨设计），其余留空后合并
+            // 知识单元：连续相同单元段首写值（跨设计合并），其余留空后合并
             setCell(t, r, 1, row.firstOfUnit ? row.unitName : "", false);
             // 知识点：每行一点，不合并
             setCell(t, r, 2, row.pointName, false);
         }
         // 序号/支撑目标/教学内容/教学环节/教法/学法/学时：同一条设计的多行纵向合并
         mergeDesignColumns(t, flat);
-        // 知识单元：仅在同一条设计内连续相同单元纵向合并（不跨设计）
+        // 知识单元：连续相同单元纵向合并（跨设计，相邻同名单元合并成一格）
         mergeKnowledgeUnitColumn(t, flat);
     }
 
@@ -629,20 +629,35 @@ public class CourseTeachingPlanGenerator {
                 flat.add(row);
             }
         }
-        // 不跨设计排序：保持设计的库序（sort/id），同一条设计内知识点保持存储顺序，
-        // 否则会打乱序号、并把同一条设计跨多个知识单元的行拆散到不同单元块，造成"数据被覆盖/串行"。
-        // 仅标记「同一条设计内」连续相同知识单元的段首，便于只在该设计内合并（不跨设计）。
+        // 先按知识单元名排序（相同单元相邻），同单元内保持设计相对顺序、知识点存储顺序
+        flat.sort((a, b) -> {
+            int c = StringUtils.defaultString(a.unitName).compareTo(StringUtils.defaultString(b.unitName));
+            if (c != 0) {
+                return c;
+            }
+            int d = Integer.compare(a.designIndex, b.designIndex);
+            if (d != 0) {
+                return d;
+            }
+            return StringUtils.defaultString(a.pointName).compareTo(StringUtils.defaultString(b.pointName));
+        });
+        // 排序后重新编号序号(1,2,3...)：按设计首次出现顺序赋值，保证序号按单元排序后连续递增
+        Map<Integer, Integer> designNoMap = new HashMap<>();
+        int seq = 0;
+        for (KnowledgeDesignRow row : flat) {
+            if (!designNoMap.containsKey(row.designIndex)) {
+                designNoMap.put(row.designIndex, ++seq);
+            }
+        }
+        // 段首标记（排序后重算）：firstOfDesign=连续同设计首行；firstOfUnit=连续同名单元首行(跨设计)
         for (int i = 0; i < flat.size(); i++) {
             KnowledgeDesignRow row = flat.get(i);
+            row.designNo = designNoMap.get(row.designIndex);
             KnowledgeDesignRow prev = i > 0 ? flat.get(i - 1) : null;
-            if (prev == null || prev.designIndex != row.designIndex) {
-                // 新一条设计的第一行：单元段首
-                row.firstOfUnit = true;
-            } else {
-                row.firstOfUnit = !StringUtils.equals(
-                        StringUtils.defaultString(prev.unitName),
-                        StringUtils.defaultString(row.unitName));
-            }
+            row.firstOfDesign = (prev == null || prev.designIndex != row.designIndex);
+            row.firstOfUnit = (prev == null
+                    || !StringUtils.equals(StringUtils.defaultString(prev.unitName),
+                            StringUtils.defaultString(row.unitName)));
         }
         return flat;
     }
@@ -687,16 +702,14 @@ public class CourseTeachingPlanGenerator {
         }
     }
 
-    /** 连续相同知识单元纵向合并（仅知识单元列；且只在同一条设计内合并，不跨设计） */
+    /** 连续相同知识单元纵向合并（仅知识单元列；跨设计合并相邻同名单元） */
     private void mergeKnowledgeUnitColumn(XWPFTable t, List<KnowledgeDesignRow> flat) {
         int i = 0;
         while (i < flat.size()) {
             int start = i;
-            int designIdx = flat.get(i).designIndex;
             String unitName = StringUtils.defaultString(flat.get(i).unitName);
             i++;
             while (i < flat.size()
-                    && flat.get(i).designIndex == designIdx
                     && StringUtils.equals(unitName, StringUtils.defaultString(flat.get(i).unitName))) {
                 i++;
             }
@@ -710,6 +723,8 @@ public class CourseTeachingPlanGenerator {
     /** 知识目标表展开行（每知识点一行） */
     private static class KnowledgeDesignRow {
         int designIndex;
+        /** 按知识单元排序后重新编号的序号(1,2,3...)，保证序号连续递增 */
+        int designNo;
         String unitName;
         String pointName;
         String objectiveText;
