@@ -928,7 +928,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private CourseTeachingPlanModel buildModel(CourseVo course, TeachingPlan plan, TeachingPlanDetailVo detail,
                                                Long planId, List<TeachingPlanSchemeVo> schemes) {
         CourseTeachingPlanModel m = new CourseTeachingPlanModel();
-        m.setDocType(mapDocType(course.getType()));
+        m.setDocType(mapDocType(course.getType(),plan.getPlanType()));
         m.setCourseName(nz(detail == null ? null : detail.getCourseName(), course.getName()));
         m.setCourseCode(nz(detail == null ? null : detail.getCourseCode(), course.getCode()));
         m.setCourseEnName(nz(detail == null ? null : detail.getCourseEnName(), course.getEnName()));
@@ -1356,7 +1356,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     }
 
     /** t_csys_course.type -> 文档类型：1课程 2实践训练课目 3实验课程 4实践项目 */
-    private Integer mapDocType(String type) {
+    private Integer mapDocType(String type,Integer planType) {
+        if (planType != null && planType == 2){
+            return CourseTeachingPlanGenerator.DOC_TYPE_EXPERIMENT_COURSE;
+        }
         if (StringUtils.isBlank(type)) {
             return CourseTeachingPlanGenerator.DOC_TYPE_COURSE;
         }
