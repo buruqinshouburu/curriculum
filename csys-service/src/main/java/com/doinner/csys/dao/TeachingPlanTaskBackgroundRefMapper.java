@@ -16,21 +16,6 @@ public interface TeachingPlanTaskBackgroundRefMapper {
     int insert(TeachingPlanTaskBackgroundRef record);
 
     /**
-     * 批量新增
-     */
-    int insertBatch(@Param("list") List<TeachingPlanTaskBackgroundRef> list);
-
-    /**
-     * 根据主键更新
-     */
-    int updateById(TeachingPlanTaskBackgroundRef record);
-
-    /**
-     * 根据主键查询
-     */
-    TeachingPlanTaskBackgroundRef selectById(@Param("id") Long id);
-
-    /**
      * 按任务背景ID查询绑定的毕业要求
      */
     List<TeachingPlanTaskBackgroundRef> selectByTaskBackgroundId(@Param("taskBackgroundId") Long taskBackgroundId);
@@ -54,9 +39,4 @@ public interface TeachingPlanTaskBackgroundRefMapper {
      * 根据教学计划ID逻辑删除
      */
     int deleteByPlanId(@Param("planId") Long planId);
-
-    /**
-     * 根据主键逻辑删除
-     */
-    int deleteById(@Param("id") Long id);
 }

@@ -16,21 +16,6 @@ public interface TeachingPlanTrainingPurposeRefMapper {
     int insert(TeachingPlanTrainingPurposeRef record);
 
     /**
-     * 批量新增
-     */
-    int insertBatch(@Param("list") List<TeachingPlanTrainingPurposeRef> list);
-
-    /**
-     * 根据主键更新
-     */
-    int updateById(TeachingPlanTrainingPurposeRef record);
-
-    /**
-     * 根据主键查询
-     */
-    TeachingPlanTrainingPurposeRef selectById(@Param("id") Long id);
-
-    /**
      * 按训练目的ID查询绑定的毕业要求
      */
     List<TeachingPlanTrainingPurposeRef> selectByPurposeId(@Param("purposeId") Long purposeId);
@@ -54,9 +39,4 @@ public interface TeachingPlanTrainingPurposeRefMapper {
      * 根据教学计划ID逻辑删除
      */
     int deleteByPlanId(@Param("planId") Long planId);
-
-    /**
-     * 根据主键逻辑删除
-     */
-    int deleteById(@Param("id") Long id);
 }

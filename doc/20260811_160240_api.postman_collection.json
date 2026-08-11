@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "a1b2c3d4-teac-hing-plan-new-20260811",
+    "_postman_id": "a1b2c3d4-teac-hing-plan-v2-20260811",
     "name": "教学计划-新增接口与字典化字段(20260811)",
-    "description": "本次(2026-08-11)新增的教学计划接口 + 字段字典化说明，供前端联调。\n\n服务配置: 端口 9219，context-path /csys，控制器 @RequestMapping(\"/teachingPlan\")。\nbaseUrl: http://localhost:9219\n\nplan_type 编号(前后端统一)：1课程 2实验课程 3实践训练课目 4实践项目。\n与课程库 t_csys_course.type 编号 2/3 对调(课程库 type: 1课程 2实践训练课目 3实验课程 4实践项目)，后端已做映射。\n\n【字典化字段-前端需改下拉】\n1. 训练内容模块(实践训练课目 第四部分「训练内容与时间安排」的「模块」列)\n   字典类型: sys_plan_training_module\n   字典值: 1=战斗体技能提升模块 / 2=指挥素养培塑模块 / 3=新质新域能力拓展模块\n   落库字段: t_csys_teaching_plan_content.title\n   前端回显/保存: GET /teachingPlan/content/list 返回的 title 为字典 value(编码)；\n   POST/PUT /teachingPlan/content 提交时 title 传字典 value(编码)。\n   下拉数据由前端走标准字典接口 /system/dict/data/type/sys_plan_training_module 获取。\n\n2. 实施步骤(实践训练课目 第五部分「组织实施」表的「实施步骤」列)\n   字典类型: sys_plan_implementation_step\n   字典值: 1=战斗准备 / 2=战斗实施 / 3=撤出战斗\n   落库字段: t_csys_teaching_plan_process_step.stage_name\n   前端回显/保存: GET /teachingPlan/processStep/list 返回的 stageName 为字典 value(编码)；\n   POST/PUT /teachingPlan/processStep 提交时 stageName 传字典 value(编码)。\n   下拉数据由前端走标准字典接口 /system/dict/data/type/sys_plan_implementation_step 获取。\n   生成 Word 时同列按相同实施步骤连续竖向合并(战斗准备/战斗实施/撤出战斗各合并一段)。",
+    "description": "本次(2026-08-11)新增的教学计划接口 + 字段字典化说明，供前端联调。\n\n服务配置: 端口 9219，context-path /csys，控制器 @RequestMapping(\"/teachingPlan\")。\nbaseUrl: http://localhost:9219\n\nplan_type 编号(前后端统一)：1课程 2实验课程 3实践训练课目 4实践项目。\n与课程库 t_csys_course.type 编号 2/3 对调(课程库 type: 1课程 2实践训练课目 3实验课程 4实践项目)，后端已做映射。\n\n【版本说明 v2】\n删除 6 个引用单条 CRUD 接口(taskBackgroundRef / trainingPurposeRef 的 POST/PUT/DELETE)。\n引用绑定统一走「整表重建 save」接口，不再提供单条增删改。\n本次共 21 个接口 + 2 条字典说明(共 23 项)。\n\n【字典化字段-前端需改下拉】\n1. 训练内容模块(实践训练课目 第四部分「训练内容与时间安排」的「模块」列)\n   字典类型: sys_plan_training_module\n   字典值: 1=战斗体技能提升模块 / 2=指挥素养培塑模块 / 3=新质新域能力拓展模块\n   落库字段: t_csys_teaching_plan_content.title\n   前端回显/保存: GET /teachingPlan/content/list 返回的 title 为字典 value(编码)；\n   POST/PUT /teachingPlan/content 提交时 title 传字典 value(编码)。\n   下拉数据由前端走标准字典接口 /system/dict/data/type/sys_plan_training_module 获取。\n\n2. 实施步骤(实践训练课目 第五部分「组织实施」表的「实施步骤」列)\n   字典类型: sys_plan_implementation_step\n   字典值: 1=战斗准备 / 2=战斗实施 / 3=撤出战斗\n   落库字段: t_csys_teaching_plan_process_step.stage_name\n   前端回显/保存: GET /teachingPlan/processStep/list 返回的 stageName 为字典 value(编码)；\n   POST/PUT /teachingPlan/processStep 提交时 stageName 传字典 value(编码)。\n   下拉数据由前端走标准字典接口 /system/dict/data/type/sys_plan_implementation_step 获取。\n   生成 Word 时同列按相同实施步骤连续竖向合并(战斗准备/战斗实施/撤出战斗各合并一段)。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -99,7 +99,7 @@
     },
     {
       "name": "实验课程-任务背景引用(taskBackgroundRef)",
-      "description": "任务背景关联的支撑毕业要求(任务背景表第四列)。\nt_csys_teaching_plan_task_background_ref。",
+      "description": "任务背景关联的支撑毕业要求(任务背景表第四列)。\nt_csys_teaching_plan_task_background_ref。\n绑定统一走整表重建 save；不提供单条增删改。",
       "item": [
         {
           "name": "任务背景引用列表(回显)",
@@ -124,38 +124,6 @@
             "url": {"raw": "{{baseUrl}}/csys/teachingPlan/taskBackgroundRef/save", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "taskBackgroundRef", "save"]},
             "body": {"mode": "raw", "raw": "{\n  \"taskBackgroundId\": 1,\n  \"planId\": {{experimentPlanId}},\n  \"schemeCourseGraduationIds\": [1001, 1002]\n}", "options": {"raw": {"language": "json"}}},
             "description": "POST /teachingPlan/taskBackgroundRef/save\n整表重建某任务背景的毕业要求绑定；schemeCourseGraduationIds 空=清空。"
-          },
-          "response": []
-        },
-        {
-          "name": "新增任务背景引用",
-          "request": {
-            "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/taskBackgroundRef", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "taskBackgroundRef"]},
-            "body": {"mode": "raw", "raw": "{\n  \"taskBackgroundId\": 1,\n  \"planId\": {{experimentPlanId}},\n  \"schemeCourseGraduationId\": 1001,\n  \"quoteCourseId\": 80031,\n  \"schemeId\": 7601,\n  \"graduationId\": 90101,\n  \"graduationCode\": \"GR1\",\n  \"graduationName\": \"掌握计算机科学与技术的基础理论与专业知识\",\n  \"sort\": 1\n}", "options": {"raw": {"language": "json"}}},
-            "description": "POST /teachingPlan/taskBackgroundRef"
-          },
-          "response": []
-        },
-        {
-          "name": "修改任务背景引用",
-          "request": {
-            "method": "PUT",
-            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/taskBackgroundRef", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "taskBackgroundRef"]},
-            "body": {"mode": "raw", "raw": "{\n  \"id\": 1,\n  \"taskBackgroundId\": 1,\n  \"graduationId\": 90101,\n  \"sort\": 1\n}", "options": {"raw": {"language": "json"}}},
-            "description": "PUT /teachingPlan/taskBackgroundRef"
-          },
-          "response": []
-        },
-        {
-          "name": "删除任务背景引用",
-          "request": {
-            "method": "DELETE",
-            "header": [{"key": "Accept", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/taskBackgroundRef/1", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "taskBackgroundRef", "1"]},
-            "description": "DELETE /teachingPlan/taskBackgroundRef/{id}"
           },
           "response": []
         }
@@ -227,7 +195,7 @@
     },
     {
       "name": "实践训练课目-训练目的引用(trainingPurposeRef)",
-      "description": "训练目的关联的支撑毕业要求。\nt_csys_teaching_plan_training_purpose_ref。",
+      "description": "训练目的关联的支撑毕业要求。\nt_csys_teaching_plan_training_purpose_ref。\n绑定统一走整表重建 save；不提供单条增删改。",
       "item": [
         {
           "name": "训练目的引用列表(回显)",
@@ -252,38 +220,6 @@
             "url": {"raw": "{{baseUrl}}/csys/teachingPlan/trainingPurposeRef/save", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "trainingPurposeRef", "save"]},
             "body": {"mode": "raw", "raw": "{\n  \"purposeId\": 1,\n  \"planId\": {{planId}},\n  \"schemeCourseGraduationIds\": [1003, 1004]\n}", "options": {"raw": {"language": "json"}}},
             "description": "POST /teachingPlan/trainingPurposeRef/save\n整表重建；schemeCourseGraduationIds 空=清空。"
-          },
-          "response": []
-        },
-        {
-          "name": "新增训练目的引用",
-          "request": {
-            "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/trainingPurposeRef", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "trainingPurposeRef"]},
-            "body": {"mode": "raw", "raw": "{\n  \"purposeId\": 1,\n  \"planId\": {{planId}},\n  \"schemeCourseGraduationId\": 1003,\n  \"quoteCourseId\": 80021,\n  \"schemeId\": 7601,\n  \"graduationId\": 90101,\n  \"graduationCode\": \"GR1\",\n  \"graduationName\": \"掌握计算机科学与技术的基础理论与专业知识\",\n  \"sort\": 1\n}", "options": {"raw": {"language": "json"}}},
-            "description": "POST /teachingPlan/trainingPurposeRef"
-          },
-          "response": []
-        },
-        {
-          "name": "修改训练目的引用",
-          "request": {
-            "method": "PUT",
-            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/trainingPurposeRef", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "trainingPurposeRef"]},
-            "body": {"mode": "raw", "raw": "{\n  \"id\": 1,\n  \"purposeId\": 1,\n  \"graduationId\": 90101,\n  \"sort\": 1\n}", "options": {"raw": {"language": "json"}}},
-            "description": "PUT /teachingPlan/trainingPurposeRef"
-          },
-          "response": []
-        },
-        {
-          "name": "删除训练目的引用",
-          "request": {
-            "method": "DELETE",
-            "header": [{"key": "Accept", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/trainingPurposeRef/1", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "trainingPurposeRef", "1"]},
-            "description": "DELETE /teachingPlan/trainingPurposeRef/{id}"
           },
           "response": []
         }
@@ -404,7 +340,7 @@
             "method": "GET",
             "header": [{"key": "Accept", "value": "application/json", "type": "text"}],
             "url": {"raw": "{{baseUrl}}/csys/teachingPlan/content/list?planId={{planId}}", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "content", "list"], "query": [{"key": "planId", "value": "{{planId}}"}]},
-            "description": "【字典化字段】训练内容模块(实践训练课目 plan_type=3 第四部分「训练内容与时间安排」的「模块」列)\n\n字典类型: sys_plan_training_module\n字典值:\n  1 = 战斗体技能提升模块\n  2 = 指挥素养培塑模块\n  3 = 新质新域能力拓展模块\n落库字段: t_csys_teaching_plan_content.title\n\n前端改动点:\n  - 下拉数据: 调用标准字典接口 /system/dict/data/type/sys_plan_training_module\n  - 回显: GET /teachingPlan/content/list 返回的 title 为字典 value(编码 1/2/3)，前端用字典译为 label 展示\n  - 保存: POST/PUT /teachingPlan/content 提交时 title 传字典 value(编码)\n  - 后端生成 Word 时把编码译为名称；导入 Word 时把名称反查编码\n\nSQL增量: sql/dict_sys_plan_training_module.sql (dict_id=153, dict_code=330/331/332)"
+            "description": "【字典化字段】训练内容模块(实践训练课目 plan_type=3 第四部分「训练内容与时间安排」的「模块」列)\n\n字典类型: sys_plan_training_module\n字典值:\n  1 = 战斗体技能提升模块\n  2 = 指挥素养培塑模块\n  3 = 新质新域能力拓展模块\n落库字段: t_csys_teaching_plan_content.title\n\n前端改动点:\n  - 下拉数据: 调用标准字典接口 /system/dict/data/type/sys_plan_training_module\n  - 回显: GET /teachingPlan/content/list 返回的 title 为字典 value(编码 1/2/3)，前端用字典译为 label 展示\n  - 保存: POST/PUT /teachingPlan/content 提交时 title 传字典 value(编码)\n  - 后端生成 Word 时把编码译为名称；导入 Word 时把名称反查编码\n\nSQL增量: sql/20260811_dml.sql (dict_id=153, dict_code=330/331/332)"
           },
           "response": []
         },
@@ -414,7 +350,7 @@
             "method": "GET",
             "header": [{"key": "Accept", "value": "application/json", "type": "text"}],
             "url": {"raw": "{{baseUrl}}/csys/teachingPlan/processStep/list?planId={{planId}}", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "processStep", "list"], "query": [{"key": "planId", "value": "{{planId}}"}]},
-            "description": "【字典化字段】实施步骤(实践训练课目 plan_type=3 第五部分「组织实施」表的「实施步骤」列)\n\n字典类型: sys_plan_implementation_step\n字典值:\n  1 = 战斗准备\n  2 = 战斗实施\n  3 = 撤出战斗\n落库字段: t_csys_teaching_plan_process_step.stage_name\n\n前端改动点:\n  - 下拉数据: 调用标准字典接口 /system/dict/data/type/sys_plan_implementation_step\n  - 回显: GET /teachingPlan/processStep/list 返回的 stageName 为字典 value(编码 1/2/3)，前端用字典译为 label 展示\n  - 保存: POST/PUT /teachingPlan/processStep 提交时 stageName 传字典 value(编码)\n  - 后端生成 Word 时把编码译为名称，同列按相同实施步骤连续竖向合并(战斗准备/战斗实施/撤出战斗各合并一段)；导入 Word 时把名称反查编码\n\n注意: 实施步骤表结构 = 实施步骤(字典) | 阶段划分(stepName,自由文本) | 有关要求(requirement,自由文本)。\n      仅 stageName(实施步骤) 字典化，stepName/requirement 仍为自由文本。\n\nSQL增量: sql/dict_sys_plan_implementation_step.sql (dict_id=154, dict_code=333/334/335)"
+            "description": "【字典化字段】实施步骤(实践训练课目 plan_type=3 第五部分「组织实施」表的「实施步骤」列)\n\n字典类型: sys_plan_implementation_step\n字典值:\n  1 = 战斗准备\n  2 = 战斗实施\n  3 = 撤出战斗\n落库字段: t_csys_teaching_plan_process_step.stage_name\n\n前端改动点:\n  - 下拉数据: 调用标准字典接口 /system/dict/data/type/sys_plan_implementation_step\n  - 回显: GET /teachingPlan/processStep/list 返回的 stageName 为字典 value(编码 1/2/3)，前端用字典译为 label 展示\n  - 保存: POST/PUT /teachingPlan/processStep 提交时 stageName 传字典 value(编码)\n  - 后端生成 Word 时把编码译为名称，同列按相同实施步骤连续竖向合并(战斗准备/战斗实施/撤出战斗各合并一段)；导入 Word 时把名称反查编码\n\n注意: 实施步骤表结构 = 实施步骤(字典) | 阶段划分(stepName,自由文本) | 有关要求(requirement,自由文本)。\n      仅 stageName(实施步骤) 字典化，stepName/requirement 仍为自由文本。\n\nSQL增量: sql/20260811_dml.sql (dict_id=154, dict_code=333/334/335)"
           },
           "response": []
         }

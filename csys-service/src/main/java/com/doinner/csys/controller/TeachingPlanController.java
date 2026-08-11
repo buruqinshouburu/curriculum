@@ -428,26 +428,6 @@ public class TeachingPlanController {
         return Message.success();
     }
 
-    @ApiOperation("新增任务背景支撑毕业要求（单条）")
-    @PostMapping("/taskBackgroundRef")
-    public DataSet<Long> addTaskBackgroundRef(@RequestBody TeachingPlanTaskBackgroundRef ref) {
-        return DataSet.success(teachingPlanModuleService.addTaskBackgroundRef(ref));
-    }
-
-    @ApiOperation("修改任务背景支撑毕业要求")
-    @PutMapping("/taskBackgroundRef")
-    public Message updateTaskBackgroundRef(@RequestBody TeachingPlanTaskBackgroundRef ref) {
-        teachingPlanModuleService.updateTaskBackgroundRef(ref);
-        return Message.success();
-    }
-
-    @ApiOperation("删除任务背景支撑毕业要求")
-    @DeleteMapping("/taskBackgroundRef/{id}")
-    public Message deleteTaskBackgroundRef(@PathVariable("id") Long id) {
-        teachingPlanModuleService.deleteTaskBackgroundRef(id);
-        return Message.success();
-    }
-
     // ============ 训练目的（实践训练课目 type2 第二节，对标任务背景） ============
 
     /**
@@ -513,26 +493,6 @@ public class TeachingPlanController {
     @PostMapping("/trainingPurposeRef/save")
     public Message saveTrainingPurposeRefs(@RequestBody TeachingPlanTrainingPurposeRefSaveVo saveVo) {
         teachingPlanModuleService.saveTrainingPurposeRefs(saveVo);
-        return Message.success();
-    }
-
-    @ApiOperation("新增训练目的支撑毕业要求（单条）")
-    @PostMapping("/trainingPurposeRef")
-    public DataSet<Long> addTrainingPurposeRef(@RequestBody TeachingPlanTrainingPurposeRef ref) {
-        return DataSet.success(teachingPlanModuleService.addTrainingPurposeRef(ref));
-    }
-
-    @ApiOperation("修改训练目的支撑毕业要求")
-    @PutMapping("/trainingPurposeRef")
-    public Message updateTrainingPurposeRef(@RequestBody TeachingPlanTrainingPurposeRef ref) {
-        teachingPlanModuleService.updateTrainingPurposeRef(ref);
-        return Message.success();
-    }
-
-    @ApiOperation("删除训练目的支撑毕业要求")
-    @DeleteMapping("/trainingPurposeRef/{id}")
-    public Message deleteTrainingPurposeRef(@PathVariable("id") Long id) {
-        teachingPlanModuleService.deleteTrainingPurposeRef(id);
         return Message.success();
     }
 

@@ -30,23 +30,6 @@
         support_desc, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
-    <insert id="insertBatch" parameterType="java.util.List">
-        INSERT INTO t_csys_teaching_plan_training_purpose_ref (
-            plan_id, purpose_id, scheme_course_graduation_id, quote_course_id, scheme_id,
-            graduation_id, source_graduation_id, graduation_code, graduation_name, graduation_bind_source,
-            support_desc, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
-        ) VALUES
-        <foreach collection="list" item="item" separator=",">
-            (
-                #{item.planId}, #{item.purposeId}, #{item.schemeCourseGraduationId},
-                #{item.quoteCourseId}, #{item.schemeId}, #{item.graduationId}, #{item.sourceGraduationId},
-                #{item.graduationCode}, #{item.graduationName}, #{item.graduationBindSource}, #{item.supportDesc},
-                #{item.sort}, #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
-                #{item.remark}, #{item.sysflag}
-            )
-        </foreach>
-    </insert>
-
     <select id="selectByPurposeId" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>
@@ -130,39 +113,4 @@
             <if test="sysflag != null">#{sysflag},</if>
         </trim>
     </insert>
-
-    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanTrainingPurposeRef">
-        UPDATE t_csys_teaching_plan_training_purpose_ref
-        <trim prefix="SET" suffixOverrides=",">
-            <if test="planId != null">plan_id = #{planId},</if>
-            <if test="purposeId != null">purpose_id = #{purposeId},</if>
-            <if test="schemeCourseGraduationId != null">scheme_course_graduation_id = #{schemeCourseGraduationId},</if>
-            <if test="quoteCourseId != null">quote_course_id = #{quoteCourseId},</if>
-            <if test="schemeId != null">scheme_id = #{schemeId},</if>
-            <if test="graduationId != null">graduation_id = #{graduationId},</if>
-            <if test="sourceGraduationId != null">source_graduation_id = #{sourceGraduationId},</if>
-            <if test="graduationCode != null">graduation_code = #{graduationCode},</if>
-            <if test="graduationName != null">graduation_name = #{graduationName},</if>
-            <if test="graduationBindSource != null">graduation_bind_source = #{graduationBindSource},</if>
-            <if test="supportDesc != null">support_desc = #{supportDesc},</if>
-            <if test="sort != null">sort = #{sort},</if>
-            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
-            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
-            <if test="remark != null">remark = #{remark},</if>
-            <if test="sysflag != null">sysflag = #{sysflag},</if>
-        </trim>
-        WHERE id = #{id}
-    </update>
-
-    <select id="selectById" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List"/>
-        FROM t_csys_teaching_plan_training_purpose_ref
-        WHERE id = #{id}
-          AND sysflag = 0
-    </select>
-
-    <update id="deleteById">
-        UPDATE t_csys_teaching_plan_training_purpose_ref SET sysflag = 2 WHERE id = #{id}
-    </update>
 </mapper>

@@ -1211,48 +1211,6 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         }
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Long addTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref) {
-        if (ref == null || ref.getTaskBackgroundId() == null) {
-            throw new IllegalArgumentException("taskBackgroundId 不能为空");
-        }
-        TeachingPlanTaskBackground taskBackground = teachingPlanTaskBackgroundMapper.selectById(ref.getTaskBackgroundId());
-        if (taskBackground == null) {
-            throw new IllegalArgumentException("任务背景不存在: " + ref.getTaskBackgroundId());
-        }
-        // 重复绑定拒绝；sort 缺省接在已有绑定之后
-        List<TeachingPlanTaskBackgroundRef> existing =
-                teachingPlanTaskBackgroundRefMapper.selectByTaskBackgroundId(ref.getTaskBackgroundId());
-        if (ref.getGraduationId() != null && ObjectUtils.isNotEmpty(existing)) {
-            for (TeachingPlanTaskBackgroundRef e : existing) {
-                if (e != null && ref.getGraduationId().equals(e.getGraduationId())) {
-                    throw new IllegalArgumentException("该任务背景已绑定该毕业要求");
-                }
-            }
-        }
-        if (ref.getSort() == null) {
-            ref.setSort((existing == null ? 0 : existing.size()) + 1);
-        }
-        // planId/schemeId/存在性校验统一走 insertTaskBackgroundRefs（归属取任务背景）
-        insertTaskBackgroundRefs(taskBackground.getId(), taskBackground.getPlanId(), taskBackground.getSchemeId(),
-                Collections.singletonList(ref));
-        return ref.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref) {
-        UserUtils.reflash(ref);
-        teachingPlanTaskBackgroundRefMapper.updateById(ref);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteTaskBackgroundRef(Long id) {
-        teachingPlanTaskBackgroundRefMapper.deleteById(id);
-    }
-
     // ============ 训练目的（实践训练课目 type2 第二节，对标任务背景） ============
 
     @Override
@@ -1479,48 +1437,6 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             UserUtils.reflash(ref);
             teachingPlanTrainingPurposeRefMapper.insert(ref);
         }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Long addTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref) {
-        if (ref == null || ref.getPurposeId() == null) {
-            throw new IllegalArgumentException("purposeId 不能为空");
-        }
-        TeachingPlanTrainingPurpose trainingPurpose = teachingPlanTrainingPurposeMapper.selectById(ref.getPurposeId());
-        if (trainingPurpose == null) {
-            throw new IllegalArgumentException("训练目的不存在: " + ref.getPurposeId());
-        }
-        // 重复绑定拒绝；sort 缺省接在已有绑定之后
-        List<TeachingPlanTrainingPurposeRef> existing =
-                teachingPlanTrainingPurposeRefMapper.selectByPurposeId(ref.getPurposeId());
-        if (ref.getGraduationId() != null && ObjectUtils.isNotEmpty(existing)) {
-            for (TeachingPlanTrainingPurposeRef e : existing) {
-                if (e != null && ref.getGraduationId().equals(e.getGraduationId())) {
-                    throw new IllegalArgumentException("该训练目的已绑定该毕业要求");
-                }
-            }
-        }
-        if (ref.getSort() == null) {
-            ref.setSort((existing == null ? 0 : existing.size()) + 1);
-        }
-        // planId/schemeId/存在性校验统一走 insertTrainingPurposeRefs（归属取训练目的）
-        insertTrainingPurposeRefs(trainingPurpose.getId(), trainingPurpose.getPlanId(), trainingPurpose.getSchemeId(),
-                Collections.singletonList(ref));
-        return ref.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref) {
-        UserUtils.reflash(ref);
-        teachingPlanTrainingPurposeRefMapper.updateById(ref);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteTrainingPurposeRef(Long id) {
-        teachingPlanTrainingPurposeRefMapper.deleteById(id);
     }
 
     // ============ 训练内容支撑训练目的（type2 第四节「目的」多选） ============

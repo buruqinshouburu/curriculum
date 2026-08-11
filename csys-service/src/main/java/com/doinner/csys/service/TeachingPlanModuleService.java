@@ -150,12 +150,6 @@ public interface TeachingPlanModuleService {
      */
     void saveTaskBackgroundRefs(TeachingPlanTaskBackgroundRefSaveVo saveVo);
 
-    Long addTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref);
-
-    void updateTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref);
-
-    void deleteTaskBackgroundRef(Long id);
-
     // ============ 训练目的（实践训练课目 type2 第二节，对标任务背景） ============
 
     /**
@@ -186,12 +180,6 @@ public interface TeachingPlanModuleService {
      * 先逻辑删除 purposeId 下旧 ref，再按 saveVo.refs 重建；refs 空=清空绑定。
      */
     void saveTrainingPurposeRefs(TeachingPlanTrainingPurposeRefSaveVo saveVo);
-
-    Long addTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref);
-
-    void updateTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref);
-
-    void deleteTrainingPurposeRef(Long id);
 
     // ============ 训练内容支撑训练目的（type2 第四节「目的」多选） ============
 
