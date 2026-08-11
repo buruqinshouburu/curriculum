@@ -9,8 +9,10 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.vo.TeachingPlanImportIssueVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
@@ -100,12 +102,20 @@ public class TeachingPlanWordImporter {
         public List<TeachingPlanSection> sections = new ArrayList<>();
         public List<TeachingPlanProcessStep> processSteps = new ArrayList<>();
         public List<ParsedObjective> objectives = new ArrayList<>();
+        /** type3 实验课程任务背景（可多条，每条含背景描述/技术目标/能力目标 + 支撑毕业要求候选） */
+        public List<ParsedTaskBackground> taskBackgrounds = new ArrayList<>();
+        /** type2 实践训练课目训练目的（可多条，每条单个训练目的 + 支撑毕业要求候选） */
+        public List<ParsedTrainingPurpose> trainingPurposes = new ArrayList<>();
         public List<TeachingPlanContent> contents = new ArrayList<>();
         public List<TeachingPlanTargetDesign> targetDesigns = new ArrayList<>();
         public List<ParsedPracticeItem> practiceItems = new ArrayList<>();
         public List<TeachingPlanAssessment> assessments = new ArrayList<>();
         public List<TeachingPlanTextbook> textbooks = new ArrayList<>();
         public List<TeachingPlanCondition> conditions = new ArrayList<>();
+        /** type4 实践项目第二节「支撑的课程目标或训练目的」单元格原文（落库时匹配候选重建绑定） */
+        public String supportObjectiveRaw;
+        /** type4 实践项目第二节「涉及的知识体系或训练内容」单元格原文（落库时匹配候选重建绑定） */
+        public String supportContentRaw;
         public List<TeachingPlanImportIssueVo> issues = new ArrayList<>();
     }
 
@@ -114,6 +124,24 @@ public class TeachingPlanWordImporter {
         public List<String> graduationNames = new ArrayList<>();
         public List<ParsedObjectiveAssessment> assessments = new ArrayList<>();
         /** 支撑毕业要求单元格原文（落库时优先整串匹配，避免名称含分隔符被拆碎） */
+        public String graduationRaw;
+        public String schemeTitle;
+    }
+
+    /** type3 实验课程任务背景解析行（对标 ParsedObjective）。 */
+    public static class ParsedTaskBackground {
+        public TeachingPlanTaskBackground taskBackground = new TeachingPlanTaskBackground();
+        public List<String> graduationNames = new ArrayList<>();
+        /** 支撑毕业要求单元格原文（落库时优先整串匹配） */
+        public String graduationRaw;
+        public String schemeTitle;
+    }
+
+    /** type2 实践训练课目训练目的解析行（对标 ParsedTaskBackground，仅单个训练目的值）。 */
+    public static class ParsedTrainingPurpose {
+        public TeachingPlanTrainingPurpose purpose = new TeachingPlanTrainingPurpose();
+        public List<String> graduationNames = new ArrayList<>();
+        /** 支撑毕业要求单元格原文（落库时优先整串匹配） */
         public String graduationRaw;
         public String schemeTitle;
     }
@@ -179,8 +207,9 @@ public class TeachingPlanWordImporter {
                     flushOverviewSection(result, pendingSectionTitle, pendingSectionBody);
                     pendingSectionTitle = null;
                     pendingSectionBody.setLength(0);
-                    // 目标节下的方案小标题 或 六节下的（一）（二）（三）
-                    if (section.contains("目标与支撑毕业要求") || section.contains("训练目的")) {
+                    // 目标/任务背景/训练目的节下的方案小标题，或 六节下的（一）（二）（三）
+                    if (section.contains("目标与支撑毕业要求") || section.contains("任务背景")
+                            || section.contains("训练目的")) {
                         pendingSchemeTitle = text;
                     } else {
                         subSection = text;
@@ -216,8 +245,9 @@ public class TeachingPlanWordImporter {
                     continue;
                 }
                 dispatchTable(section, subSection, pendingSchemeTitle, grid, result, ctx);
-                // 方案小标题只作用于紧随其后的目标表（含 type2 训练目的节，保持对称清理）
-                if (section.contains("目标与支撑毕业要求") || section.contains("训练目的")) {
+                // 方案小标题只作用于紧随其后的目标/任务背景表（含 type2 训练目的节，保持对称清理）
+                if (section.contains("目标与支撑毕业要求") || section.contains("任务背景")
+                        || section.contains("训练目的")) {
                     pendingSchemeTitle = null;
                 }
             }
@@ -271,7 +301,7 @@ public class TeachingPlanWordImporter {
         }
         // 训练内容 type2
         if (header.contains("模块") && header.contains("目的") && header.contains("时间安排")) {
-            parseContentsType2(grid, result);
+            parseContentsType2(grid, result, ctx);
             return;
         }
         // 知识达成设计
@@ -314,7 +344,12 @@ public class TeachingPlanWordImporter {
         }
         // type3 任务背景表
         if (header.contains("任务背景") || header.contains("任务背景描述")) {
-            parseTaskBackgroundTable(grid, result);
+            parseTaskBackgroundTable(grid, schemeTitle, result, ctx);
+            return;
+        }
+        // type2 训练目的表（训练目的 | 支撑毕业要求）
+        if (header.contains("训练目的") && header.contains("支撑毕业要求")) {
+            parseTrainingPurposeTable(grid, schemeTitle, result, ctx);
             return;
         }
         // type2 训练任务/总体设计 标签表
@@ -326,13 +361,7 @@ public class TeachingPlanWordImporter {
         // type2/4 组织实施：实施步骤
         if (header.contains("实施步骤") || header.contains("项目步骤") || cellEquals(grid, 1, 0, "实施步骤")
                 || cellEquals(grid, 1, 0, "项目步骤")) {
-            parseOrganizationSteps(grid, result);
-            return;
-        }
-        // type2 训练目的（只读毕业要求，跳过）
-        if (header.contains("训练目的") && header.contains("支撑毕业要求")) {
-            result.issues.add(TeachingPlanImportIssueVo.warn(section, null, "支撑毕业要求",
-                    "训练目的表中的毕业要求为只读展示，不导入总库绑定"));
+            parseOrganizationSteps(grid, result, ctx);
             return;
         }
     }
@@ -603,6 +632,7 @@ public class TeachingPlanWordImporter {
             c.setContent(cell(row, 1));
             c.setHours(parseDecimal(cell(row, 2)));
             c.setSort(result.contents.size() + 1);
+            c.setContentType(1);
             if (StringUtils.isBlank(c.getTitle()) && StringUtils.isBlank(c.getContent())) {
                 continue;
             }
@@ -610,18 +640,20 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    private void parseContentsType2(List<List<String>> grid, ParseResult result) {
+    private void parseContentsType2(List<List<String>> grid, ParseResult result, ParseContext ctx) {
         for (int r = 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
             if (isAllBlank(row)) {
                 continue;
             }
             TeachingPlanContent c = new TeachingPlanContent();
-            c.setTitle(cell(row, 0));
+            // 「模块」列现为字典选择：名称反查编码存 title，非字典名称保留原文（reverseDict 兜底）
+            c.setTitle(reverseDict(cell(row, 0), "sys_plan_training_module", ctx));
             c.setContent(cell(row, 1));
             c.setPurpose(cell(row, 2));
             c.setTimeArrange(cell(row, 3));
             c.setSort(result.contents.size() + 1);
+            c.setContentType(1);
             if (StringUtils.isBlank(c.getTitle()) && StringUtils.isBlank(c.getContent())) {
                 continue;
             }
@@ -919,28 +951,123 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    private void parseTaskBackgroundTable(List<List<String>> grid, ParseResult result) {
-        // 表头 + 一行值
+    /**
+     * 解析 type3 实验课程任务背景表（对标 parseObjectives，数据驱动多条）。
+     * 表结构：任务背景描述 | 技术目标 | 能力目标 | 支撑的毕业要求，每条任务背景一行。
+     * 毕业要求单元格按顿号/逗号拆分为候选名称，落库时在 persistImportData 匹配绑定。
+     */
+    private void parseTaskBackgroundTable(List<List<String>> grid, String schemeTitle,
+                                          ParseResult result, ParseContext ctx) {
         if (grid.size() < 2) {
             return;
         }
-        List<String> headers = grid.get(0);
-        List<String> values = grid.get(1);
-        for (int c = 0; c < headers.size() && c < values.size(); c++) {
-            String h = headers.get(c);
-            if (StringUtils.isBlank(h) || h.contains("毕业要求")) {
+        // 非公共基础且课程未被任何培养方案引用：任务背景无处归属（scheme_id 为空在前端不可见），整组跳过
+        if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
+            result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", schemeTitle, "schemeId",
+                    "课程未被任何培养方案引用，任务背景无法归属培养方案，该组任务背景跳过"));
+            return;
+        }
+        Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
+        if (schemeId == null && !ctx.publicFoundation && schemeTitle != null) {
+            // 已记 ERROR，整组跳过
+            return;
+        }
+        if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() > 1
+                && StringUtils.isBlank(schemeTitle)) {
+            result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", null, "schemeId",
+                    "多培养方案但任务背景表无方案小标题，整组跳过"));
+            return;
+        }
+        if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() == 1) {
+            schemeId = ctx.schemes.get(0).getSchemeId();
+        }
+        if (ctx.publicFoundation) {
+            schemeId = null;
+        }
+
+        for (int r = 1; r < grid.size(); r++) {
+            List<String> row = grid.get(r);
+            String backgroundDesc = cell(row, 0);
+            if (StringUtils.isBlank(backgroundDesc) || isAllBlank(row)) {
                 continue;
             }
-            String v = values.get(c);
-            if (StringUtils.isBlank(v)) {
+            ParsedTaskBackground ptb = new ParsedTaskBackground();
+            ptb.schemeTitle = schemeTitle;
+            ptb.taskBackground.setSchemeId(schemeId);
+            ptb.taskBackground.setBackgroundDesc(backgroundDesc.trim());
+            ptb.taskBackground.setTechnicalGoal(cell(row, 1));
+            ptb.taskBackground.setAbilityGoal(cell(row, 2));
+            ptb.taskBackground.setSort(result.taskBackgrounds.size() + 1);
+            String refs = cell(row, 3);
+            if (StringUtils.isNotBlank(refs)) {
+                ptb.graduationRaw = refs.trim();
+                for (String part : refs.split("[、,，;；]")) {
+                    String name = part == null ? "" : part.trim();
+                    if (StringUtils.isNotBlank(name) && !ptb.graduationNames.contains(name)) {
+                        ptb.graduationNames.add(name);
+                    }
+                }
+            }
+            result.taskBackgrounds.add(ptb);
+        }
+    }
+
+    /**
+     * 解析 type2 实践训练课目训练目的表（对标 parseTaskBackgroundTable，数据驱动多条）。
+     * 表结构：训练目的 | 支撑毕业要求，每条训练目的一行。
+     * 毕业要求单元格按顿号/逗号拆分为候选名称，落库时在 persistImportData 匹配绑定。
+     */
+    private void parseTrainingPurposeTable(List<List<String>> grid, String schemeTitle,
+                                           ParseResult result, ParseContext ctx) {
+        if (grid.size() < 2) {
+            return;
+        }
+        // 非通识通用且课程未被任何培养方案引用：训练目的无处归属（scheme_id 为空在前端不可见），整组跳过
+        if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
+            result.issues.add(TeachingPlanImportIssueVo.error("二、训练目的与支撑毕业要求", schemeTitle, "schemeId",
+                    "课程未被任何培养方案引用，训练目的无法归属培养方案，该组训练目的跳过"));
+            return;
+        }
+        Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
+        if (schemeId == null && !ctx.publicFoundation && schemeTitle != null) {
+            // 已记 ERROR，整组跳过
+            return;
+        }
+        if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() > 1
+                && StringUtils.isBlank(schemeTitle)) {
+            result.issues.add(TeachingPlanImportIssueVo.error("二、训练目的与支撑毕业要求", null, "schemeId",
+                    "多培养方案但训练目的表无方案小标题，整组跳过"));
+            return;
+        }
+        if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() == 1) {
+            schemeId = ctx.schemes.get(0).getSchemeId();
+        }
+        if (ctx.publicFoundation) {
+            schemeId = null;
+        }
+
+        for (int r = 1; r < grid.size(); r++) {
+            List<String> row = grid.get(r);
+            String purpose = cell(row, 0);
+            if (StringUtils.isBlank(purpose) || isAllBlank(row)) {
                 continue;
             }
-            TeachingPlanSection s = new TeachingPlanSection();
-            s.setSectionTitle(h.trim());
-            s.setSectionCode(mapSectionCode(h, result.sections.size() + 1));
-            s.setContent(v.trim());
-            s.setSort(result.sections.size() + 1);
-            result.sections.add(s);
+            ParsedTrainingPurpose ptp = new ParsedTrainingPurpose();
+            ptp.schemeTitle = schemeTitle;
+            ptp.purpose.setSchemeId(schemeId);
+            ptp.purpose.setPurpose(purpose.trim());
+            ptp.purpose.setSort(result.trainingPurposes.size() + 1);
+            String refs = cell(row, 1);
+            if (StringUtils.isNotBlank(refs)) {
+                ptp.graduationRaw = refs.trim();
+                for (String part : refs.split("[、,，;；]")) {
+                    String name = part == null ? "" : part.trim();
+                    if (StringUtils.isNotBlank(name) && !ptp.graduationNames.contains(name)) {
+                        ptp.graduationNames.add(name);
+                    }
+                }
+            }
+            result.trainingPurposes.add(ptp);
         }
     }
 
@@ -951,10 +1078,22 @@ public class TeachingPlanWordImporter {
             if (StringUtils.isBlank(label)) {
                 continue;
             }
-            // 「支撑的课程目标」「涉及的知识体系」由用户经 /teachingPlan/section 手动录入 section，
-            // 重新导入时一并解析回 sections（与生成器 projectBackgroundTable 取数一致）。
+            // 「支撑的课程目标或训练目的」「涉及的知识体系或训练内容」：type4 实践项目第二节支撑绑定，
+            // 解析为单元格原文（落库时匹配候选重建绑定），不再进 sections。
             // 「配套支撑课程」「团队规模」为只读展示行，不导入。
             if (label.contains("配套支撑课程") || label.contains("团队规模")) {
+                continue;
+            }
+            if (label.contains("支撑的课程目标") || label.contains("支撑课程目标")) {
+                if (StringUtils.isNotBlank(value)) {
+                    result.supportObjectiveRaw = value.trim();
+                }
+                continue;
+            }
+            if (label.contains("涉及的知识体系") || label.contains("知识体系")) {
+                if (StringUtils.isNotBlank(value)) {
+                    result.supportContentRaw = value.trim();
+                }
                 continue;
             }
             if (StringUtils.isBlank(value)) {
@@ -970,15 +1109,90 @@ public class TeachingPlanWordImporter {
     }
 
     /**
-     * 解析 type4「三、组织与实施」表。
-     * 表结构：
-     *   团队组织与管理 | 团队规模 | <团队规模值>     -> section(sectionTitle=团队规模)
-     *   (合并)        | 分工方式 | <分工方式值>     -> section(sectionTitle=分工方式)
-     *   项目实施      | 项目步骤 | 有关要求         -> 表头(跳过)
-     *   (合并)        | <stepName> | <requirement> -> processStep
-     * 「团队规模」「分工方式」按 C1 标签识别；项目步骤数据行在「项目实施」表头行之后。
+     * 解析组织实施表，按表头区分两种布局：
+     * type2「五、组织实施」：组织方式行 + 实施步骤|阶段划分|有关要求 表头 + 步骤行。
+     *   步骤行 C0=实施步骤(字典 label，竖向合并空则继承上行)、C1=阶段划分(stepName)、C2=有关要求(requirement)；
+     *   实施步骤 label 经 reverseDict 反查编码存 stage_name；组织方式行存为 section(organize_way)。
+     * type4「三、组织与实施」：团队组织与管理 + 项目实施|项目步骤|有关要求 表头 + 步骤行。
+     *   步骤行 C1=stepName、C2=requirement；C0 非空且非项目实施视为下一分组，结束步骤区。
      */
-    private void parseOrganizationSteps(List<List<String>> grid, ParseResult result) {
+    private void parseOrganizationSteps(List<List<String>> grid, ParseResult result, ParseContext ctx) {
+        // 定位表头行，判断布局
+        int headerRow = -1;
+        boolean type2Layout = false;
+        for (int r = 0; r < grid.size(); r++) {
+            String c0 = cell(grid.get(r), 0);
+            String c1 = cell(grid.get(r), 1);
+            if ("实施步骤".equals(c0) || "实施步骤".equals(c1)) {
+                headerRow = r;
+                type2Layout = "阶段划分".equals(c1) || "阶段划分".equals(cell(grid.get(r), 2));
+                break;
+            }
+            if ("项目实施".equals(c0) || "项目步骤".equals(c0) || "项目步骤".equals(c1)) {
+                headerRow = r;
+                type2Layout = false;
+                break;
+            }
+        }
+        if (headerRow < 0) {
+            return;
+        }
+        if (type2Layout) {
+            parseOrganizationStepsType2(grid, headerRow, result, ctx);
+        } else {
+            parseOrganizationStepsType4(grid, result);
+        }
+    }
+
+    /** type2 组织实施表解析：实施步骤(字典)|阶段划分|有关要求。 */
+    private void parseOrganizationStepsType2(List<List<String>> grid, int headerRow,
+                                             ParseResult result, ParseContext ctx) {
+        // 组织方式行（表头行之前）：C0=组织方式，C1=说明文本 -> section(organize_way)
+        for (int r = 0; r < headerRow && r < grid.size(); r++) {
+            if ("组织方式".equals(cell(grid.get(r), 0))) {
+                String content = cell(grid.get(r), 1);
+                if (StringUtils.isNotBlank(content)) {
+                    TeachingPlanSection s = new TeachingPlanSection();
+                    s.setSectionTitle("组织方式");
+                    s.setSectionCode("organize_way");
+                    s.setContent(content);
+                    s.setSort(result.sections.size() + 1);
+                    result.sections.add(s);
+                }
+            }
+        }
+        // 步骤行：C0=实施步骤(label，合并空则继承上行)、C1=阶段划分(stepName)、C2=有关要求(requirement)
+        String carryStage = null;
+        int idx = 0;
+        for (int r = headerRow + 1; r < grid.size(); r++) {
+            List<String> row = grid.get(r);
+            String c0 = cell(row, 0);
+            String stepName = cell(row, 1);
+            String req = row.size() > 2 ? cell(row, 2) : "";
+            if (StringUtils.isNotBlank(c0) && !"实施步骤".equals(c0)) {
+                carryStage = c0;
+            }
+            if (StringUtils.isBlank(stepName) && StringUtils.isBlank(req)) {
+                continue;
+            }
+            TeachingPlanProcessStep step = new TeachingPlanProcessStep();
+            // 实施步骤 label 反查编码存 stage_name（未匹配保留原文）
+            step.setStageName(reverseDict(carryStage, "sys_plan_implementation_step", ctx));
+            step.setStepName(stepName);
+            step.setRequirement(req);
+            step.setSort(++idx);
+            result.processSteps.add(step);
+        }
+    }
+
+    /**
+     * type4 组织与实施表解析：
+     *   团队组织与管理 | 团队规模 | <值>  -> section(sectionTitle=团队规模)
+     *   (合并)        | 分工方式 | <值>  -> section(sectionTitle=分工方式)
+     *   项目实施      | 项目步骤 | 有关要求 -> 表头(跳过)
+     *   (合并)        | <stepName> | <requirement> -> processStep
+     */
+    private void parseOrganizationStepsType4(List<List<String>> grid, ParseResult result) {
         // 1) 团队规模 / 分工方式：按 C1 标签取 C2 值，存为 section
         for (List<String> row : grid) {
             String c1 = cell(row, 1);
@@ -1034,8 +1248,8 @@ public class TeachingPlanWordImporter {
 
     /**
      * 识别文档类型：首段标题必须命中教学计划关键字，否则视为非教学计划文档直接拒绝，
-     * 避免误传任意 docx 触发覆盖清空。expected（前端传入的 planType）非空时以前端为准，
-     * 与识别结果不一致仅记 WARN。
+     * 避免误传任意 docx 触发覆盖清空。expected（前端传入的 planType 已由调用方转换为
+     * docType 编号）非空时以前端为准，与识别结果不一致仅记 WARN。
      */
     private int detectDocType(XWPFDocument doc, List<TeachingPlanImportIssueVo> issues, Integer expected) {
         String title = firstNonBlankParagraph(doc);
@@ -1174,9 +1388,10 @@ public class TeachingPlanWordImporter {
 
     /**
      * 第四节下、非 H1 的短段落视作培养方案小标题（导出用 h2 写 schemeName（version））。
+     * 实验课程「任务背景与目标」节同策略（第三节任务背景按培养方案分组，可多条）。
      */
     private boolean isSchemeSubtitle(String section, String text, XWPFParagraph p) {
-        if (section == null || !section.contains("目标与支撑毕业要求")) {
+        if (section == null || (!section.contains("目标与支撑毕业要求") && !section.contains("任务背景"))) {
             return false;
         }
         if (isH1(text, p) || H2_PAREN.matcher(text).matches()) {

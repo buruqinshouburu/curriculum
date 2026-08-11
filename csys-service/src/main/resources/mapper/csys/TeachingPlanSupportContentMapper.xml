@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanSupportContentMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanSupportContent">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="ref_type" property="refType" jdbcType="TINYINT"/>
+        <result column="ref_plan_id" property="refPlanId" jdbcType="BIGINT"/>
+        <result column="ref_course_id" property="refCourseId" jdbcType="BIGINT"/>
+        <result column="content_id" property="contentId" jdbcType="BIGINT"/>
+        <result column="item_title" property="itemTitle" jdbcType="VARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, ref_type, ref_plan_id, ref_course_id, content_id, item_title, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_support_content (
+            plan_id, ref_type, ref_plan_id, ref_course_id, content_id, item_title, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.refType}, #{item.refPlanId}, #{item.refCourseId},
+                #{item.contentId}, #{item.itemTitle}, #{item.sort},
+                #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
+                #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByPlanId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_support_content
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_support_content SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_support_content SET sysflag = 2 WHERE id = #{id}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanSupportContent"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_support_content
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="refType != null">ref_type,</if>
+            <if test="refPlanId != null">ref_plan_id,</if>
+            <if test="refCourseId != null">ref_course_id,</if>
+            <if test="contentId != null">content_id,</if>
+            <if test="itemTitle != null">item_title,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="refType != null">#{refType},</if>
+            <if test="refPlanId != null">#{refPlanId},</if>
+            <if test="refCourseId != null">#{refCourseId},</if>
+            <if test="contentId != null">#{contentId},</if>
+            <if test="itemTitle != null">#{itemTitle},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+</mapper>

@@ -12,6 +12,13 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
+import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
+import com.doinner.csys.domain.TeachingPlanContentPurpose;
+import com.doinner.csys.domain.TeachingPlanSupportContent;
+import com.doinner.csys.domain.TeachingPlanSupportObjective;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
@@ -34,6 +41,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.List;
 import java.util.Map;
@@ -243,7 +251,7 @@ public class CourseTeachingPlanGenerator {
         trainingTaskTable(m, doc);
 
         h1(doc, "四、训练内容与时间安排");
-        trainingContentTable(m.getContents(), doc);
+        trainingContentTable(m.getContents(), m.getContentPurposeMap(), doc);
 
         h1(doc, "五、组织实施");
         organizationTable(m, doc);
@@ -1326,8 +1334,30 @@ public class CourseTeachingPlanGenerator {
 
     // ============================ 实践训练课目/项目专属表 ============================
 
-    /** 训练目的与支撑毕业要求表（type2 二）：训练目的 | 支撑毕业要求 */
+    /**
+     * 训练目的与支撑毕业要求表（type2 二）：训练目的 | 支撑毕业要求。
+     * 数据驱动：通识通用（课目模块仅∈{1,2,3,9}）单组单表；源课被多个培养方案引用时，
+     * 每个培养方案单独一张表；多方案时每表前加二级标题。
+     */
     private void trainingPurposeTable(CourseTeachingPlanModel m, XWPFDocument doc) {
+        List<CourseTeachingPlanModel.SchemeTrainingPurposeGroup> groups = m.getSchemeTrainingPurposeGroups();
+        if (ObjectUtils.isNotEmpty(groups)) {
+            boolean multi = groups.size() > 1;
+            for (CourseTeachingPlanModel.SchemeTrainingPurposeGroup g : groups) {
+                if (g == null) {
+                    continue;
+                }
+                // 多方案时加小标题，便于区分各组对应关系
+                if (multi && StringUtils.isNotBlank(g.getSchemeTitle())) {
+                    h2(doc, g.getSchemeTitle());
+                } else if (multi) {
+                    h2(doc, "培养方案" + (g.getSchemeId() == null ? "" : " " + g.getSchemeId()));
+                }
+                writeTrainingPurposeTable(g.getPurposes(), g.getPurposeRefMap(), doc);
+            }
+            return;
+        }
+        // 兼容：未组装 schemeTrainingPurposeGroups 时走旧单表（训练目的留空 + 课程毕业要求）
         int cols = 2;
         List<StandardGraduation> grads = m.getCourseGraduations();
         int rows = 1 + Math.max(size(grads), 1);
@@ -1347,6 +1377,34 @@ public class CourseTeachingPlanGenerator {
         }
     }
 
+    /**
+     * 写一张「训练目的 | 支撑毕业要求」表，每条训练目的一行。
+     */
+    private void writeTrainingPurposeTable(List<TeachingPlanTrainingPurpose> purposes,
+                                           Map<Long, List<TeachingPlanTrainingPurposeRef>> refMap,
+                                           XWPFDocument doc) {
+        int cols = 2;
+        int dataRows = ObjectUtils.isEmpty(purposes) ? 0 : purposes.size();
+        int rows = 1 + Math.max(dataRows, 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "训练目的", true);
+        setCell(t, 0, 1, "支撑毕业要求", true);
+        if (ObjectUtils.isEmpty(purposes)) {
+            setCell(t, 1, 0, "", false);
+            setCell(t, 1, 1, "", false);
+            return;
+        }
+        int r = 1;
+        for (TeachingPlanTrainingPurpose p : purposes) {
+            if (p == null) {
+                continue;
+            }
+            setCell(t, r, 0, p.getPurpose(), false);
+            setCell(t, r, 1, joinTrainingPurposeRefs(refMap, p.getId()), false);
+            r++;
+        }
+    }
+
     /** 训练任务与总体设计表（type2 三）：标签 | 内容（训练任务/总体设计/配套支撑课程） */
     private void trainingTaskTable(CourseTeachingPlanModel m, XWPFDocument doc) {
         int cols = 2;
@@ -1361,8 +1419,14 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 2, 1, m.getSupportingCourses(), false);
     }
 
-    /** 训练内容与时间安排表（type2 四）：模块 | 内容 | 目的 | 时间安排 */
-    private void trainingContentTable(List<TeachingPlanContent> contents, XWPFDocument doc) {
+    /**
+     * 训练内容与时间安排表（type2 四）：模块 | 内容 | 目的 | 时间安排。
+     * 「目的」列：取该训练内容绑定的训练目的（第四节多选），按 sort 顿号拼接；
+     * 未绑定（无选择或兼容旧数据）时回退内容行的目的文本。
+     */
+    private void trainingContentTable(List<TeachingPlanContent> contents,
+                                      Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap,
+                                      XWPFDocument doc) {
         int cols = 4;
         int rows = 1 + Math.max(size(contents), 1);
         XWPFTable t = createTable(doc, rows, cols);
@@ -1376,7 +1440,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 1;
                 setCell(t, r, 0, c.getTitle(), false);
                 setCell(t, r, 1, c.getContent(), false);
-                setCell(t, r, 2, c.getPurpose(), false);
+                setCell(t, r, 2, joinContentPurposes(contentPurposeMap, c), false);
                 setCell(t, r, 3, c.getTimeArrange(), false);
             }
         } else {
@@ -1386,30 +1450,109 @@ public class CourseTeachingPlanGenerator {
         }
     }
 
-    /** 组织实施表（type2 五）：组织方式(整行) + 实施步骤表头 + 步骤行。简化为 3 列：实施步骤 | 阶段划分 | 有关要求 */
+    /** 拼接某训练内容绑定的训练目的文本（按 sort 保序）；无绑定回退内容行目的文本。 */
+    private String joinContentPurposes(Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap,
+                                       TeachingPlanContent content) {
+        if (content == null || content.getId() == null) {
+            return content == null ? "" : str(content.getPurpose());
+        }
+        List<TeachingPlanContentPurpose> binds = contentPurposeMap == null ? null : contentPurposeMap.get(content.getId());
+        if (ObjectUtils.isEmpty(binds)) {
+            return str(content.getPurpose());
+        }
+        return binds.stream()
+                .filter(b -> b != null && StringUtils.isNotBlank(b.getPurposeText()))
+                .map(TeachingPlanContentPurpose::getPurposeText)
+                .collect(Collectors.joining("、"));
+    }
+
+    /**
+     * 组织实施表（type2 五）：3 列。
+     * 结构：
+     * R0 组织方式(C0) | 组织方式说明(C1-C2 合并，取 section「organize_way」)
+     * R1 实施步骤(C0) | 阶段划分(C1) | 有关要求(C2)   ← 表头
+     * R2.. stageName  | stepName    | requirement      ← 取 processSteps
+     * 「实施步骤」列存字典编码(sys_plan_implementation_step)，buildModel 已译为 label；
+     * 相同实施步骤连续行竖向合并（战斗准备/战斗实施/撤出战斗各合并一段）。
+     * 无 processSteps 时仅留表头两行（组织方式 + 表头）。
+     */
     private void organizationTable(CourseTeachingPlanModel m, XWPFDocument doc) {
         int cols = 3;
-        List<TeachingPlanSection> sections = m.getSections();
-        int rows = 2 + size(sections);
+        Map<String, String> sec = sectionsMap(m.getSections());
+        List<TeachingPlanProcessStep> steps = m.getProcessSteps();
+        int stepRows = Math.max(size(steps), 1);
+        int rows = 2 + stepRows; // R0 组织方式 + R1 表头 + 步骤行(至少1行占位)
         XWPFTable t = createTable(doc, Math.max(rows, 3), cols);
+        // R0 组织方式：col0 标签，col1-2 合并填组织方式说明
         setCell(t, 0, 0, "组织方式", true);
-        WordUtil.mergeCellsHorizontal(t, 0, 0, cols - 1);
+        String orgWay = sec.getOrDefault("organize_way", sec.getOrDefault("组织方式", ""));
+        setCell(t, 0, 1, stripHtml(orgWay), false);
+        WordUtil.mergeCellsHorizontal(t, 0, 1, cols - 1);
+        // R1 表头
         setCell(t, 1, 0, "实施步骤", true);
         setCell(t, 1, 1, "阶段划分", true);
         setCell(t, 1, 2, "有关要求", true);
-        if (ObjectUtils.isNotEmpty(sections)) {
-            for (int i = 0; i < sections.size(); i++) {
-                TeachingPlanSection s = sections.get(i);
+        // R2+ 步骤行：stageName(已译名)->实施步骤列、stepName->阶段划分、requirement->有关要求
+        if (ObjectUtils.isNotEmpty(steps)) {
+            for (int i = 0; i < steps.size(); i++) {
+                TeachingPlanProcessStep s = steps.get(i);
                 int r = i + 2;
-                setCell(t, r, 0, s.getSectionTitle(), false);
-                setCell(t, r, 1, "", false);
-                setCell(t, r, 2, stripHtml(s.getContent()), false);
+                setCell(t, r, 0, str(s.getStageName()), false);
+                setCell(t, r, 1, str(s.getStepName()), false);
+                setCell(t, r, 2, stripHtml(s.getRequirement()), false);
             }
+            // 实施步骤列：相同 stageName 连续行竖向合并（战斗准备/战斗实施/撤出战斗各一段）
+            if (steps.size() > 1) {
+                int dataStart = 2; // 首个步骤行所在表行
+                int grpStart = dataStart;
+                String prev = str(steps.get(0).getStageName());
+                for (int i = 1; i < steps.size(); i++) {
+                    String cur = str(steps.get(i).getStageName());
+                    if (!Objects.equals(prev, cur)) {
+                        int grpEnd = (i - 1) + dataStart; // 上一组末行表行号
+                        if (grpEnd > grpStart) {
+                            WordUtil.mergeCellsVertical(t, 0, grpStart, grpEnd);
+                        }
+                        grpStart = i + dataStart; // 新组首行表行号
+                        prev = cur;
+                    }
+                }
+                int lastEnd = (steps.size() - 1) + dataStart;
+                if (lastEnd > grpStart) {
+                    WordUtil.mergeCellsVertical(t, 0, grpStart, lastEnd);
+                }
+            }
+        } else {
+            // 无步骤：占位一行空行
+            setCell(t, 2, 0, "", false);
+            setCell(t, 2, 1, "", false);
+            setCell(t, 2, 2, "", false);
         }
     }
 
-    /** 实验课程任务背景表（type3 三）：cols 列（任务背景描述 | 技术目标 | 能力目标 | 支撑毕业要求） */
+    /**
+     * 实验课程任务背景表（type3 三）：4 列（任务背景描述 | 技术目标 | 能力目标 | 支撑毕业要求）。
+     * 数据驱动：源课被多个培养方案引用时，每个培养方案单独一张表；多方案时每表前加二级标题。
+     */
     private void taskBackgroundTable(CourseTeachingPlanModel m, XWPFDocument doc, int cols) {
+        List<CourseTeachingPlanModel.SchemeTaskBackgroundGroup> groups = m.getSchemeTaskBackgroundGroups();
+        if (ObjectUtils.isNotEmpty(groups)) {
+            boolean multi = groups.size() > 1;
+            for (CourseTeachingPlanModel.SchemeTaskBackgroundGroup g : groups) {
+                if (g == null) {
+                    continue;
+                }
+                // 多方案时加小标题，便于区分各组对应关系
+                if (multi && StringUtils.isNotBlank(g.getSchemeTitle())) {
+                    h2(doc, g.getSchemeTitle());
+                } else if (multi) {
+                    h2(doc, "培养方案" + (g.getSchemeId() == null ? "" : " " + g.getSchemeId()));
+                }
+                writeTaskBackgroundTable(g.getTaskBackgrounds(), g.getTaskBackgroundRefMap(), doc, cols);
+            }
+            return;
+        }
+        // 兼容：未组装 schemeTaskBackgroundGroups 时走旧单表（section 文本 + 课程毕业要求）
         int rows = 2;
         XWPFTable t = createTable(doc, rows, cols);
         setCell(t, 0, 0, "任务背景描述", true);
@@ -1423,6 +1566,38 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 1, 3, joinGraduations(m.getCourseGraduations()), false);
     }
 
+    /**
+     * 写一张「任务背景描述 | 技术目标 | 能力目标 | 支撑毕业要求」表，每条任务背景一行。
+     */
+    private void writeTaskBackgroundTable(List<TeachingPlanTaskBackground> taskBackgrounds,
+                                          Map<Long, List<TeachingPlanTaskBackgroundRef>> refMap,
+                                          XWPFDocument doc, int cols) {
+        int dataRows = ObjectUtils.isEmpty(taskBackgrounds) ? 0 : taskBackgrounds.size();
+        int rows = 1 + Math.max(dataRows, 1);
+        XWPFTable t = createTable(doc, rows, cols);
+        setCell(t, 0, 0, "任务背景描述", true);
+        setCell(t, 0, 1, "技术目标", true);
+        setCell(t, 0, 2, "能力目标", true);
+        setCell(t, 0, 3, "支撑的毕业要求", true);
+        if (ObjectUtils.isEmpty(taskBackgrounds)) {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, 1, c, "", false);
+            }
+            return;
+        }
+        int r = 1;
+        for (TeachingPlanTaskBackground tb : taskBackgrounds) {
+            if (tb == null) {
+                continue;
+            }
+            setCell(t, r, 0, tb.getBackgroundDesc(), false);
+            setCell(t, r, 1, tb.getTechnicalGoal(), false);
+            setCell(t, r, 2, tb.getAbilityGoal(), false);
+            setCell(t, r, 3, joinTaskBackgroundRefs(refMap, tb.getId()), false);
+            r++;
+        }
+    }
+
     /** 实践项目任务背景表（type4 二）：标签 | 内容 */
     private void projectBackgroundTable(CourseTeachingPlanModel m, XWPFDocument doc) {
         int cols = 2;
@@ -1433,12 +1608,42 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 0, 1, sec.getOrDefault("拟解决的复杂问题", sec.getOrDefault("complex_problem", "")), false);
         setCell(t, 1, 0, "主要任务", true);
         setCell(t, 1, 1, sec.getOrDefault("主要任务", sec.getOrDefault("main_task", "")), false);
-        // 支撑的课程目标 / 涉及的知识体系：用户经 /teachingPlan/section 手动录入 t_csys_teaching_plan_section，
-        // sectionTitle 即模板标签；按标题取值，未录则留空（不再写死占位文本）。
-        setCell(t, 2, 0, "支撑的课程目标", true);
-        setCell(t, 2, 1, sec.getOrDefault("支撑的课程目标", sec.getOrDefault("support_course_target", "")), false);
-        setCell(t, 3, 0, "涉及的知识体系", true);
-        setCell(t, 3, 1, sec.getOrDefault("涉及的知识体系", sec.getOrDefault("knowledge_system", "")), false);
+        // 支撑的课程目标或训练目的 / 涉及的知识体系或训练内容：来自 type4 第二节支撑绑定（计划级多选快照），
+        // 按 sort 顿号拼接；无绑定回退旧 section（兼容历史数据），仍为空则留空。
+        String supportObjectiveText = joinSupportObjectives(m.getSupportObjectives());
+        if (StringUtils.isBlank(supportObjectiveText)) {
+            supportObjectiveText = sec.getOrDefault("支撑的课程目标", sec.getOrDefault("support_course_target", ""));
+        }
+        String supportContentText = joinSupportContents(m.getSupportContents());
+        if (StringUtils.isBlank(supportContentText)) {
+            supportContentText = sec.getOrDefault("涉及的知识体系", sec.getOrDefault("knowledge_system", ""));
+        }
+        setCell(t, 2, 0, "支撑的课程目标或训练目的", true);
+        setCell(t, 2, 1, supportObjectiveText, false);
+        setCell(t, 3, 0, "涉及的知识体系或训练内容", true);
+        setCell(t, 3, 1, supportContentText, false);
+    }
+
+    /** 拼接实践项目「支撑的课程目标或训练目的」绑定文本（课程目标 + 训练目的，按 sort 顿号拼接）。 */
+    private String joinSupportObjectives(List<TeachingPlanSupportObjective> list) {
+        if (ObjectUtils.isEmpty(list)) {
+            return "";
+        }
+        return list.stream()
+                .filter(b -> b != null && StringUtils.isNotBlank(b.getItemName()))
+                .map(TeachingPlanSupportObjective::getItemName)
+                .collect(Collectors.joining("、"));
+    }
+
+    /** 拼接实践项目「涉及的知识体系或训练内容」绑定文本（知识体系 + 训练内容，按 sort 顿号拼接）。 */
+    private String joinSupportContents(List<TeachingPlanSupportContent> list) {
+        if (ObjectUtils.isEmpty(list)) {
+            return "";
+        }
+        return list.stream()
+                .filter(b -> b != null && StringUtils.isNotBlank(b.getItemTitle()))
+                .map(TeachingPlanSupportContent::getItemTitle)
+                .collect(Collectors.joining("、"));
     }
 
     /**
@@ -1715,6 +1920,34 @@ public class CourseTeachingPlanGenerator {
             return "";
         }
         return refs.stream().map(TeachingPlanObjectiveRef::getGraduationName).filter(StringUtils::isNotBlank).collect(Collectors.joining("、"));
+    }
+
+    /** 拼接任务背景绑定的毕业要求名称（对标 joinRefs） */
+    private String joinTaskBackgroundRefs(Map<Long, List<TeachingPlanTaskBackgroundRef>> refMap, Long taskBackgroundId) {
+        if (refMap == null || taskBackgroundId == null) {
+            return "";
+        }
+        List<TeachingPlanTaskBackgroundRef> refs = refMap.get(taskBackgroundId);
+        if (ObjectUtils.isEmpty(refs)) {
+            return "";
+        }
+        return refs.stream().map(TeachingPlanTaskBackgroundRef::getGraduationName)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
+    }
+
+    /** 拼接训练目的绑定的毕业要求名称（对标 joinTaskBackgroundRefs） */
+    private String joinTrainingPurposeRefs(Map<Long, List<TeachingPlanTrainingPurposeRef>> refMap, Long purposeId) {
+        if (refMap == null || purposeId == null) {
+            return "";
+        }
+        List<TeachingPlanTrainingPurposeRef> refs = refMap.get(purposeId);
+        if (ObjectUtils.isEmpty(refs)) {
+            return "";
+        }
+        return refs.stream().map(TeachingPlanTrainingPurposeRef::getGraduationName)
+                .filter(StringUtils::isNotBlank)
+                .collect(Collectors.joining("、"));
     }
 
     private static String firstNonBlank(String a, String b) {

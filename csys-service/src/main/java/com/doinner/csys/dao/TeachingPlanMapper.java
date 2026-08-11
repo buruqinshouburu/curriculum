@@ -98,6 +98,16 @@ public interface TeachingPlanMapper {
     List<TeachingPlanQuoteAggVo> selectQuoteAggByCourseIds(@Param("courseIds") List<Long> courseIds);
 
     /**
+     * 单个总库课程被引用侧聚合（课程模块/课目模块按引用课程去重拼接）。
+     * 用于教学计划分组判定：公共基础(普通课)取 courseModule 全部分公共基础、
+     * 实践训练课目(type2)取 location 全部∈{1,2,3,9} 时不按培养方案区分。
+     *
+     * @param sourceCourseId 总库课程id（= c2.source_id）
+     * @return 聚合字段，无引用返回 null
+     */
+    TeachingPlanQuoteAggVo selectQuoteAggBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
+
+    /**
      * 教学计划详情-课程分支：教学计划id为空时，详情字段全部取自总库课程 t_csys_course。
      *
      * @param courseId 总库课程id

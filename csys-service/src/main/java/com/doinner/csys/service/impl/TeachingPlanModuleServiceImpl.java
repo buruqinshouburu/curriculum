@@ -12,6 +12,13 @@ import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveAssessmentMapper;
+import com.doinner.csys.dao.TeachingPlanTaskBackgroundMapper;
+import com.doinner.csys.dao.TeachingPlanTaskBackgroundRefMapper;
+import com.doinner.csys.dao.TeachingPlanTrainingPurposeMapper;
+import com.doinner.csys.dao.TeachingPlanTrainingPurposeRefMapper;
+import com.doinner.csys.dao.TeachingPlanContentPurposeMapper;
+import com.doinner.csys.dao.TeachingPlanSupportObjectiveMapper;
+import com.doinner.csys.dao.TeachingPlanSupportContentMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
 import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
@@ -36,8 +43,21 @@ import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
+import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
+import com.doinner.csys.domain.TeachingPlanContentPurpose;
+import com.doinner.csys.domain.TeachingPlanSupportObjective;
+import com.doinner.csys.domain.TeachingPlanSupportContent;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
+import com.doinner.csys.domain.vo.CourseIdAndName;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo;
@@ -46,7 +66,14 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundRefSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeSaveVo;
 import com.doinner.csys.domain.vo.CourseVo;
 import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
@@ -64,9 +91,12 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -92,6 +122,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     /** 条件保障类型字典 type */
     private static final String DICT_CONDITION_TYPE = "sys_condition_type";
 
+    /** 训练内容与时间安排模块字典 type（type2 content.title 存 value 编码） */
+    private static final String DICT_PLAN_TRAINING_MODULE = "sys_plan_training_module";
+
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>> KP_LIST_TYPE =
             new TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>>() {};
@@ -104,6 +137,27 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TeachingPlanObjectiveAssessmentMapper teachingPlanObjectiveAssessmentMapper;
+
+    @Resource
+    private TeachingPlanTaskBackgroundMapper teachingPlanTaskBackgroundMapper;
+
+    @Resource
+    private TeachingPlanTaskBackgroundRefMapper teachingPlanTaskBackgroundRefMapper;
+
+    @Resource
+    private TeachingPlanTrainingPurposeMapper teachingPlanTrainingPurposeMapper;
+
+    @Resource
+    private TeachingPlanTrainingPurposeRefMapper teachingPlanTrainingPurposeRefMapper;
+
+    @Resource
+    private TeachingPlanContentPurposeMapper teachingPlanContentPurposeMapper;
+
+    @Resource
+    private TeachingPlanSupportObjectiveMapper teachingPlanSupportObjectiveMapper;
+
+    @Resource
+    private TeachingPlanSupportContentMapper teachingPlanSupportContentMapper;
 
     @Resource
     private TeachingPlanContentMapper teachingPlanContentMapper;
@@ -197,19 +251,92 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     // ============ 7. 教学计划目标 ============
 
+    /** 实践训练课目(type2)课目模块(location, 字典 sys_subject_module)命中下列值之一即属通识通用 */
+    private static final Set<String> SUBJECT_MODULE_GENERAL_VALUES =
+            new HashSet<>(Arrays.asList("1", "2", "3", "9"));
+
     /**
-     * 源课是否为公共基础课程：course_Module == DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE。
-     * 公共基础：目标/毕业要求按 plan 单组（scheme_id 恒为 null），不按培养方案拆分。
+     * 普通课程(type1/3)源课是否属公共基础：聚合被引用课程的 course_Module 多值串，
+     * 拆分后每一项均为公共基础（兼容 id(hex) 与已译名称「含公共基础」两种形态）。
+     * 聚合为空时回退源课自身 course_Module。
+     * 公共基础：目标/任务背景按 plan 单组（scheme_id 恒为 null），不按培养方案拆分。
      */
-    private boolean isPublicFoundationCourse(Long sourceCourseId) {
+    @Override
+    public boolean isPublicFoundationCourse(Long sourceCourseId) {
         if (sourceCourseId == null) {
             return false;
         }
         CourseVo course = courseMapper.selectCourseById(sourceCourseId);
-        if (course == null || StringUtils.isBlank(course.getCourseModule())) {
+        if (course == null) {
             return false;
         }
-        return Objects.equals(course.getCourseModule(), DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+        TeachingPlanQuoteAggVo agg = teachingPlanMapper.selectQuoteAggBySourceCourseId(sourceCourseId);
+        String module = agg == null ? null : agg.getCourseModule();
+        if (StringUtils.isBlank(module)) {
+            module = course.getCourseModule();
+        }
+        return isOnlyPublicFoundationCourseModule(module);
+    }
+
+    /**
+     * 实践训练课目(type2)是否属通识通用：聚合被引用课程的 location 多值串，
+     * 拆分后每一项均∈{1,2,3,9}（即「课目模块只属于1,2,3,9」）。聚合为空时回退源课自身 location。
+     * 通识通用：训练目的按 plan 单组（scheme_id 恒为 null），不按培养方案拆分。
+     */
+    @Override
+    public boolean isGeneralSubjectModuleCourse(Long sourceCourseId) {
+        if (sourceCourseId == null) {
+            return false;
+        }
+        CourseVo course = courseMapper.selectCourseById(sourceCourseId);
+        if (course == null) {
+            return false;
+        }
+        TeachingPlanQuoteAggVo agg = teachingPlanMapper.selectQuoteAggBySourceCourseId(sourceCourseId);
+        String location = agg == null ? null : agg.getLocation();
+        if (StringUtils.isBlank(location)) {
+            location = course.getLocation();
+        }
+        return isOnlyGeneralSubjectModuleValue(location);
+    }
+
+    /** course_Module 是否只属于公共基础：非空且拆分(、/,，)后每一项均为公共基础。 */
+    private boolean isOnlyPublicFoundationCourseModule(String courseModule) {
+        if (StringUtils.isBlank(courseModule)) {
+            return false;
+        }
+        String generalId = DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE;
+        boolean any = false;
+        for (String part : courseModule.trim().split("[、,/，]")) {
+            String p = part.trim();
+            if (StringUtils.isBlank(p)) {
+                continue;
+            }
+            any = true;
+            if (!Objects.equals(p, generalId) && !p.contains("公共基础")) {
+                return false;
+            }
+        }
+        return any;
+    }
+
+    /** location 是否只属于通识通用课目模块：非空且拆分后每一项∈{1,2,3,9}。 */
+    private boolean isOnlyGeneralSubjectModuleValue(String location) {
+        if (StringUtils.isBlank(location)) {
+            return false;
+        }
+        boolean any = false;
+        for (String part : location.trim().split("[、,/，]")) {
+            String p = part.trim();
+            if (StringUtils.isBlank(p)) {
+                continue;
+            }
+            any = true;
+            if (!SUBJECT_MODULE_GENERAL_VALUES.contains(p)) {
+                return false;
+            }
+        }
+        return any;
     }
 
     /** 教学计划对应源课是否为公共基础课程 */
@@ -222,6 +349,18 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             return false;
         }
         return isPublicFoundationCourse(plan.getSourceCourseId());
+    }
+
+    /** 教学计划对应源课（type2）是否属通识通用课目模块 */
+    private boolean isGeneralSubjectPlan(Long planId) {
+        if (planId == null) {
+            return false;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null) {
+            return false;
+        }
+        return isGeneralSubjectModuleCourse(plan.getSourceCourseId());
     }
 
     @Override
@@ -842,6 +981,929 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Transactional(rollbackFor = Exception.class)
     public void deleteObjectiveRef(Long id) {
         teachingPlanObjectiveRefMapper.deleteById(id);
+    }
+
+    // ============ 任务背景（实验课程第三节，对标课程目标） ============
+
+    @Override
+    public List<TeachingPlanTaskBackground> listTaskBackground(Long planId, Long schemeId) {
+        boolean onlyNull = isPublicFoundationPlan(planId);
+        // 公共基础：忽略入参 schemeId，只取 scheme_id IS NULL 单组
+        return teachingPlanTaskBackgroundMapper.selectByPlanAndScheme(
+                planId, onlyNull ? null : schemeId, onlyNull);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveTaskBackgroundsBatch(TeachingPlanTaskBackgroundBatchSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(saveVo.getPlanId());
+        if (plan == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + saveVo.getPlanId());
+        }
+        List<TeachingPlanTaskBackgroundSaveVo> rows = saveVo.getTaskBackgrounds();
+        teachingPlanTaskBackgroundRefMapper.deleteByPlanId(saveVo.getPlanId());
+        teachingPlanTaskBackgroundMapper.deleteByPlanId(saveVo.getPlanId());
+        if (ObjectUtils.isEmpty(rows)) {
+            return;
+        }
+        int sort = 1;
+        for (TeachingPlanTaskBackgroundSaveVo row : rows) {
+            if (row == null || row.getTaskBackground() == null) {
+                continue;
+            }
+            TeachingPlanTaskBackground taskBackground = row.getTaskBackground();
+            taskBackground.setId(null);
+            taskBackground.setPlanId(saveVo.getPlanId());
+            if (taskBackground.getSchemeId() == null) {
+                taskBackground.setSchemeId(saveVo.getSchemeId());
+            }
+            boolean publicFoundation = forceNullSchemeIfPublicFoundation(taskBackground);
+            if (publicFoundation) {
+                taskBackground.setSchemeId(null);
+            }
+            validateTaskBackgroundForInsert(taskBackground, publicFoundation);
+            if (taskBackground.getSort() == null) {
+                taskBackground.setSort(sort);
+            }
+            sort++;
+            UserUtils.reflash(taskBackground);
+            teachingPlanTaskBackgroundMapper.insert(taskBackground);
+            insertTaskBackgroundRefs(taskBackground.getId(), taskBackground.getPlanId(),
+                    taskBackground.getSchemeId(), row.getRefs());
+        }
+    }
+
+    /**
+     * 新增任务背景必填校验：planId/backgroundDesc 必填；
+     * 非公共基础需指定 schemeId。
+     */
+    private void validateTaskBackgroundForInsert(TeachingPlanTaskBackground taskBackground, boolean publicFoundation) {
+        if (taskBackground == null) {
+            throw new IllegalArgumentException("任务背景不能为空");
+        }
+        if (taskBackground.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        if (StringUtils.isBlank(taskBackground.getBackgroundDesc())) {
+            throw new IllegalArgumentException("任务背景描述不能为空");
+        }
+        if (!publicFoundation && taskBackground.getSchemeId() == null) {
+            throw new IllegalArgumentException("非公共基础课程新增任务背景必须指定 schemeId");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addTaskBackground(TeachingPlanTaskBackground taskBackground) {
+        boolean publicFoundation = forceNullSchemeIfPublicFoundation(taskBackground);
+        if (publicFoundation) {
+            taskBackground.setSchemeId(null);
+        }
+        validateTaskBackgroundForInsert(taskBackground, publicFoundation);
+        UserUtils.reflash(taskBackground);
+        teachingPlanTaskBackgroundMapper.insert(taskBackground);
+        return taskBackground.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateTaskBackground(TeachingPlanTaskBackground taskBackground) {
+        if (taskBackground == null || taskBackground.getId() == null) {
+            throw new IllegalArgumentException("任务背景id不能为空");
+        }
+        boolean publicFoundation = forceNullSchemeIfPublicFoundation(taskBackground);
+        UserUtils.reflash(taskBackground);
+        teachingPlanTaskBackgroundMapper.updateById(taskBackground);
+        // update 动态 SQL 不会把 null 写进 scheme_id，公共基础需显式清空
+        if (publicFoundation && taskBackground.getId() != null) {
+            teachingPlanTaskBackgroundMapper.clearSchemeIdById(taskBackground.getId());
+        }
+    }
+
+    /**
+     * 公共基础：任务背景强制 scheme_id = null（不区分培养方案）。
+     * @return 是否公共基础（调用方用于决定是否 clearSchemeId）
+     */
+    private boolean forceNullSchemeIfPublicFoundation(TeachingPlanTaskBackground taskBackground) {
+        if (taskBackground == null) {
+            return false;
+        }
+        Long planId = taskBackground.getPlanId();
+        if (planId == null && taskBackground.getId() != null) {
+            TeachingPlanTaskBackground existing = teachingPlanTaskBackgroundMapper.selectById(taskBackground.getId());
+            if (existing != null) {
+                planId = existing.getPlanId();
+            }
+        }
+        if (isPublicFoundationPlan(planId)) {
+            taskBackground.setSchemeId(null);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTaskBackground(Long id) {
+        // 删任务背景时同步逻辑删除其绑定的毕业要求，避免孤儿绑定
+        if (id != null) {
+            teachingPlanTaskBackgroundRefMapper.deleteByTaskBackgroundId(id);
+        }
+        teachingPlanTaskBackgroundMapper.deleteById(id);
+    }
+
+    @Override
+    public List<TeachingPlanTaskBackgroundRef> listTaskBackgroundRef(Long taskBackgroundId) {
+        return teachingPlanTaskBackgroundRefMapper.selectByTaskBackgroundId(taskBackgroundId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveTaskBackgroundRefs(TeachingPlanTaskBackgroundRefSaveVo saveVo) {
+        if (saveVo == null || saveVo.getTaskBackgroundId() == null) {
+            throw new IllegalArgumentException("taskBackgroundId 不能为空");
+        }
+        Long taskBackgroundId = saveVo.getTaskBackgroundId();
+        // 校验任务背景存在；绑定归属(planId/schemeId)以库中记录为准，不信任前端传值
+        TeachingPlanTaskBackground taskBackground = teachingPlanTaskBackgroundMapper.selectById(taskBackgroundId);
+        if (taskBackground == null) {
+            throw new IllegalArgumentException("任务背景不存在: " + taskBackgroundId);
+        }
+        Long planId = taskBackground.getPlanId() != null ? taskBackground.getPlanId() : saveVo.getPlanId();
+        Long schemeId = taskBackground.getSchemeId() != null ? taskBackground.getSchemeId() : saveVo.getSchemeId();
+        // 公共基础：绑定也强制 scheme_id 为空
+        if (isPublicFoundationPlan(planId)) {
+            schemeId = null;
+        }
+        // 重建绑定：先逻辑删除旧 ref，再按列表插入（空列表=清空）
+        teachingPlanTaskBackgroundRefMapper.deleteByTaskBackgroundId(taskBackgroundId);
+        insertTaskBackgroundRefs(taskBackgroundId, planId, schemeId, saveVo.getRefs());
+    }
+
+    /**
+     * 批量写入任务背景-毕业要求绑定；refs 可空表示不写。
+     * planId/schemeId 强制取任务背景归属（不信任前端 ref 上的值）；
+     * graduationId 必填且必须真实存在，编码/名称快照缺省时从毕业要求回填；
+     * 同一任务背景重复绑定同一毕业要求自动去重。公共基础：schemeId 强制 null。
+     */
+    private void insertTaskBackgroundRefs(Long taskBackgroundId, Long planId, Long schemeId,
+                                          List<TeachingPlanTaskBackgroundRef> refs) {
+        if (ObjectUtils.isEmpty(refs)) {
+            return;
+        }
+        boolean publicFoundation = isPublicFoundationPlan(planId);
+        if (publicFoundation) {
+            schemeId = null;
+        }
+        // 校验毕业要求存在
+        List<Long> graduationIds = new ArrayList<>();
+        for (TeachingPlanTaskBackgroundRef ref : refs) {
+            if (ref == null) {
+                continue;
+            }
+            if (ref.getGraduationId() == null) {
+                throw new IllegalArgumentException("毕业要求id(graduationId)不能为空");
+            }
+            if (!graduationIds.contains(ref.getGraduationId())) {
+                graduationIds.add(ref.getGraduationId());
+            }
+        }
+        Map<Long, StandardGraduation> gradMap = loadGraduationMap(graduationIds);
+        Set<Long> bound = new HashSet<>();
+        int sort = 1;
+        for (TeachingPlanTaskBackgroundRef ref : refs) {
+            if (ref == null) {
+                continue;
+            }
+            StandardGraduation g = gradMap.get(ref.getGraduationId());
+            if (g == null) {
+                throw new IllegalArgumentException("毕业要求不存在: " + ref.getGraduationId());
+            }
+            if (!bound.add(ref.getGraduationId())) {
+                continue;
+            }
+            ref.setId(null);
+            ref.setTaskBackgroundId(taskBackgroundId);
+            ref.setPlanId(planId);
+            ref.setSchemeId(schemeId);
+            if (ref.getSourceGraduationId() == null) {
+                ref.setSourceGraduationId(g.getSourceId());
+            }
+            if (StringUtils.isBlank(ref.getGraduationCode())) {
+                ref.setGraduationCode(g.getCode());
+            }
+            if (StringUtils.isBlank(ref.getGraduationName())) {
+                ref.setGraduationName(g.getName());
+            }
+            if (ref.getSort() == null) {
+                ref.setSort(sort);
+            }
+            sort++;
+            // 默认绑定来源标记：课程毕业要求关联
+            if (StringUtils.isBlank(ref.getGraduationBindSource())) {
+                ref.setGraduationBindSource("course_ref_graduation");
+            }
+            UserUtils.reflash(ref);
+            teachingPlanTaskBackgroundRefMapper.insert(ref);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref) {
+        if (ref == null || ref.getTaskBackgroundId() == null) {
+            throw new IllegalArgumentException("taskBackgroundId 不能为空");
+        }
+        TeachingPlanTaskBackground taskBackground = teachingPlanTaskBackgroundMapper.selectById(ref.getTaskBackgroundId());
+        if (taskBackground == null) {
+            throw new IllegalArgumentException("任务背景不存在: " + ref.getTaskBackgroundId());
+        }
+        // 重复绑定拒绝；sort 缺省接在已有绑定之后
+        List<TeachingPlanTaskBackgroundRef> existing =
+                teachingPlanTaskBackgroundRefMapper.selectByTaskBackgroundId(ref.getTaskBackgroundId());
+        if (ref.getGraduationId() != null && ObjectUtils.isNotEmpty(existing)) {
+            for (TeachingPlanTaskBackgroundRef e : existing) {
+                if (e != null && ref.getGraduationId().equals(e.getGraduationId())) {
+                    throw new IllegalArgumentException("该任务背景已绑定该毕业要求");
+                }
+            }
+        }
+        if (ref.getSort() == null) {
+            ref.setSort((existing == null ? 0 : existing.size()) + 1);
+        }
+        // planId/schemeId/存在性校验统一走 insertTaskBackgroundRefs（归属取任务背景）
+        insertTaskBackgroundRefs(taskBackground.getId(), taskBackground.getPlanId(), taskBackground.getSchemeId(),
+                Collections.singletonList(ref));
+        return ref.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref) {
+        UserUtils.reflash(ref);
+        teachingPlanTaskBackgroundRefMapper.updateById(ref);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTaskBackgroundRef(Long id) {
+        teachingPlanTaskBackgroundRefMapper.deleteById(id);
+    }
+
+    // ============ 训练目的（实践训练课目 type2 第二节，对标任务背景） ============
+
+    @Override
+    public List<TeachingPlanTrainingPurpose> listTrainingPurpose(Long planId, Long schemeId) {
+        boolean onlyNull = isGeneralSubjectPlan(planId);
+        // 通识通用：忽略入参 schemeId，只取 scheme_id IS NULL 单组
+        return teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(
+                planId, onlyNull ? null : schemeId, onlyNull);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveTrainingPurposesBatch(TeachingPlanTrainingPurposeBatchSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(saveVo.getPlanId());
+        if (plan == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + saveVo.getPlanId());
+        }
+        List<TeachingPlanTrainingPurposeSaveVo> rows = saveVo.getPurposes();
+        teachingPlanTrainingPurposeRefMapper.deleteByPlanId(saveVo.getPlanId());
+        teachingPlanTrainingPurposeMapper.deleteByPlanId(saveVo.getPlanId());
+        if (ObjectUtils.isEmpty(rows)) {
+            return;
+        }
+        int sort = 1;
+        for (TeachingPlanTrainingPurposeSaveVo row : rows) {
+            if (row == null || row.getPurpose() == null) {
+                continue;
+            }
+            TeachingPlanTrainingPurpose trainingPurpose = row.getPurpose();
+            trainingPurpose.setId(null);
+            trainingPurpose.setPlanId(saveVo.getPlanId());
+            if (trainingPurpose.getSchemeId() == null) {
+                trainingPurpose.setSchemeId(saveVo.getSchemeId());
+            }
+            boolean generalSubject = forceNullSchemeIfGeneralSubject(trainingPurpose);
+            if (generalSubject) {
+                trainingPurpose.setSchemeId(null);
+            }
+            validateTrainingPurposeForInsert(trainingPurpose, generalSubject);
+            if (trainingPurpose.getSort() == null) {
+                trainingPurpose.setSort(sort);
+            }
+            sort++;
+            UserUtils.reflash(trainingPurpose);
+            teachingPlanTrainingPurposeMapper.insert(trainingPurpose);
+            insertTrainingPurposeRefs(trainingPurpose.getId(), trainingPurpose.getPlanId(),
+                    trainingPurpose.getSchemeId(), row.getRefs());
+        }
+    }
+
+    /**
+     * 新增训练目的必填校验：planId/purpose 必填；
+     * 非通识通用需指定 schemeId。
+     */
+    private void validateTrainingPurposeForInsert(TeachingPlanTrainingPurpose trainingPurpose, boolean generalSubject) {
+        if (trainingPurpose == null) {
+            throw new IllegalArgumentException("训练目的不能为空");
+        }
+        if (trainingPurpose.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        if (StringUtils.isBlank(trainingPurpose.getPurpose())) {
+            throw new IllegalArgumentException("训练目的不能为空");
+        }
+        if (!generalSubject && trainingPurpose.getSchemeId() == null) {
+            throw new IllegalArgumentException("非通识通用课目新增训练目的必须指定 schemeId");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addTrainingPurpose(TeachingPlanTrainingPurpose trainingPurpose) {
+        boolean generalSubject = forceNullSchemeIfGeneralSubject(trainingPurpose);
+        if (generalSubject) {
+            trainingPurpose.setSchemeId(null);
+        }
+        validateTrainingPurposeForInsert(trainingPurpose, generalSubject);
+        UserUtils.reflash(trainingPurpose);
+        teachingPlanTrainingPurposeMapper.insert(trainingPurpose);
+        return trainingPurpose.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateTrainingPurpose(TeachingPlanTrainingPurpose trainingPurpose) {
+        if (trainingPurpose == null || trainingPurpose.getId() == null) {
+            throw new IllegalArgumentException("训练目的id不能为空");
+        }
+        boolean generalSubject = forceNullSchemeIfGeneralSubject(trainingPurpose);
+        UserUtils.reflash(trainingPurpose);
+        teachingPlanTrainingPurposeMapper.updateById(trainingPurpose);
+        // update 动态 SQL 不会把 null 写进 scheme_id，通识通用需显式清空
+        if (generalSubject && trainingPurpose.getId() != null) {
+            teachingPlanTrainingPurposeMapper.clearSchemeIdById(trainingPurpose.getId());
+        }
+    }
+
+    /**
+     * 通识通用：训练目的强制 scheme_id = null（不区分培养方案）。
+     * @return 是否通识通用（调用方用于决定是否 clearSchemeId）
+     */
+    private boolean forceNullSchemeIfGeneralSubject(TeachingPlanTrainingPurpose trainingPurpose) {
+        if (trainingPurpose == null) {
+            return false;
+        }
+        Long planId = trainingPurpose.getPlanId();
+        if (planId == null && trainingPurpose.getId() != null) {
+            TeachingPlanTrainingPurpose existing = teachingPlanTrainingPurposeMapper.selectById(trainingPurpose.getId());
+            if (existing != null) {
+                planId = existing.getPlanId();
+            }
+        }
+        if (isGeneralSubjectPlan(planId)) {
+            trainingPurpose.setSchemeId(null);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTrainingPurpose(Long id) {
+        // 删训练目的时同步逻辑删除其绑定的毕业要求，避免孤儿绑定
+        if (id != null) {
+            teachingPlanTrainingPurposeRefMapper.deleteByPurposeId(id);
+        }
+        teachingPlanTrainingPurposeMapper.deleteById(id);
+    }
+
+    @Override
+    public List<TeachingPlanTrainingPurposeRef> listTrainingPurposeRef(Long purposeId) {
+        return teachingPlanTrainingPurposeRefMapper.selectByPurposeId(purposeId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveTrainingPurposeRefs(TeachingPlanTrainingPurposeRefSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPurposeId() == null) {
+            throw new IllegalArgumentException("purposeId 不能为空");
+        }
+        Long purposeId = saveVo.getPurposeId();
+        // 校验训练目的存在；绑定归属(planId/schemeId)以库中记录为准，不信任前端传值
+        TeachingPlanTrainingPurpose trainingPurpose = teachingPlanTrainingPurposeMapper.selectById(purposeId);
+        if (trainingPurpose == null) {
+            throw new IllegalArgumentException("训练目的不存在: " + purposeId);
+        }
+        Long planId = trainingPurpose.getPlanId() != null ? trainingPurpose.getPlanId() : saveVo.getPlanId();
+        Long schemeId = trainingPurpose.getSchemeId() != null ? trainingPurpose.getSchemeId() : saveVo.getSchemeId();
+        // 通识通用：绑定也强制 scheme_id 为空
+        if (isGeneralSubjectPlan(planId)) {
+            schemeId = null;
+        }
+        // 重建绑定：先逻辑删除旧 ref，再按列表插入（空列表=清空）
+        teachingPlanTrainingPurposeRefMapper.deleteByPurposeId(purposeId);
+        insertTrainingPurposeRefs(purposeId, planId, schemeId, saveVo.getRefs());
+    }
+
+    /**
+     * 批量写入训练目的-毕业要求绑定；refs 可空表示不写。
+     * planId/schemeId 强制取训练目的归属（不信任前端 ref 上的值）；
+     * graduationId 必填且必须真实存在，编码/名称快照缺省时从毕业要求回填；
+     * 同一训练目的重复绑定同一毕业要求自动去重。通识通用：schemeId 强制 null。
+     */
+    private void insertTrainingPurposeRefs(Long purposeId, Long planId, Long schemeId,
+                                           List<TeachingPlanTrainingPurposeRef> refs) {
+        if (ObjectUtils.isEmpty(refs)) {
+            return;
+        }
+        boolean generalSubject = isGeneralSubjectPlan(planId);
+        if (generalSubject) {
+            schemeId = null;
+        }
+        // 校验毕业要求存在
+        List<Long> graduationIds = new ArrayList<>();
+        for (TeachingPlanTrainingPurposeRef ref : refs) {
+            if (ref == null) {
+                continue;
+            }
+            if (ref.getGraduationId() == null) {
+                throw new IllegalArgumentException("毕业要求id(graduationId)不能为空");
+            }
+            if (!graduationIds.contains(ref.getGraduationId())) {
+                graduationIds.add(ref.getGraduationId());
+            }
+        }
+        Map<Long, StandardGraduation> gradMap = loadGraduationMap(graduationIds);
+        Set<Long> bound = new HashSet<>();
+        int sort = 1;
+        for (TeachingPlanTrainingPurposeRef ref : refs) {
+            if (ref == null) {
+                continue;
+            }
+            StandardGraduation g = gradMap.get(ref.getGraduationId());
+            if (g == null) {
+                throw new IllegalArgumentException("毕业要求不存在: " + ref.getGraduationId());
+            }
+            if (!bound.add(ref.getGraduationId())) {
+                continue;
+            }
+            ref.setId(null);
+            ref.setPurposeId(purposeId);
+            ref.setPlanId(planId);
+            ref.setSchemeId(schemeId);
+            if (ref.getSourceGraduationId() == null) {
+                ref.setSourceGraduationId(g.getSourceId());
+            }
+            if (StringUtils.isBlank(ref.getGraduationCode())) {
+                ref.setGraduationCode(g.getCode());
+            }
+            if (StringUtils.isBlank(ref.getGraduationName())) {
+                ref.setGraduationName(g.getName());
+            }
+            if (ref.getSort() == null) {
+                ref.setSort(sort);
+            }
+            sort++;
+            // 默认绑定来源标记：课程毕业要求关联
+            if (StringUtils.isBlank(ref.getGraduationBindSource())) {
+                ref.setGraduationBindSource("course_ref_graduation");
+            }
+            UserUtils.reflash(ref);
+            teachingPlanTrainingPurposeRefMapper.insert(ref);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long addTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref) {
+        if (ref == null || ref.getPurposeId() == null) {
+            throw new IllegalArgumentException("purposeId 不能为空");
+        }
+        TeachingPlanTrainingPurpose trainingPurpose = teachingPlanTrainingPurposeMapper.selectById(ref.getPurposeId());
+        if (trainingPurpose == null) {
+            throw new IllegalArgumentException("训练目的不存在: " + ref.getPurposeId());
+        }
+        // 重复绑定拒绝；sort 缺省接在已有绑定之后
+        List<TeachingPlanTrainingPurposeRef> existing =
+                teachingPlanTrainingPurposeRefMapper.selectByPurposeId(ref.getPurposeId());
+        if (ref.getGraduationId() != null && ObjectUtils.isNotEmpty(existing)) {
+            for (TeachingPlanTrainingPurposeRef e : existing) {
+                if (e != null && ref.getGraduationId().equals(e.getGraduationId())) {
+                    throw new IllegalArgumentException("该训练目的已绑定该毕业要求");
+                }
+            }
+        }
+        if (ref.getSort() == null) {
+            ref.setSort((existing == null ? 0 : existing.size()) + 1);
+        }
+        // planId/schemeId/存在性校验统一走 insertTrainingPurposeRefs（归属取训练目的）
+        insertTrainingPurposeRefs(trainingPurpose.getId(), trainingPurpose.getPlanId(), trainingPurpose.getSchemeId(),
+                Collections.singletonList(ref));
+        return ref.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref) {
+        UserUtils.reflash(ref);
+        teachingPlanTrainingPurposeRefMapper.updateById(ref);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteTrainingPurposeRef(Long id) {
+        teachingPlanTrainingPurposeRefMapper.deleteById(id);
+    }
+
+    // ============ 训练内容支撑训练目的（type2 第四节「目的」多选） ============
+
+    @Override
+    public List<TeachingPlanContentPurpose> listContentPurpose(Long contentId) {
+        return teachingPlanContentPurposeMapper.selectByContentId(contentId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveContentPurposes(TeachingPlanContentPurposeSaveVo saveVo) {
+        if (saveVo == null || saveVo.getContentId() == null) {
+            throw new IllegalArgumentException("contentId 不能为空");
+        }
+        Long contentId = saveVo.getContentId();
+        // 校验训练内容存在；归属(planId)以库中记录为准，不信任前端传值
+        TeachingPlanContent content = teachingPlanContentMapper.selectById(contentId);
+        if (content == null) {
+            throw new IllegalArgumentException("训练内容不存在: " + contentId);
+        }
+        Long planId = content.getPlanId() != null ? content.getPlanId() : saveVo.getPlanId();
+        // 重建绑定：先逻辑删除旧 ref，再按列表插入（空列表=清空）
+        teachingPlanContentPurposeMapper.deleteByContentId(contentId);
+        List<Long> purposeIds = saveVo.getPurposeIds();
+        if (ObjectUtils.isEmpty(purposeIds)) {
+            return;
+        }
+        // 校验训练目的存在
+        List<TeachingPlanTrainingPurpose> purposes = new ArrayList<>();
+        for (Long purposeId : purposeIds) {
+            if (purposeId == null) {
+                continue;
+            }
+            TeachingPlanTrainingPurpose p = teachingPlanTrainingPurposeMapper.selectById(purposeId);
+            if (p == null) {
+                throw new IllegalArgumentException("训练目的不存在: " + purposeId);
+            }
+            purposes.add(p);
+        }
+        int sort = 1;
+        Set<Long> bound = new HashSet<>();
+        for (TeachingPlanTrainingPurpose p : purposes) {
+            if (p == null || p.getId() == null) {
+                continue;
+            }
+            if (!bound.add(p.getId())) {
+                continue;
+            }
+            TeachingPlanContentPurpose cp = new TeachingPlanContentPurpose();
+            cp.setPlanId(planId);
+            cp.setContentId(contentId);
+            cp.setPurposeId(p.getId());
+            cp.setSort(sort++);
+            UserUtils.reflash(cp);
+            teachingPlanContentPurposeMapper.insert(cp);
+        }
+    }
+
+    // ============ 实践项目第二节支撑绑定（type4） ============
+
+    @Override
+    public TeachingPlanSupportCandidateVo listSupportCandidates(Long courseId) {
+        TeachingPlanSupportCandidateVo vo = new TeachingPlanSupportCandidateVo();
+        if (courseId == null) {
+            return vo;
+        }
+        CourseVo source = courseMapper.selectCourseById(courseId);
+        if (source == null) {
+            return vo;
+        }
+        // before=支撑课程(取课程目标/知识体系)，after=支撑训练课目(取训练目的/训练内容)
+        List<Long> beforeIds = parseCourseIdCsv(source.getBeforeCourseId());
+        List<Long> afterIds = parseCourseIdCsv(source.getAfterCourseId());
+        if (beforeIds.isEmpty() && afterIds.isEmpty()) {
+            return vo;
+        }
+        // 「同专业」基准：项目首个培养方案的 majorId
+        Long projectMajorId = resolveProjectMajorId(courseId);
+
+        List<Long> allIds = new ArrayList<>(new LinkedHashSet<>(beforeIds));
+        allIds.addAll(afterIds);
+        List<Long> distinctIds = new ArrayList<>(new LinkedHashSet<>(allIds));
+        Map<Long, String> nameMap = new HashMap<>();
+        List<CourseIdAndName> idAndNames = courseMapper.selectCoursesIdAndNameByIds(distinctIds);
+        if (ObjectUtils.isNotEmpty(idAndNames)) {
+            for (CourseIdAndName cn : idAndNames) {
+                if (cn != null && cn.getId() != null) {
+                    nameMap.putIfAbsent(cn.getId(), cn.getName());
+                }
+            }
+        }
+        Map<Long, Course> selfMap = new HashMap<>();
+        List<Course> selfCourses = courseMapper.selectCoursesByIds(distinctIds);
+        if (ObjectUtils.isNotEmpty(selfCourses)) {
+            for (Course c : selfCourses) {
+                if (c != null && c.getId() != null) {
+                    selfMap.putIfAbsent(c.getId(), c);
+                }
+            }
+        }
+
+        Set<Long> seenCourseIds = new HashSet<>();
+        for (Long id : allIds) {
+            if (id == null || !seenCourseIds.add(id)) {
+                continue;
+            }
+            Course c = selfMap.get(id);
+            if (c == null || StringUtils.isBlank(c.getType())) {
+                continue;
+            }
+            Integer courseType = parseInt(c.getType());
+            if (courseType == null) {
+                continue;
+            }
+            // 课程库 type 与 plan_type 编号 2/3 对调：实践训练课目课程(type=2)的教学计划 plan_type=3；
+            // 其余课程(type=1/3 课程类、4 实践项目)按原值查找（课程类默认取 plan_type=1）
+            Integer lookupPlanType = Objects.equals(courseType, 2) ? 3 : courseType;
+            TeachingPlan plan = teachingPlanMapper.selectBySourceCourseIdAndPlanType(id, lookupPlanType);
+            if (plan == null || plan.getId() == null) {
+                continue;
+            }
+            Long planId = plan.getId();
+            String courseName = nameMap.get(id);
+            if (Objects.equals(courseType, 2)) {
+                // 支撑训练课目：训练目的(第二部分) + 训练内容(第四部分)
+                List<TeachingPlanTrainingPurpose> purposes =
+                        teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(planId, null, false);
+                if (ObjectUtils.isNotEmpty(purposes)) {
+                    for (TeachingPlanTrainingPurpose p : purposes) {
+                        if (p == null || p.getId() == null || StringUtils.isBlank(p.getPurpose())) {
+                            continue;
+                        }
+                        TeachingPlanSupportCandidateItem item = new TeachingPlanSupportCandidateItem();
+                        item.setId(p.getId());
+                        item.setName(p.getPurpose());
+                        item.setSourceCourseId(id);
+                        item.setSourceCourseName(courseName);
+                        item.setSameMajor(Boolean.FALSE);
+                        vo.getPurposes().add(item);
+                    }
+                }
+                appendContentCandidates(planId, id, courseName, vo.getTrainingContents());
+            } else {
+                // 支撑课程：课程目标(第四部分) + 知识体系(content 全部行，知识单元知识点)
+                List<TeachingPlanObjective> objectives =
+                        teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, null, false);
+                if (ObjectUtils.isNotEmpty(objectives)) {
+                    for (TeachingPlanObjective o : objectives) {
+                        if (o == null || o.getId() == null || StringUtils.isBlank(o.getContent())) {
+                            continue;
+                        }
+                        TeachingPlanSupportCandidateItem item = new TeachingPlanSupportCandidateItem();
+                        item.setId(o.getId());
+                        item.setName(o.getContent());
+                        item.setTypeName(o.getObjectiveTypeName());
+                        item.setSourceCourseId(id);
+                        item.setSourceCourseName(courseName);
+                        item.setSameMajor(projectMajorId != null && projectMajorId.equals(o.getMajorId()));
+                        vo.getObjectives().add(item);
+                    }
+                }
+                appendContentCandidates(planId, id, courseName, vo.getKnowledgePoints());
+            }
+        }
+        // 同专业优先：sameMajor=true 排前，其余保持来源顺序（List.sort 稳定）
+        vo.getObjectives().sort(Comparator.comparing(
+                (TeachingPlanSupportCandidateItem i) -> Boolean.FALSE.equals(i.getSameMajor())));
+        return vo;
+    }
+
+    @Override
+    public List<TeachingPlanSupportObjective> listSupportObjective(Long planId) {
+        if (planId == null) {
+            return Collections.emptyList();
+        }
+        return teachingPlanSupportObjectiveMapper.selectByPlanId(planId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveSupportObjectives(TeachingPlanSupportObjectiveSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        Long planId = saveVo.getPlanId();
+        teachingPlanSupportObjectiveMapper.deleteByPlanId(planId);
+        List<Long> objectiveIds = saveVo.getObjectiveIds();
+        List<Long> purposeIds = saveVo.getPurposeIds();
+        if (ObjectUtils.isEmpty(objectiveIds) && ObjectUtils.isEmpty(purposeIds)) {
+            return;
+        }
+        int sort = 1;
+        Set<Long> boundObjective = new HashSet<>();
+        if (ObjectUtils.isNotEmpty(objectiveIds)) {
+            for (Long id : objectiveIds) {
+                if (id == null || !boundObjective.add(id)) {
+                    continue;
+                }
+                TeachingPlanObjective o = teachingPlanObjectiveMapper.selectById(id);
+                if (o == null) {
+                    throw new IllegalArgumentException("课程目标不存在: " + id);
+                }
+                TeachingPlanSupportObjective row = new TeachingPlanSupportObjective();
+                row.setPlanId(planId);
+                row.setRefType(1);
+                row.setRefPlanId(o.getPlanId());
+                row.setRefCourseId(resolveRefCourseId(o.getPlanId()));
+                row.setObjectiveId(o.getId());
+                row.setItemName(o.getContent());
+                row.setItemTypeName(o.getObjectiveTypeName());
+                row.setMajorId(o.getMajorId());
+                row.setSort(sort++);
+                UserUtils.reflash(row);
+                teachingPlanSupportObjectiveMapper.insert(row);
+            }
+        }
+        Set<Long> boundPurpose = new HashSet<>();
+        if (ObjectUtils.isNotEmpty(purposeIds)) {
+            for (Long id : purposeIds) {
+                if (id == null || !boundPurpose.add(id)) {
+                    continue;
+                }
+                TeachingPlanTrainingPurpose p = teachingPlanTrainingPurposeMapper.selectById(id);
+                if (p == null) {
+                    throw new IllegalArgumentException("训练目的不存在: " + id);
+                }
+                TeachingPlanSupportObjective row = new TeachingPlanSupportObjective();
+                row.setPlanId(planId);
+                row.setRefType(2);
+                row.setRefPlanId(p.getPlanId());
+                row.setRefCourseId(resolveRefCourseId(p.getPlanId()));
+                row.setPurposeId(p.getId());
+                row.setItemName(p.getPurpose());
+                row.setSort(sort++);
+                UserUtils.reflash(row);
+                teachingPlanSupportObjectiveMapper.insert(row);
+            }
+        }
+    }
+
+    @Override
+    public List<TeachingPlanSupportContent> listSupportContent(Long planId) {
+        if (planId == null) {
+            return Collections.emptyList();
+        }
+        return teachingPlanSupportContentMapper.selectByPlanId(planId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveSupportContents(TeachingPlanSupportContentSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        Long planId = saveVo.getPlanId();
+        teachingPlanSupportContentMapper.deleteByPlanId(planId);
+        List<Long> contentIds = saveVo.getContentIds();
+        if (ObjectUtils.isEmpty(contentIds)) {
+            return;
+        }
+        int sort = 1;
+        Set<Long> bound = new HashSet<>();
+        for (Long id : contentIds) {
+            if (id == null || !bound.add(id)) {
+                continue;
+            }
+            TeachingPlanContent c = teachingPlanContentMapper.selectById(id);
+            if (c == null) {
+                throw new IllegalArgumentException("教学内容不存在: " + id);
+            }
+            TeachingPlan plan = c.getPlanId() == null ? null : teachingPlanMapper.selectById(c.getPlanId());
+            // 实践训练课目(plan_type=3) content -> 训练内容(refType=2)；其余 -> 知识体系(refType=1)
+            int refType = (plan != null && Objects.equals(plan.getPlanType(), 3)) ? 2 : 1;
+            TeachingPlanSupportContent row = new TeachingPlanSupportContent();
+            row.setPlanId(planId);
+            row.setRefType(refType);
+            row.setRefPlanId(c.getPlanId());
+            row.setRefCourseId(plan == null ? null : plan.getSourceCourseId());
+            row.setContentId(c.getId());
+            // type2 content.title 存模块字典编码，快照存名称，供 type4 Word 直接回显
+            row.setItemTitle(translateTrainingModuleName(c.getTitle()));
+            row.setSort(sort++);
+            UserUtils.reflash(row);
+            teachingPlanSupportContentMapper.insert(row);
+        }
+    }
+
+    /** 支撑课程/训练课目教学计划的 content 全部行作为候选（知识体系或训练内容）。 */
+    private void appendContentCandidates(Long planId, Long courseId, String courseName,
+                                         List<TeachingPlanSupportCandidateItem> target) {
+        List<TeachingPlanContent> contents = teachingPlanContentMapper.selectByPlanId(planId);
+        if (ObjectUtils.isEmpty(contents)) {
+            return;
+        }
+        for (TeachingPlanContent c : contents) {
+            if (c == null || c.getId() == null || StringUtils.isBlank(c.getTitle())) {
+                continue;
+            }
+            TeachingPlanSupportCandidateItem item = new TeachingPlanSupportCandidateItem();
+            item.setId(c.getId());
+            item.setName(translateTrainingModuleName(c.getTitle()));
+            item.setSourceCourseId(courseId);
+            item.setSourceCourseName(courseName);
+            item.setSameMajor(Boolean.FALSE);
+            target.add(item);
+        }
+    }
+
+    /**
+     * type2 训练内容「模块」title 存字典 value(编码)，候选列表显示时译为名称；
+     * 普通课程(type1/3) content.title 为自由文本专题名，未命中字典原样返回。
+     */
+    private String translateTrainingModuleName(String title) {
+        if (StringUtils.isBlank(title)) {
+            return title;
+        }
+        List<SysDictData> list = CurDictUtils.getDictData(DICT_PLAN_TRAINING_MODULE);
+        if (ObjectUtils.isEmpty(list)) {
+            return title;
+        }
+        for (SysDictData d : list) {
+            if (d == null || StringUtils.isBlank(d.getDictValue())) {
+                continue;
+            }
+            if (title.trim().equals(d.getDictValue().trim())) {
+                return StringUtils.defaultIfBlank(d.getDictLabel(), title).trim();
+            }
+        }
+        return title;
+    }
+
+    /** 由来源教学计划ID反查支撑课程/训练课目ID（来源计划 source_course_id）。 */
+    private Long resolveRefCourseId(Long refPlanId) {
+        if (refPlanId == null) {
+            return null;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(refPlanId);
+        return plan == null ? null : plan.getSourceCourseId();
+    }
+
+    /** 项目首个培养方案的 majorId，作为「同专业优先」基准；无引用时为 null。 */
+    private Long resolveProjectMajorId(Long courseId) {
+        List<TeachingPlanSchemeVo> schemes = listSchemes(courseId);
+        if (ObjectUtils.isNotEmpty(schemes)) {
+            for (TeachingPlanSchemeVo s : schemes) {
+                if (s != null && s.getMajorId() != null) {
+                    return s.getMajorId();
+                }
+            }
+        }
+        return null;
+    }
+
+    /** 逗号/顿号/分号分隔的课程ID串解析为 Long 列表（与 TeachingPlanServiceImpl 同口径）。 */
+    private List<Long> parseCourseIdCsv(String csv) {
+        if (StringUtils.isBlank(csv)) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(csv.split("[,，、;；]"))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(s -> {
+                    try {
+                        return Long.valueOf(s);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    /** 类型字符串转 Integer，非法返回 null。 */
+    private Integer parseInt(String s) {
+        if (StringUtils.isBlank(s)) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @Override

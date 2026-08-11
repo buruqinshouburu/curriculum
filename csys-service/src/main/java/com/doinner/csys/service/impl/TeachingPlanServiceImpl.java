@@ -8,6 +8,13 @@ import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveAssessmentMapper;
+import com.doinner.csys.dao.TeachingPlanTaskBackgroundMapper;
+import com.doinner.csys.dao.TeachingPlanTaskBackgroundRefMapper;
+import com.doinner.csys.dao.TeachingPlanTrainingPurposeMapper;
+import com.doinner.csys.dao.TeachingPlanTrainingPurposeRefMapper;
+import com.doinner.csys.dao.TeachingPlanContentPurposeMapper;
+import com.doinner.csys.dao.TeachingPlanSupportObjectiveMapper;
+import com.doinner.csys.dao.TeachingPlanSupportContentMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemDetailMapper;
 import com.doinner.csys.dao.TeachingPlanPracticeItemMapper;
 import com.doinner.csys.dao.TeachingPlanProcessStepMapper;
@@ -34,6 +41,13 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
+import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
+import com.doinner.csys.domain.TeachingPlanContentPurpose;
+import com.doinner.csys.domain.TeachingPlanSupportObjective;
+import com.doinner.csys.domain.TeachingPlanSupportContent;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.vo.CourseIdAndName;
@@ -47,6 +61,10 @@ import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportingAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportingCourseVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
@@ -119,6 +137,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_PLAN_LEARNING_METHOD = "sys_plan_learning_method";
     /** 目标/达成设计类型字典 type（知识/能力/素质目标，dict_value 落 design_type_code） */
     private static final String DICT_PLAN_TARGET_TYPE = "sys_plan_target_type";
+    /** 训练内容与时间安排模块字典 type（type2 第四部分「模块」列，dict_value 落 content.title） */
+    private static final String DICT_PLAN_TRAINING_MODULE = "sys_plan_training_module";
+    /** 组织实施实施步骤字典 type（实践训练课目 plan_type=3 第五部分「实施步骤」列，dict_value 落 process_step.stage_name） */
+    private static final String DICT_PLAN_IMPLEMENTATION_STEP = "sys_plan_implementation_step";
     /** 适用对象/培养层次字典 type */
     private static final String DICT_EDUCATION_LEVEL = "sys_education_level";
     /** 考核项目字典 type */
@@ -190,6 +212,20 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private TeachingPlanObjectiveRefMapper teachingPlanObjectiveRefMapper;
     @Resource
     private TeachingPlanObjectiveAssessmentMapper teachingPlanObjectiveAssessmentMapper;
+    @Resource
+    private TeachingPlanTaskBackgroundMapper teachingPlanTaskBackgroundMapper;
+    @Resource
+    private TeachingPlanTaskBackgroundRefMapper teachingPlanTaskBackgroundRefMapper;
+    @Resource
+    private TeachingPlanTrainingPurposeMapper teachingPlanTrainingPurposeMapper;
+    @Resource
+    private TeachingPlanTrainingPurposeRefMapper teachingPlanTrainingPurposeRefMapper;
+    @Resource
+    private TeachingPlanContentPurposeMapper teachingPlanContentPurposeMapper;
+    @Resource
+    private TeachingPlanSupportObjectiveMapper teachingPlanSupportObjectiveMapper;
+    @Resource
+    private TeachingPlanSupportContentMapper teachingPlanSupportContentMapper;
     @Resource
     private TeachingPlanContentMapper teachingPlanContentMapper;
     @Resource
@@ -431,16 +467,22 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             // 修读性质：cur_course_attribute
             detail.setCourseAttr(translateDictJoined(
                     detail.getCourseAttr(), dictValueToLabelMap(DICT_COURSE_ATTRIBUTE)));
-            // 适用对象：被引用培养方案 education_level 多值顿号拼接，字典 sys_education_level 译为 label
+            // 适用对象：一律取源课程 education_level（SQL 已改为取 course.education_level），字典 sys_education_level 译为 label
             detail.setEducationLevel(translateDictJoined(
                     detail.getEducationLevel(), dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
             // 课程模块：被引用课程 course_Module 多值顿号拼接，KG 字典 id 译为 name；未命中保留原值
             String rawModule = detail.getCourseModule();
             String moduleName = translateJoinedCodes(rawModule, getCourseModuleIdToNameMap());
             detail.setCourseModule(StringUtils.isNotBlank(moduleName) ? moduleName : rawModule);
+            // 源课程：用于公共基础判定 + 适用专业「通识通用」规则（适用对象已由 SQL 取源课程值）
+            Long srcCourseId = courseId != null ? courseId : detail.getCourseId();
+            CourseVo srcCourse = srcCourseId == null ? null : courseMapper.selectCourseById(srcCourseId);
             // 公共基础标记：按源课 course_Module 原 id 判定（detail.courseModule 已是名称）
-            detail.setPublicFoundation(isPublicFoundationCourseModule(
-                    courseId != null ? courseId : detail.getCourseId()));
+            detail.setPublicFoundation(srcCourse != null
+                    && isPublicFoundationCourseModuleValue(srcCourse.getCourseModule()));
+            // 适用专业：普通课程(type1/3)聚合课程模块「全部」为公共基础、或实践训练课目(type2)课目模块(location)值∈{1,2,3,9}
+            // 时固定「通识通用」；否则取聚合适用专业。rawModule 为 detail 聚合的被引用课程 c2 多值串(因不同方案引用模块可能不同)
+            detail.setMajorName(resolveApplicableMajor(srcCourse, rawModule, detail.getMajorName()));
             // type=4 实践项目：补时间安排 + 支撑课程或实践训练科目列表
             if (isPracticeProjectType(detail.getType())) {
                 Long mainCourseId = courseId != null ? courseId : detail.getCourseId();
@@ -454,20 +496,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     /** 课程类型是否为实践项目(type=4) */
     private boolean isPracticeProjectType(String type) {
         return "4".equals(StringUtils.trimToEmpty(type));
-    }
-
-    /**
-     * 源课是否公共基础课程：t_csys_course.course_Module 命中公共基础模块 id（可多值分隔）。
-     */
-    private boolean isPublicFoundationCourseModule(Long sourceCourseId) {
-        if (sourceCourseId == null) {
-            return false;
-        }
-        CourseVo course = courseMapper.selectCourseById(sourceCourseId);
-        if (course == null) {
-            return false;
-        }
-        return isPublicFoundationCourseModuleValue(course.getCourseModule());
     }
 
     /** 课程模块字段是否表示公共基础（等值、多值包含、或名称含「公共基础」）。 */
@@ -488,6 +516,63 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         // 已译中文名时的兜底
         return raw.contains("公共基础");
+    }
+
+    /** 适用专业固定取「通识通用」的取值（普通课程仅公共基础 / 实践训练课目课目模块命中 1,2,3,9 时） */
+    private static final String GENERAL_APPLICABLE_MAJOR = "通识通用";
+    /** 实践训练课目(type2)课目模块(location, 字典 sys_subject_module)命中下列值之一时适用专业取「通识通用」 */
+    private static final Set<String> SUBJECT_MODULE_GENERAL_VALUES =
+            new HashSet<>(Arrays.asList("1", "2", "3", "9"));
+
+    /**
+     * 适用专业取值规则（基于 detail 聚合的课程模块多值串，因课程被不同培养方案引用模块可能不同）：
+     * - 普通课程(type 1/3)：聚合课程模块「全部」为公共基础课 -> 「通识通用」
+     * - 实践训练课目(type 2)：课目模块(location, 字典 sys_subject_module)值 ∈ {1,2,3,9} -> 「通识通用」
+     * - 其余 -> 沿用聚合适用专业(被引用培养方案 major_id 聚合, 回退源课 major_id)
+     *
+     * @param detailCourseModuleMulti detail 查出的被引用课程 c2 聚合 course_Module 多值串(id 或中文均可)
+     */
+    private String resolveApplicableMajor(CourseVo sourceCourse, String detailCourseModuleMulti,
+                                          String aggregatedMajorName) {
+        if (sourceCourse == null) {
+            return aggregatedMajorName;
+        }
+        String type = StringUtils.trimToEmpty(sourceCourse.getType());
+        if ("1".equals(type) || "3".equals(type)) {
+            if (isOnlyPublicFoundationCourseModule(detailCourseModuleMulti)) {
+                return GENERAL_APPLICABLE_MAJOR;
+            }
+        } else if ("2".equals(type)) {
+            String location = sourceCourse.getLocation();
+            if (StringUtils.isNotBlank(location)
+                    && SUBJECT_MODULE_GENERAL_VALUES.contains(location.trim())) {
+                return GENERAL_APPLICABLE_MAJOR;
+            }
+        }
+        return aggregatedMajorName;
+    }
+
+    /**
+     * 课程模块是否只属于公共基础课：非空且拆分(、/,，)后每一项均为公共基础模块。
+     * 兼容 id(hex) 与已译名称(含「公共基础」)两种存值形态。
+     */
+    private boolean isOnlyPublicFoundationCourseModule(String courseModule) {
+        if (StringUtils.isBlank(courseModule)) {
+            return false;
+        }
+        String generalId = DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE;
+        boolean any = false;
+        for (String part : courseModule.trim().split("[、,/，]")) {
+            String p = part.trim();
+            if (StringUtils.isBlank(p)) {
+                continue;
+            }
+            any = true;
+            if (!Objects.equals(p, generalId) && !p.contains("公共基础")) {
+                return false;
+            }
+        }
+        return any;
     }
 
     /**
@@ -943,7 +1028,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         // 适用对象：detail 已译 label；若回退到 course 原值则再译一次（多值顿号分隔）
         String rawEducationLevel = nz(detail == null ? null : detail.getEducationLevel(), course.getEducationLevel());
         m.setEducationLevel(translateDictJoined(rawEducationLevel, dictValueToLabelMap(DICT_EDUCATION_LEVEL)));
-        m.setMajorName(nz(detail == null ? null : detail.getMajorName(), course.getMajorName()));
         // 开课学期：detail 已译；回退 course.openTerm 时再译为「第N学年秋/春」
         String rawTerm = nz(detail == null ? null : detail.getTerm(), course.getOpenTerm());
         m.setTerm(translateOpenSemester(rawTerm));
@@ -951,6 +1035,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         String rawCourseModule = nz(detail == null ? null : detail.getCourseModule(), course.getCourseModule());
         String courseModuleName = translateJoinedCodes(rawCourseModule, getCourseModuleIdToNameMap());
         m.setCourseModule(StringUtils.isNotBlank(courseModuleName) ? courseModuleName : rawCourseModule);
+        // 适用专业：普通课程(type1/3)聚合课程模块「全部」为公共基础、或实践训练课目(type2)课目模块(location)值∈{1,2,3,9}
+        // 时固定「通识通用」；否则取聚合适用专业（detail 聚合值回退 course 自身）。
+        // rawCourseModule 为 detail 聚合的被引用课程 c2 多值串(因不同方案引用模块可能不同)
+        String aggregatedMajor = nz(detail == null ? null : detail.getMajorName(), course.getMajorName());
+        m.setMajorName(resolveApplicableMajor(course, rawCourseModule, aggregatedMajor));
         // 修读性质：detail 已译；回退 course 原值时再译 cur_course_attribute
         String rawCourseAttr = nz(detail == null ? null : detail.getCourseAttr(), course.getCourseAttr());
         m.setCourseAttr(translateDictJoined(rawCourseAttr, dictValueToLabelMap(DICT_COURSE_ATTRIBUTE)));
@@ -972,77 +1061,26 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             translateTeacherDictFields(teachers);
             m.setTeachers(teachers);
             m.setSections(listSection(planId));
-            // 实施步骤/项目步骤（type4 组织与实施「项目步骤|有关要求」数据行）
+            // 实施步骤/项目步骤（实践训练课目第五部分「实施步骤|阶段划分|有关要求」；type4 项目步骤数据行）
             m.setProcessSteps(teachingPlanModuleService.listProcessStep(planId));
-
-            // 按培养方案分组加载目标 + 支撑毕业要求（多方案多表）
-            // 公共基础：plan 级单组（scheme_id IS NULL），Word 只出一张表、无方案小标题；
-            // 支撑毕业要求取该公共课目标上绑定的毕业要求，不按专业/培养方案拆表
-            List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = new ArrayList<>();
-            boolean publicFoundation = isPublicFoundationCourseModule(course.getId())
-                    || isPublicFoundationCourseModuleValue(course.getCourseModule())
-                    || isPublicFoundationCourseModuleValue(detail == null ? null : detail.getCourseModule());
-            if (publicFoundation) {
-                CourseTeachingPlanModel.SchemeObjectiveGroup g =
-                        new CourseTeachingPlanModel.SchemeObjectiveGroup();
-                // listObjective 内部已按公共基础 onlyNullScheme 取数
-                List<TeachingPlanObjective> objectives =
-                        teachingPlanModuleService.listObjective(planId, null);
-                g.setObjectives(objectives == null ? new ArrayList<>() : objectives);
-                Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
-                if (ObjectUtils.isNotEmpty(objectives)) {
-                    for (TeachingPlanObjective o : objectives) {
-                        if (o == null || o.getId() == null) {
-                            continue;
-                        }
-                        refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
-                    }
-                }
-                g.setObjectiveRefMap(refMap);
-                groups.add(g);
-            } else if (ObjectUtils.isNotEmpty(schemes)) {
-                for (TeachingPlanSchemeVo s : schemes) {
-                    if (s == null || s.getSchemeId() == null) {
-                        continue;
-                    }
-                    CourseTeachingPlanModel.SchemeObjectiveGroup g =
-                            new CourseTeachingPlanModel.SchemeObjectiveGroup();
-                    g.setSchemeId(s.getSchemeId());
-                    g.setSchemeTitle(buildSchemeTitle(s));
-                    List<TeachingPlanObjective> objectives =
-                            teachingPlanModuleService.listObjective(planId, s.getSchemeId());
-                    g.setObjectives(objectives == null ? new ArrayList<>() : objectives);
-                    Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
-                    if (ObjectUtils.isNotEmpty(objectives)) {
-                        for (TeachingPlanObjective o : objectives) {
-                            if (o == null || o.getId() == null) {
-                                continue;
-                            }
-                            refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+            // 实践训练课目(plan_type=3)第五部分「实施步骤」列：process_step.stage_name 存字典 value(编码)，生成 Word 前译为 label
+            if (plan != null && plan.getPlanType() != null && plan.getPlanType() == 3) {
+                Map<String, String> stepMap = dictValueToLabelMap(DICT_PLAN_IMPLEMENTATION_STEP);
+                List<TeachingPlanProcessStep> steps = m.getProcessSteps();
+                if (MapUtils.isNotEmpty(stepMap) && ObjectUtils.isNotEmpty(steps)) {
+                    for (TeachingPlanProcessStep s : steps) {
+                        if (s != null) {
+                            s.setStageName(translateDictJoined(s.getStageName(), stepMap));
                         }
                     }
-                    g.setObjectiveRefMap(refMap);
-                    groups.add(g);
                 }
-            } else {
-                // 无培养方案 tab：按 planId 全量目标（schemeId=null）落一组，无小标题
-                CourseTeachingPlanModel.SchemeObjectiveGroup g =
-                        new CourseTeachingPlanModel.SchemeObjectiveGroup();
-                List<TeachingPlanObjective> objectives =
-                        teachingPlanModuleService.listObjective(planId, null);
-                g.setObjectives(objectives == null ? new ArrayList<>() : objectives);
-                Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
-                if (ObjectUtils.isNotEmpty(objectives)) {
-                    for (TeachingPlanObjective o : objectives) {
-                        if (o == null || o.getId() == null) {
-                            continue;
-                        }
-                        refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
-                    }
-                }
-                g.setObjectiveRefMap(refMap);
-                groups.add(g);
             }
+
+            // 第四节目标分组（数据驱动）：按目标实际 scheme_id 分布分组，不再按课程模块预判。
+            // 只有 scheme_id 为空的目标 -> 单组单表(无小标题)；
+            // 出现任一非空 scheme_id -> 每个 scheme_id 一张表(null 组标题「通用」，非 null 组带方案小标题)。
+            List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups =
+                    buildSchemeObjectiveGroups(planId, schemes);
             m.setSchemeObjectiveGroups(groups);
             // 兼容旧字段：保留首组，供 type2/3 等仍读 objectives 的逻辑使用
             if (!groups.isEmpty()) {
@@ -1053,7 +1091,45 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 m.setObjectiveRefMap(new HashMap<>());
             }
 
-            m.setContents(teachingPlanModuleService.listContent(planId));
+            // 第三节任务背景分组（type=3 实验课程，对标第四节目标）：
+            // 数据驱动，按任务背景实际 scheme_id 分布分组。只有 scheme_id 为空 -> 单组单表(无小标题)；
+            // 出现任一非空 scheme_id -> 每个 scheme_id 一张表(null 组标题「通用」，非 null 组带方案小标题)。
+            m.setSchemeTaskBackgroundGroups(buildSchemeTaskBackgroundGroups(planId, schemes));
+
+            // 第二节训练目的分组（type=2 实践训练课目，对标第三节任务背景）：
+            // 数据驱动，按训练目的实际 scheme_id 分布分组。只有 scheme_id 为空 -> 单组单表(无小标题)；
+            // 通识通用（课目模块仅∈{1,2,3,9}）强制单组；否则含非空 scheme_id 时每个 scheme_id 一张表。
+            m.setSchemeTrainingPurposeGroups(buildSchemeTrainingPurposeGroups(planId, schemes));
+
+            List<TeachingPlanContent> contents = teachingPlanModuleService.listContent(planId);
+            // 实践训练课目(plan_type=3)第四部分「模块」列：content.title 存字典 value(编码)，生成 Word 前译为 label
+            if (plan != null && plan.getPlanType() != null && plan.getPlanType() == 3) {
+                Map<String, String> moduleMap = dictValueToLabelMap(DICT_PLAN_TRAINING_MODULE);
+                if (MapUtils.isNotEmpty(moduleMap) && ObjectUtils.isNotEmpty(contents)) {
+                    for (TeachingPlanContent c : contents) {
+                        if (c != null) {
+                            c.setTitle(translateDictJoined(c.getTitle(), moduleMap));
+                        }
+                    }
+                }
+            }
+            m.setContents(contents);
+            // 训练内容 -> 绑定的训练目的（type2 第四节「目的」列多选）：按 contentId 建索引供生成器拼接
+            Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap = new HashMap<>();
+            List<TeachingPlanContentPurpose> contentPurposes =
+                    teachingPlanContentPurposeMapper.selectByPlanId(planId);
+            if (ObjectUtils.isNotEmpty(contentPurposes)) {
+                for (TeachingPlanContentPurpose cp : contentPurposes) {
+                    if (cp == null || cp.getContentId() == null) {
+                        continue;
+                    }
+                    contentPurposeMap.computeIfAbsent(cp.getContentId(), k -> new ArrayList<>()).add(cp);
+                }
+            }
+            m.setContentPurposeMap(contentPurposeMap);
+            // 实践项目第二节支撑绑定（type4）：支撑的课程目标/训练目的 + 知识体系/训练内容（计划级多选）
+            m.setSupportObjectives(teachingPlanSupportObjectiveMapper.selectByPlanId(planId));
+            m.setSupportContents(teachingPlanSupportContentMapper.selectByPlanId(planId));
             // 目标达成设计：design_type_code 现存字典 value，不再按中文 type 精确查询；
             // 一次取 plan 下全量，由生成器按 designTypeName(字典 label) 分流到知识/能力/素质三表
             List<TeachingPlanTargetDesign> designs =
@@ -1097,6 +1173,344 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             fillSectionSixNotes(m);
         }
         return m;
+    }
+
+    /** 教学计划对应源课是否公共基础（type1/3 按聚合 course_Module 判定，与适用专业口径一致）。 */
+    private boolean isPublicFoundationPlan(Long planId) {
+        if (planId == null) {
+            return false;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        return plan != null
+                && teachingPlanModuleService.isPublicFoundationCourse(plan.getSourceCourseId());
+    }
+
+    /** 教学计划对应源课（type2）是否属通识通用课目模块（聚合 location 均∈{1,2,3,9}）。 */
+    private boolean isGeneralSubjectPlan(Long planId) {
+        if (planId == null) {
+            return false;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        return plan != null
+                && teachingPlanModuleService.isGeneralSubjectModuleCourse(plan.getSourceCourseId());
+    }
+
+    /**
+     * 第四节目标分组（数据驱动）：查 plan 下全部目标，按 scheme_id 分组。
+     * - 无目标：返回一个空组，渲染空表结构。
+     * - 公共基础（聚合 course_Module 全部为公共基础）：强制单组单表(无小标题)。
+     * - 仅 scheme_id 为空的目标：单组单表(无小标题)。
+     * - 含非空 scheme_id：每个 scheme_id 一组(多表)。null 组排最前(标题「通用」)，非 null 组按 schemes 列表顺序；
+     *   schemes 未覆盖的 scheme_id 兜底追加(标题「培养方案 {id}」)。
+     * 非公共基础时由目标数据 scheme_id 分布决定单组/多组。
+     */
+    private List<CourseTeachingPlanModel.SchemeObjectiveGroup> buildSchemeObjectiveGroups(
+            Long planId, List<TeachingPlanSchemeVo> schemes) {
+        List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = new ArrayList<>();
+        if (planId == null) {
+            return groups;
+        }
+        // onlyNullScheme=false + schemeId=null -> 不过滤 scheme，全量取 plan 下目标
+        List<TeachingPlanObjective> all =
+                teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, null, false);
+        if (ObjectUtils.isEmpty(all)) {
+            CourseTeachingPlanModel.SchemeObjectiveGroup g =
+                    new CourseTeachingPlanModel.SchemeObjectiveGroup();
+            g.setObjectives(new ArrayList<>());
+            g.setObjectiveRefMap(new HashMap<>());
+            groups.add(g);
+            return groups;
+        }
+        // 公共基础（聚合 course_Module 全部为公共基础）：强制单组单表，不按培养方案区分，
+        // 兼容历史数据仍带 scheme_id 的场景（合并进单组，标题不显示）
+        if (isPublicFoundationPlan(planId)) {
+            CourseTeachingPlanModel.SchemeObjectiveGroup g =
+                    new CourseTeachingPlanModel.SchemeObjectiveGroup();
+            g.setSchemeId(null);
+            g.setSchemeTitle(null);
+            g.setObjectives(all);
+            Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
+            for (TeachingPlanObjective o : all) {
+                if (o == null || o.getId() == null) {
+                    continue;
+                }
+                refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+            }
+            g.setObjectiveRefMap(refMap);
+            groups.add(g);
+            return groups;
+        }
+        // 按 scheme_id 分组（LinkedHashMap 按目标首次出现顺序保序）
+        Map<Long, List<TeachingPlanObjective>> byScheme = new LinkedHashMap<>();
+        for (TeachingPlanObjective o : all) {
+            if (o == null) {
+                continue;
+            }
+            byScheme.computeIfAbsent(o.getSchemeId(), k -> new ArrayList<>()).add(o);
+        }
+        // 是否多组：存在任一非空 scheme_id
+        boolean multi = byScheme.keySet().stream().anyMatch(Objects::nonNull);
+        // 排序：null 组最前；非 null 组按 schemes 列表顺序；schemes 未覆盖的兜底追加
+        List<Long> orderedSchemeIds = new ArrayList<>();
+        if (byScheme.containsKey(null)) {
+            orderedSchemeIds.add(null);
+        }
+        if (schemes != null) {
+            for (TeachingPlanSchemeVo s : schemes) {
+                if (s != null && s.getSchemeId() != null
+                        && byScheme.containsKey(s.getSchemeId())
+                        && !orderedSchemeIds.contains(s.getSchemeId())) {
+                    orderedSchemeIds.add(s.getSchemeId());
+                }
+            }
+        }
+        for (Long sid : byScheme.keySet()) {
+            if (sid != null && !orderedSchemeIds.contains(sid)) {
+                orderedSchemeIds.add(sid);
+            }
+        }
+        for (Long sid : orderedSchemeIds) {
+            List<TeachingPlanObjective> objs = byScheme.get(sid);
+            CourseTeachingPlanModel.SchemeObjectiveGroup g =
+                    new CourseTeachingPlanModel.SchemeObjectiveGroup();
+            g.setSchemeId(sid);
+            if (sid == null) {
+                // 多组时 null 组给「通用」小标题，单组时不显示标题
+                g.setSchemeTitle(multi ? "通用" : null);
+            } else {
+                g.setSchemeTitle(resolveSchemeTitle(schemes, sid));
+            }
+            g.setObjectives(objs == null ? new ArrayList<>() : objs);
+            Map<Long, List<TeachingPlanObjectiveRef>> refMap = new HashMap<>();
+            if (ObjectUtils.isNotEmpty(objs)) {
+                for (TeachingPlanObjective o : objs) {
+                    if (o == null || o.getId() == null) {
+                        continue;
+                    }
+                    refMap.put(o.getId(), teachingPlanModuleService.listObjectiveRef(o.getId()));
+                }
+            }
+            g.setObjectiveRefMap(refMap);
+            groups.add(g);
+        }
+        return groups;
+    }
+
+    /**
+     * 实验课程任务背景分组（数据驱动）：查 plan 下全部任务背景，按 scheme_id 分组。
+     * 策略与 {@link #buildSchemeObjectiveGroups} 一致：
+     * - 无任务背景：返回一个空组，渲染空表结构。
+     * - 仅 scheme_id 为空：单组单表(无小标题)。
+     * - 含非空 scheme_id：每个 scheme_id 一组(多表)。null 组排最前(标题「通用」)，非 null 组按 schemes 列表顺序；
+     *   schemes 未覆盖的 scheme_id 兜底追加(标题「培养方案 {id}」)。
+     */
+    private List<CourseTeachingPlanModel.SchemeTaskBackgroundGroup> buildSchemeTaskBackgroundGroups(
+            Long planId, List<TeachingPlanSchemeVo> schemes) {
+        List<CourseTeachingPlanModel.SchemeTaskBackgroundGroup> groups = new ArrayList<>();
+        if (planId == null) {
+            return groups;
+        }
+        // onlyNullScheme=false + schemeId=null -> 不过滤 scheme，全量取 plan 下任务背景
+        List<TeachingPlanTaskBackground> all =
+                teachingPlanTaskBackgroundMapper.selectByPlanAndScheme(planId, null, false);
+        if (ObjectUtils.isEmpty(all)) {
+            CourseTeachingPlanModel.SchemeTaskBackgroundGroup g =
+                    new CourseTeachingPlanModel.SchemeTaskBackgroundGroup();
+            g.setTaskBackgrounds(new ArrayList<>());
+            g.setTaskBackgroundRefMap(new HashMap<>());
+            groups.add(g);
+            return groups;
+        }
+        // 公共基础（聚合 course_Module 全部为公共基础）：强制单组单表，不按培养方案区分，
+        // 兼容历史数据仍带 scheme_id 的场景（合并进单组，标题不显示）
+        if (isPublicFoundationPlan(planId)) {
+            CourseTeachingPlanModel.SchemeTaskBackgroundGroup g =
+                    new CourseTeachingPlanModel.SchemeTaskBackgroundGroup();
+            g.setSchemeId(null);
+            g.setSchemeTitle(null);
+            g.setTaskBackgrounds(all);
+            Map<Long, List<TeachingPlanTaskBackgroundRef>> refMap = new HashMap<>();
+            for (TeachingPlanTaskBackground tb : all) {
+                if (tb == null || tb.getId() == null) {
+                    continue;
+                }
+                refMap.put(tb.getId(),
+                        teachingPlanTaskBackgroundRefMapper.selectByTaskBackgroundId(tb.getId()));
+            }
+            g.setTaskBackgroundRefMap(refMap);
+            groups.add(g);
+            return groups;
+        }
+        // 按 scheme_id 分组（LinkedHashMap 按任务背景首次出现顺序保序）
+        Map<Long, List<TeachingPlanTaskBackground>> byScheme = new LinkedHashMap<>();
+        for (TeachingPlanTaskBackground tb : all) {
+            if (tb == null) {
+                continue;
+            }
+            byScheme.computeIfAbsent(tb.getSchemeId(), k -> new ArrayList<>()).add(tb);
+        }
+        // 是否多组：存在任一非空 scheme_id
+        boolean multi = byScheme.keySet().stream().anyMatch(Objects::nonNull);
+        // 排序：null 组最前；非 null 组按 schemes 列表顺序；schemes 未覆盖的兜底追加
+        List<Long> orderedSchemeIds = new ArrayList<>();
+        if (byScheme.containsKey(null)) {
+            orderedSchemeIds.add(null);
+        }
+        if (schemes != null) {
+            for (TeachingPlanSchemeVo s : schemes) {
+                if (s != null && s.getSchemeId() != null
+                        && byScheme.containsKey(s.getSchemeId())
+                        && !orderedSchemeIds.contains(s.getSchemeId())) {
+                    orderedSchemeIds.add(s.getSchemeId());
+                }
+            }
+        }
+        for (Long sid : byScheme.keySet()) {
+            if (sid != null && !orderedSchemeIds.contains(sid)) {
+                orderedSchemeIds.add(sid);
+            }
+        }
+        for (Long sid : orderedSchemeIds) {
+            List<TeachingPlanTaskBackground> taskBackgrounds = byScheme.get(sid);
+            CourseTeachingPlanModel.SchemeTaskBackgroundGroup g =
+                    new CourseTeachingPlanModel.SchemeTaskBackgroundGroup();
+            g.setSchemeId(sid);
+            if (sid == null) {
+                // 多组时 null 组给「通用」小标题，单组时不显示标题
+                g.setSchemeTitle(multi ? "通用" : null);
+            } else {
+                g.setSchemeTitle(resolveSchemeTitle(schemes, sid));
+            }
+            g.setTaskBackgrounds(taskBackgrounds == null ? new ArrayList<>() : taskBackgrounds);
+            Map<Long, List<TeachingPlanTaskBackgroundRef>> refMap = new HashMap<>();
+            if (ObjectUtils.isNotEmpty(taskBackgrounds)) {
+                for (TeachingPlanTaskBackground tb : taskBackgrounds) {
+                    if (tb == null || tb.getId() == null) {
+                        continue;
+                    }
+                    refMap.put(tb.getId(),
+                            teachingPlanTaskBackgroundRefMapper.selectByTaskBackgroundId(tb.getId()));
+                }
+            }
+            g.setTaskBackgroundRefMap(refMap);
+            groups.add(g);
+        }
+        return groups;
+    }
+
+    /**
+     * 实践训练课目训练目的分组（数据驱动）：查 plan 下全部训练目的，按 scheme_id 分组。
+     * 策略与 {@link #buildSchemeTaskBackgroundGroups} 一致：
+     * - 无训练目的：返回一个空组，渲染空表结构。
+     * - 通识通用（聚合 location 均∈{1,2,3,9}）：强制单组单表(无小标题)，不按培养方案区分，
+     *   兼容历史数据仍带 scheme_id 的场景（合并进单组，标题不显示）。
+     * - 仅 scheme_id 为空：单组单表(无小标题)。
+     * - 含非空 scheme_id：每个 scheme_id 一组(多表)。null 组排最前(标题「通用」)，非 null 组按 schemes 列表顺序；
+     *   schemes 未覆盖的 scheme_id 兜底追加(标题「培养方案 {id}」)。
+     */
+    private List<CourseTeachingPlanModel.SchemeTrainingPurposeGroup> buildSchemeTrainingPurposeGroups(
+            Long planId, List<TeachingPlanSchemeVo> schemes) {
+        List<CourseTeachingPlanModel.SchemeTrainingPurposeGroup> groups = new ArrayList<>();
+        if (planId == null) {
+            return groups;
+        }
+        // onlyNullScheme=false + schemeId=null -> 不过滤 scheme，全量取 plan 下训练目的
+        List<TeachingPlanTrainingPurpose> all =
+                teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(planId, null, false);
+        if (ObjectUtils.isEmpty(all)) {
+            CourseTeachingPlanModel.SchemeTrainingPurposeGroup g =
+                    new CourseTeachingPlanModel.SchemeTrainingPurposeGroup();
+            g.setPurposes(new ArrayList<>());
+            g.setPurposeRefMap(new HashMap<>());
+            groups.add(g);
+            return groups;
+        }
+        // 通识通用：强制单组单表，不按培养方案区分
+        if (isGeneralSubjectPlan(planId)) {
+            CourseTeachingPlanModel.SchemeTrainingPurposeGroup g =
+                    new CourseTeachingPlanModel.SchemeTrainingPurposeGroup();
+            g.setSchemeId(null);
+            g.setSchemeTitle(null);
+            g.setPurposes(all);
+            Map<Long, List<TeachingPlanTrainingPurposeRef>> refMap = new HashMap<>();
+            for (TeachingPlanTrainingPurpose p : all) {
+                if (p == null || p.getId() == null) {
+                    continue;
+                }
+                refMap.put(p.getId(),
+                        teachingPlanTrainingPurposeRefMapper.selectByPurposeId(p.getId()));
+            }
+            g.setPurposeRefMap(refMap);
+            groups.add(g);
+            return groups;
+        }
+        // 按 scheme_id 分组（LinkedHashMap 按训练目的首次出现顺序保序）
+        Map<Long, List<TeachingPlanTrainingPurpose>> byScheme = new LinkedHashMap<>();
+        for (TeachingPlanTrainingPurpose p : all) {
+            if (p == null) {
+                continue;
+            }
+            byScheme.computeIfAbsent(p.getSchemeId(), k -> new ArrayList<>()).add(p);
+        }
+        // 是否多组：存在任一非空 scheme_id
+        boolean multi = byScheme.keySet().stream().anyMatch(Objects::nonNull);
+        // 排序：null 组最前；非 null 组按 schemes 列表顺序；schemes 未覆盖的兜底追加
+        List<Long> orderedSchemeIds = new ArrayList<>();
+        if (byScheme.containsKey(null)) {
+            orderedSchemeIds.add(null);
+        }
+        if (schemes != null) {
+            for (TeachingPlanSchemeVo s : schemes) {
+                if (s != null && s.getSchemeId() != null
+                        && byScheme.containsKey(s.getSchemeId())
+                        && !orderedSchemeIds.contains(s.getSchemeId())) {
+                    orderedSchemeIds.add(s.getSchemeId());
+                }
+            }
+        }
+        for (Long sid : byScheme.keySet()) {
+            if (sid != null && !orderedSchemeIds.contains(sid)) {
+                orderedSchemeIds.add(sid);
+            }
+        }
+        for (Long sid : orderedSchemeIds) {
+            List<TeachingPlanTrainingPurpose> purposes = byScheme.get(sid);
+            CourseTeachingPlanModel.SchemeTrainingPurposeGroup g =
+                    new CourseTeachingPlanModel.SchemeTrainingPurposeGroup();
+            g.setSchemeId(sid);
+            if (sid == null) {
+                // 多组时 null 组给「通用」小标题，单组时不显示标题
+                g.setSchemeTitle(multi ? "通用" : null);
+            } else {
+                g.setSchemeTitle(resolveSchemeTitle(schemes, sid));
+            }
+            g.setPurposes(purposes == null ? new ArrayList<>() : purposes);
+            Map<Long, List<TeachingPlanTrainingPurposeRef>> refMap = new HashMap<>();
+            if (ObjectUtils.isNotEmpty(purposes)) {
+                for (TeachingPlanTrainingPurpose p : purposes) {
+                    if (p == null || p.getId() == null) {
+                        continue;
+                    }
+                    refMap.put(p.getId(),
+                            teachingPlanTrainingPurposeRefMapper.selectByPurposeId(p.getId()));
+                }
+            }
+            g.setPurposeRefMap(refMap);
+            groups.add(g);
+        }
+        return groups;
+    }
+
+    /** 按 schemeId 在 schemes 列表中匹配培养方案小标题；未匹配兜底「培养方案 {id}」。 */
+    private String resolveSchemeTitle(List<TeachingPlanSchemeVo> schemes, Long schemeId) {
+        if (schemes != null && schemeId != null) {
+            for (TeachingPlanSchemeVo s : schemes) {
+                if (s != null && schemeId.equals(s.getSchemeId())) {
+                    return buildSchemeTitle(s);
+                }
+            }
+        }
+        return "培养方案 " + schemeId;
     }
 
     /**
@@ -1360,9 +1774,34 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     }
 
     /** t_csys_course.type -> 文档类型：1课程 2实践训练课目 3实验课程 4实践项目 */
+    /**
+     * 教学计划类型 plan_type → 文档模板类型 docType（与课程库 t_csys_course.type 编号一致）的映射。
+     * 两者 2/3 对调，需显式转换：
+     * plan_type 编号(前后端统一)：1课程 2实验课程 3实践训练课目 4实践项目；
+     * docType 编号(课程库 type)： 1课程 2实践训练课目 3实验课程 4实践项目。
+     */
+    private Integer planTypeToDocType(Integer planType) {
+        if (planType == null) {
+            return null;
+        }
+        switch (planType) {
+            case 2:
+                return CourseTeachingPlanGenerator.DOC_TYPE_EXPERIMENT_COURSE;   // 3 实验课程
+            case 3:
+                return CourseTeachingPlanGenerator.DOC_TYPE_PRACTICE_SUBJECT;    // 2 实践训练课目
+            case 4:
+                return CourseTeachingPlanGenerator.DOC_TYPE_PRACTICE_PROJECT;    // 4 实践项目
+            default:
+                return CourseTeachingPlanGenerator.DOC_TYPE_COURSE;              // 1 课程
+        }
+    }
+
     private Integer mapDocType(String type,Integer planType) {
-        if (planType != null && planType == 2){
-            return CourseTeachingPlanGenerator.DOC_TYPE_EXPERIMENT_COURSE;
+        // 文档模板以教学计划 plan_type 为准（同一源课可挂多类型计划）；
+        // 课程库 type=1/3 同为「课程」类别，不在课程上区分，由教学计划区分课程/实验课程。
+        Integer docType = planTypeToDocType(planType);
+        if (docType != null) {
+            return docType;
         }
         if (StringUtils.isBlank(type)) {
             return CourseTeachingPlanGenerator.DOC_TYPE_COURSE;
@@ -1534,7 +1973,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         if (planType == null || planType < TeachingPlanWordImporter.DOC_TYPE_COURSE
                 || planType > TeachingPlanWordImporter.DOC_TYPE_PRACTICE_PROJECT) {
-            throw new IllegalArgumentException("planType 必须为 1-4（1课程/2实践训练课目/3实验课程/4实践项目）");
+            throw new IllegalArgumentException("planType 必须为 1-4（1课程/2实验课程/3实践训练课目/4实践项目）");
         }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Word 文件不能为空");
@@ -1629,10 +2068,15 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private TeachingPlanWordImporter.ParseContext buildImportParseContext(Long courseId, CourseVo course,
                                                                           Integer planType) {
         TeachingPlanWordImporter.ParseContext ctx = new TeachingPlanWordImporter.ParseContext();
-        // 类型由前端传入，Word 识别仅用于对照 WARN
-        ctx.expectedDocType = planType;
-        ctx.publicFoundation = Objects.equals(course.getCourseModule(),
-                DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE);
+        // 类型由前端传入(plan_type 编号)，Word 识别基于 docType 编号(与课程库 type 一致)，两者 2/3 对调，先转换再对照 WARN
+        ctx.expectedDocType = planTypeToDocType(planType);
+        // 是否按培养方案区分：type2 实践训练课目用课目模块(location)∈{1,2,3,9}判定，
+        // 普通课程(type1/3)用聚合 course_Module 全部分公共基础判定（口径与适用专业一致）。
+        if ("2".equals(StringUtils.trimToEmpty(course.getType()))) {
+            ctx.publicFoundation = teachingPlanModuleService.isGeneralSubjectModuleCourse(courseId);
+        } else {
+            ctx.publicFoundation = teachingPlanModuleService.isPublicFoundationCourse(courseId);
+        }
         List<TeachingPlanSchemeVo> schemes = teachingPlanModuleService.listSchemes(courseId);
         ctx.schemes = schemes == null ? new ArrayList<>() : schemes;
         List<CourseKnowledgeUnit> units = teachingPlanModuleService.listKnowledgeUnitInit(courseId);
@@ -1642,7 +2086,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 "sys_plan_target_type",
                 DICT_PLAN_TEACHING_LINK, DICT_PLAN_TEACHING_METHOD, DICT_PLAN_LEARNING_METHOD,
                 DICT_ASSESSMENT_ITEM, DICT_ASSESSMENT_METHOD, DICT_ASSESSMENT_MECHANISM, DICT_EVALUATION_STANDARD,
-                DICT_TEXTBOOK_NATURE, DICT_PUBLICATION_METHOD, DICT_CONDITION_TYPE
+                DICT_TEXTBOOK_NATURE, DICT_PUBLICATION_METHOD, DICT_CONDITION_TYPE,
+                DICT_PLAN_TRAINING_MODULE, DICT_PLAN_IMPLEMENTATION_STEP
         };
         for (String type : dictTypes) {
             List<SysDictData> list = CurDictUtils.getDictData(type);
@@ -1665,6 +2110,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         teachingPlanObjectiveAssessmentMapper.deleteByPlanId(planId);
         teachingPlanObjectiveRefMapper.deleteByPlanId(planId);
         teachingPlanObjectiveMapper.deleteByPlanId(planId);
+        teachingPlanTaskBackgroundRefMapper.deleteByPlanId(planId);
+        teachingPlanTaskBackgroundMapper.deleteByPlanId(planId);
+        teachingPlanTrainingPurposeRefMapper.deleteByPlanId(planId);
+        teachingPlanTrainingPurposeMapper.deleteByPlanId(planId);
+        teachingPlanContentPurposeMapper.deleteByPlanId(planId);
+        teachingPlanSupportObjectiveMapper.deleteByPlanId(planId);
+        teachingPlanSupportContentMapper.deleteByPlanId(planId);
         teachingPlanTeacherMapper.deleteByPlanId(planId);
         teachingPlanSectionMapper.deleteByPlanId(planId);
         teachingPlanContentMapper.deleteByPlanId(planId);
@@ -1786,15 +2238,298 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         result.addCount("objective", objCount);
         result.addCount("objectiveRef", refCount);
 
-        // 教学内容
+        // 任务背景 + 支撑毕业要求（type3 实验课程）
+        int tbCount = 0;
+        int tbRefCount = 0;
+        if (ObjectUtils.isNotEmpty(parsed.taskBackgrounds)) {
+            Map<Long, Map<String, List<StandardGraduation>>> tbSchemeGradCache = new HashMap<>();
+            for (TeachingPlanWordImporter.ParsedTaskBackground ptb : parsed.taskBackgrounds) {
+                if (ptb == null || ptb.taskBackground == null
+                        || StringUtils.isBlank(ptb.taskBackground.getBackgroundDesc())) {
+                    continue;
+                }
+                TeachingPlanTaskBackground tb = ptb.taskBackground;
+                tb.setId(null);
+                tb.setPlanId(planId);
+                if (publicFoundation) {
+                    tb.setSchemeId(null);
+                }
+                prepareEntity(tb);
+                teachingPlanTaskBackgroundMapper.insert(tb);
+                tbCount++;
+                if (ObjectUtils.isEmpty(ptb.graduationNames) || tb.getId() == null) {
+                    continue;
+                }
+                Long tbSchemeId = tb.getSchemeId();
+                // 候选毕业要求与页面绑定弹框同源：listCourseGraduationByScheme
+                Map<String, List<StandardGraduation>> nameMap = tbSchemeGradCache.computeIfAbsent(
+                        tbSchemeId == null ? -1L : tbSchemeId,
+                        k -> buildGraduationNameMap(courseId, tbSchemeId));
+                // 整串优先：名称本身含「、，；」时单元格原文可整体命中一条，避免被拆碎后全部失配
+                List<String> names = ptb.graduationNames;
+                if (StringUtils.isNotBlank(ptb.graduationRaw)
+                        && lookupGraduations(nameMap, ptb.graduationRaw) != null) {
+                    names = Collections.singletonList(ptb.graduationRaw);
+                }
+                int tbSort = 1;
+                Set<Long> boundTbGradIds = new HashSet<>();
+                for (String gName : names) {
+                    List<StandardGraduation> matches = lookupGraduations(nameMap, gName);
+                    if (ObjectUtils.isEmpty(matches)) {
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "三、任务背景与目标", ptb.taskBackground.getBackgroundDesc(), "graduationName",
+                                "未匹配到毕业要求，已跳过: " + gName));
+                        continue;
+                    }
+                    // 同名多条：默认绑定第一条，记日志并返回提示
+                    StandardGraduation g = matches.get(0);
+                    if (matches.size() > 1) {
+                        log.warn("教学计划导入毕业要求同名多条, planId={}, taskBackgroundId={}, name={}, 命中{}条, 默认绑定第一条 id={}",
+                                planId, tb.getId(), gName, matches.size(), g.getId());
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "三、任务背景与目标", ptb.taskBackground.getBackgroundDesc(), "graduationName",
+                                "毕业要求同名存在 " + matches.size() + " 条，默认绑定第一条: " + gName));
+                    }
+                    // 同一任务背景重复绑定去重
+                    if (g.getId() != null && !boundTbGradIds.add(g.getId())) {
+                        continue;
+                    }
+                    TeachingPlanTaskBackgroundRef ref = new TeachingPlanTaskBackgroundRef();
+                    ref.setPlanId(planId);
+                    ref.setTaskBackgroundId(tb.getId());
+                    ref.setSchemeId(tbSchemeId);
+                    ref.setGraduationId(g.getId());
+                    ref.setSourceGraduationId(g.getSourceId());
+                    ref.setGraduationCode(g.getCode());
+                    ref.setGraduationName(g.getName());
+                    ref.setGraduationBindSource("course_ref_graduation");
+                    ref.setSort(tbSort++);
+                    prepareEntity(ref);
+                    teachingPlanTaskBackgroundRefMapper.insert(ref);
+                    tbRefCount++;
+                }
+            }
+        }
+        result.addCount("taskBackground", tbCount);
+        result.addCount("taskBackgroundRef", tbRefCount);
+
+        // 训练目的 + 支撑毕业要求（type2 实践训练课目第二节）
+        int tpCount = 0;
+        int tpRefCount = 0;
+        if (ObjectUtils.isNotEmpty(parsed.trainingPurposes)) {
+            Map<Long, Map<String, List<StandardGraduation>>> tpSchemeGradCache = new HashMap<>();
+            for (TeachingPlanWordImporter.ParsedTrainingPurpose ptp : parsed.trainingPurposes) {
+                if (ptp == null || ptp.purpose == null
+                        || StringUtils.isBlank(ptp.purpose.getPurpose())) {
+                    continue;
+                }
+                TeachingPlanTrainingPurpose p = ptp.purpose;
+                p.setId(null);
+                p.setPlanId(planId);
+                if (publicFoundation) {
+                    p.setSchemeId(null);
+                }
+                prepareEntity(p);
+                teachingPlanTrainingPurposeMapper.insert(p);
+                tpCount++;
+                if (ObjectUtils.isEmpty(ptp.graduationNames) || p.getId() == null) {
+                    continue;
+                }
+                Long tpSchemeId = p.getSchemeId();
+                // 候选毕业要求与页面绑定弹框同源：listCourseGraduationByScheme
+                Map<String, List<StandardGraduation>> nameMap = tpSchemeGradCache.computeIfAbsent(
+                        tpSchemeId == null ? -1L : tpSchemeId,
+                        k -> buildGraduationNameMap(courseId, tpSchemeId));
+                // 整串优先：名称本身含「、，；」时单元格原文可整体命中一条，避免被拆碎后全部失配
+                List<String> names = ptp.graduationNames;
+                if (StringUtils.isNotBlank(ptp.graduationRaw)
+                        && lookupGraduations(nameMap, ptp.graduationRaw) != null) {
+                    names = Collections.singletonList(ptp.graduationRaw);
+                }
+                int tpSort = 1;
+                Set<Long> boundTpGradIds = new HashSet<>();
+                for (String gName : names) {
+                    List<StandardGraduation> matches = lookupGraduations(nameMap, gName);
+                    if (ObjectUtils.isEmpty(matches)) {
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "二、训练目的与支撑毕业要求", p.getPurpose(), "graduationName",
+                                "未匹配到毕业要求，已跳过: " + gName));
+                        continue;
+                    }
+                    // 同名多条：默认绑定第一条，记日志并返回提示
+                    StandardGraduation g = matches.get(0);
+                    if (matches.size() > 1) {
+                        log.warn("教学计划导入毕业要求同名多条, planId={}, purposeId={}, name={}, 命中{}条, 默认绑定第一条 id={}",
+                                planId, p.getId(), gName, matches.size(), g.getId());
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "二、训练目的与支撑毕业要求", p.getPurpose(), "graduationName",
+                                "毕业要求同名存在 " + matches.size() + " 条，默认绑定第一条: " + gName));
+                    }
+                    // 同一训练目的重复绑定去重
+                    if (g.getId() != null && !boundTpGradIds.add(g.getId())) {
+                        continue;
+                    }
+                    TeachingPlanTrainingPurposeRef ref = new TeachingPlanTrainingPurposeRef();
+                    ref.setPlanId(planId);
+                    ref.setPurposeId(p.getId());
+                    ref.setSchemeId(tpSchemeId);
+                    ref.setGraduationId(g.getId());
+                    ref.setSourceGraduationId(g.getSourceId());
+                    ref.setGraduationCode(g.getCode());
+                    ref.setGraduationName(g.getName());
+                    ref.setGraduationBindSource("course_ref_graduation");
+                    ref.setSort(tpSort++);
+                    prepareEntity(ref);
+                    teachingPlanTrainingPurposeRefMapper.insert(ref);
+                    tpRefCount++;
+                }
+            }
+        }
+        result.addCount("trainingPurpose", tpCount);
+        result.addCount("trainingPurposeRef", tpRefCount);
+
+        // 教学内容 + 第四部分「目的」绑定训练目的（type2 多选）
         if (ObjectUtils.isNotEmpty(parsed.contents)) {
+            // 以已落库的训练目的构建「目的文本 -> 目的id」索引（按文本精确匹配绑定；
+            // 通识通用/单方案或多方案统一取 plan 下全量目的，内容行不区分方案）
+            Map<String, TeachingPlanTrainingPurpose> purposeTextIndex = new HashMap<>();
+            List<TeachingPlanTrainingPurpose> allPurposes =
+                    teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(planId, null, false);
+            if (ObjectUtils.isNotEmpty(allPurposes)) {
+                for (TeachingPlanTrainingPurpose p : allPurposes) {
+                    if (p == null || StringUtils.isBlank(p.getPurpose()) || p.getId() == null) {
+                        continue;
+                    }
+                    purposeTextIndex.putIfAbsent(p.getPurpose().trim(), p);
+                }
+            }
             for (TeachingPlanContent c : parsed.contents) {
                 c.setId(null);
                 c.setPlanId(planId);
                 prepareEntity(c);
                 teachingPlanContentMapper.insert(c);
+                if (c.getId() == null) {
+                    continue;
+                }
+                // 「目的」单元格按顿号/逗号拆分，逐段匹配已存在的训练目的并建立绑定；
+                // 未命中的文本保留在 content.purpose（兼容旧数据/新录入自由文本），命中的生成器优先展示绑定目的
+                if (StringUtils.isBlank(c.getPurpose())) {
+                    continue;
+                }
+                int purposeSort = 1;
+                Set<Long> boundPurposeIds = new HashSet<>();
+                for (String part : c.getPurpose().split("[、,，;；]")) {
+                    String text = part == null ? "" : part.trim();
+                    if (StringUtils.isBlank(text)) {
+                        continue;
+                    }
+                    TeachingPlanTrainingPurpose p = purposeTextIndex.get(text);
+                    if (p == null || p.getId() == null || !boundPurposeIds.add(p.getId())) {
+                        continue;
+                    }
+                    TeachingPlanContentPurpose cp = new TeachingPlanContentPurpose();
+                    cp.setPlanId(planId);
+                    cp.setContentId(c.getId());
+                    cp.setPurposeId(p.getId());
+                    cp.setSort(purposeSort++);
+                    prepareEntity(cp);
+                    teachingPlanContentPurposeMapper.insert(cp);
+                }
             }
             result.addCount("content", parsed.contents.size());
+        }
+        // 实践项目(type4)第二节支撑绑定：支撑的课程目标或训练目的 / 涉及的知识体系或训练内容。
+        // 按 Word 单元格文本匹配候选（与页面绑定弹框同源 listSupportCandidates），未命中记警告跳过；
+        // 命中后交模块 Service 整表重建（与页面保存同口径，含 refType/refPlanId 快照）。
+        if (StringUtils.isNotBlank(parsed.supportObjectiveRaw)
+                || StringUtils.isNotBlank(parsed.supportContentRaw)) {
+            TeachingPlanSupportCandidateVo supportCandidates =
+                    teachingPlanModuleService.listSupportCandidates(courseId);
+            if (StringUtils.isNotBlank(parsed.supportObjectiveRaw)) {
+                List<Long> objectiveIds = new ArrayList<>();
+                List<Long> purposeIds = new ArrayList<>();
+                Set<Long> boundObjective = new HashSet<>();
+                Set<Long> boundPurpose = new HashSet<>();
+                Map<String, TeachingPlanSupportCandidateItem> objNameIndex = new HashMap<>();
+                Map<String, TeachingPlanSupportCandidateItem> purposeNameIndex = new HashMap<>();
+                if (supportCandidates != null) {
+                    for (TeachingPlanSupportCandidateItem it : supportCandidates.getObjectives()) {
+                        if (it != null && StringUtils.isNotBlank(it.getName())) {
+                            objNameIndex.putIfAbsent(it.getName().trim(), it);
+                        }
+                    }
+                    for (TeachingPlanSupportCandidateItem it : supportCandidates.getPurposes()) {
+                        if (it != null && StringUtils.isNotBlank(it.getName())) {
+                            purposeNameIndex.putIfAbsent(it.getName().trim(), it);
+                        }
+                    }
+                }
+                for (String part : parsed.supportObjectiveRaw.split("[、,，;；]")) {
+                    String text = part == null ? "" : part.trim();
+                    if (StringUtils.isBlank(text)) {
+                        continue;
+                    }
+                    TeachingPlanSupportCandidateItem match = objNameIndex.get(text);
+                    if (match != null && match.getId() != null && boundObjective.add(match.getId())) {
+                        objectiveIds.add(match.getId());
+                        continue;
+                    }
+                    match = purposeNameIndex.get(text);
+                    if (match != null && match.getId() != null && boundPurpose.add(match.getId())) {
+                        purposeIds.add(match.getId());
+                        continue;
+                    }
+                    result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                            "二、任务背景与目标", text, "supportObjective",
+                            "未匹配到候选课程目标或训练目的，已跳过: " + text));
+                }
+                TeachingPlanSupportObjectiveSaveVo saveVo = new TeachingPlanSupportObjectiveSaveVo();
+                saveVo.setPlanId(planId);
+                saveVo.setObjectiveIds(objectiveIds);
+                saveVo.setPurposeIds(purposeIds);
+                teachingPlanModuleService.saveSupportObjectives(saveVo);
+                result.addCount("supportObjective", objectiveIds.size() + purposeIds.size());
+            }
+            if (StringUtils.isNotBlank(parsed.supportContentRaw)) {
+                List<Long> contentIds = new ArrayList<>();
+                Set<Long> boundContent = new HashSet<>();
+                Map<String, TeachingPlanSupportCandidateItem> kpNameIndex = new HashMap<>();
+                Map<String, TeachingPlanSupportCandidateItem> tcNameIndex = new HashMap<>();
+                if (supportCandidates != null) {
+                    for (TeachingPlanSupportCandidateItem it : supportCandidates.getKnowledgePoints()) {
+                        if (it != null && StringUtils.isNotBlank(it.getName())) {
+                            kpNameIndex.putIfAbsent(it.getName().trim(), it);
+                        }
+                    }
+                    for (TeachingPlanSupportCandidateItem it : supportCandidates.getTrainingContents()) {
+                        if (it != null && StringUtils.isNotBlank(it.getName())) {
+                            tcNameIndex.putIfAbsent(it.getName().trim(), it);
+                        }
+                    }
+                }
+                for (String part : parsed.supportContentRaw.split("[、,，;；]")) {
+                    String text = part == null ? "" : part.trim();
+                    if (StringUtils.isBlank(text)) {
+                        continue;
+                    }
+                    TeachingPlanSupportCandidateItem match = kpNameIndex.get(text);
+                    if (match == null) {
+                        match = tcNameIndex.get(text);
+                    }
+                    if (match == null || match.getId() == null || !boundContent.add(match.getId())) {
+                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                                "二、任务背景与目标", text, "supportContent",
+                                "未匹配到候选知识体系或训练内容，已跳过: " + text));
+                        continue;
+                    }
+                    contentIds.add(match.getId());
+                }
+                TeachingPlanSupportContentSaveVo saveVo = new TeachingPlanSupportContentSaveVo();
+                saveVo.setPlanId(planId);
+                saveVo.setContentIds(contentIds);
+                teachingPlanModuleService.saveSupportContents(saveVo);
+                result.addCount("supportContent", contentIds.size());
+            }
         }
         // 达成设计
         if (ObjectUtils.isNotEmpty(parsed.targetDesigns)) {

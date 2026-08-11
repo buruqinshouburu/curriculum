@@ -23,6 +23,17 @@ public class TeachingPlanQuoteAggVo {
     /** 课程模块：被引用课程 course_Module 去重拼接 */
     private String courseModule;
 
+    /** 课目模块：被引用课程 location 去重拼接（type2 实践训练课目用，判定是否通识通用） */
+    private String location;
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
     public Long getCourseId() {
         return courseId;
     }

@@ -11,15 +11,31 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanContentPurpose;
+import com.doinner.csys.domain.TeachingPlanSupportContent;
+import com.doinner.csys.domain.TeachingPlanSupportObjective;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
+import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundRefSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 
 import java.util.List;
@@ -102,6 +118,132 @@ public interface TeachingPlanModuleService {
     void updateObjectiveRef(TeachingPlanObjectiveRef ref);
 
     void deleteObjectiveRef(Long id);
+
+    // ============ 任务背景（实验课程第三节，对标课程目标） ============
+
+    /**
+     * 任务背景列表。
+     * 公共基础课程：始终只取 scheme_id IS NULL 单组；
+     * 非公共基础：按 schemeId 过滤；schemeId 为空返回 plan 下全量（按 scheme 分组渲染用）。
+     */
+    List<TeachingPlanTaskBackground> listTaskBackground(Long planId, Long schemeId);
+
+    /**
+     * 任务背景 + 支撑毕业要求整表保存（对标 saveObjectivesBatch，无权重校验）。
+     * 先按 planId 逻辑删除旧任务背景及绑定，再按 taskBackgrounds 重建。
+     */
+    void saveTaskBackgroundsBatch(TeachingPlanTaskBackgroundBatchSaveVo saveVo);
+
+    Long addTaskBackground(TeachingPlanTaskBackground taskBackground);
+
+    void updateTaskBackground(TeachingPlanTaskBackground taskBackground);
+
+    /** 删除任务背景，同步逻辑删除其绑定的毕业要求。 */
+    void deleteTaskBackground(Long id);
+
+    /** 任务背景绑定的毕业要求列表。 */
+    List<TeachingPlanTaskBackgroundRef> listTaskBackgroundRef(Long taskBackgroundId);
+
+    /**
+     * 仅重建任务背景的毕业要求绑定（与任务背景新增解耦）。
+     * 先逻辑删除 taskBackgroundId 下旧 ref，再按 saveVo.refs 重建；refs 空=清空绑定。
+     */
+    void saveTaskBackgroundRefs(TeachingPlanTaskBackgroundRefSaveVo saveVo);
+
+    Long addTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref);
+
+    void updateTaskBackgroundRef(TeachingPlanTaskBackgroundRef ref);
+
+    void deleteTaskBackgroundRef(Long id);
+
+    // ============ 训练目的（实践训练课目 type2 第二节，对标任务背景） ============
+
+    /**
+     * 训练目的列表。
+     * 通识通用（课目模块仅∈{1,2,3,9}）：始终只取 scheme_id IS NULL 单组；
+     * 非通识通用：按 schemeId 过滤；schemeId 为空返回 plan 下全量（按 scheme 分组渲染用）。
+     */
+    List<TeachingPlanTrainingPurpose> listTrainingPurpose(Long planId, Long schemeId);
+
+    /**
+     * 训练目的 + 支撑毕业要求整表保存（对标 saveTaskBackgroundsBatch）。
+     * 先按 planId 逻辑删除旧训练目的及绑定，再按 purposes 重建。
+     */
+    void saveTrainingPurposesBatch(TeachingPlanTrainingPurposeBatchSaveVo saveVo);
+
+    Long addTrainingPurpose(TeachingPlanTrainingPurpose trainingPurpose);
+
+    void updateTrainingPurpose(TeachingPlanTrainingPurpose trainingPurpose);
+
+    /** 删除训练目的，同步逻辑删除其绑定的毕业要求。 */
+    void deleteTrainingPurpose(Long id);
+
+    /** 训练目的绑定的毕业要求列表。 */
+    List<TeachingPlanTrainingPurposeRef> listTrainingPurposeRef(Long purposeId);
+
+    /**
+     * 仅重建训练目的的毕业要求绑定（与训练目的新增解耦）。
+     * 先逻辑删除 purposeId 下旧 ref，再按 saveVo.refs 重建；refs 空=清空绑定。
+     */
+    void saveTrainingPurposeRefs(TeachingPlanTrainingPurposeRefSaveVo saveVo);
+
+    Long addTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref);
+
+    void updateTrainingPurposeRef(TeachingPlanTrainingPurposeRef ref);
+
+    void deleteTrainingPurposeRef(Long id);
+
+    // ============ 训练内容支撑训练目的（type2 第四节「目的」多选） ============
+
+    /** 某训练内容已绑定的训练目的列表（含目的文本快照）。 */
+    List<TeachingPlanContentPurpose> listContentPurpose(Long contentId);
+
+    /**
+     * 整表重建训练内容的训练目的绑定（与训练内容新增解耦）。
+     * 先逻辑删除 contentId 下旧绑定，再按 saveVo.purposeIds 重建；purposeIds 空=清空。
+     */
+    void saveContentPurposes(TeachingPlanContentPurposeSaveVo saveVo);
+
+    // ============ 实践项目第二节支撑绑定（type4） ============
+
+    /**
+     * 候选数据：项目支撑课程(源课 before_course_id)/支撑训练课目(after_course_id) 各自教学计划的
+     * 课程目标(第四部分)、训练目的(第二部分)、知识体系(课程 content 全部行)、训练内容(课目第四部分 content)。
+     * 课程目标按同专业(与项目首个培养方案 major_id 一致)优先排序。
+     */
+    TeachingPlanSupportCandidateVo listSupportCandidates(Long courseId);
+
+    /** 实践项目计划(type4)已绑定的课程目标/训练目的列表（按 sort）。 */
+    List<TeachingPlanSupportObjective> listSupportObjective(Long planId);
+
+    /**
+     * 整表重建实践项目计划(type4)的课程目标/训练目的绑定。
+     * 先逻辑删除该 plan 下旧绑定，再按 objectiveIds/purposeIds 重建快照；空列表或 null=清空。
+     */
+    void saveSupportObjectives(TeachingPlanSupportObjectiveSaveVo saveVo);
+
+    /** 实践项目计划(type4)已绑定的知识体系/训练内容列表（按 sort）。 */
+    List<TeachingPlanSupportContent> listSupportContent(Long planId);
+
+    /**
+     * 整表重建实践项目计划(type4)的知识体系/训练内容绑定。
+     * 先逻辑删除该 plan 下旧绑定，再按 contentIds 重建快照；空列表或 null=清空。
+     */
+    void saveSupportContents(TeachingPlanSupportContentSaveVo saveVo);
+
+    // ============ 分组判定（供 Word 生成/导入共用） ============
+
+    /**
+     * 普通课程(type1/3)源课是否属公共基础：聚合被引用课程的 course_Module 多值串
+     * 拆分后每一项均为公共基础（空聚合回退源课自身 course_Module）。
+     */
+    boolean isPublicFoundationCourse(Long sourceCourseId);
+
+    /**
+     * 实践训练课目(type2)是否属通识通用：聚合被引用课程的 location 多值串
+     * 拆分后每一项均∈{1,2,3,9}（空聚合回退源课自身 location）。
+     */
+    boolean isGeneralSubjectModuleCourse(Long sourceCourseId);
 
     List<TeachingPlanContent> listContent(Long planId);
 

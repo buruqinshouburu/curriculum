@@ -176,23 +176,18 @@
     </update>
 
     <!--
-        被引用课程c2 + 被引用培养方案ts 聚合取数列(适用对象/适用专业/修读性质/课程模块)。
-        三个查询(list/detail课程分支/detail计划分支)统一以 `course` 作为总库课程别名,片段内引用 course.id。
-        - 适用对象 education_level: ts.education_level 去重拼接,回退 course.education_level
-        - 适用专业 major_name: ts.major_id -> t_csys_std_major.name 去重拼接,回退 course.major_Id -> name
+        被引用课程c2 + 被引用培养方案ts 聚合取数列(适用专业/修读性质/课程模块)。
+        detail 课程分支/计划分支统一以 `course` 作为总库课程别名,片段内引用 course.id。
+        - 适用对象 education_level: 一律取 course.education_level(源课程),不再按被引用培养方案聚合
+        - 适用专业 major_name: ts.major_id -> t_csys_std_major.name 去重拼接,回退 course.major_Id -> name;
+          Service 层对「普通课程仅公共基础模块」或「实践训练课目(type2)课目模块(location)值∈{1,2,3,9}」覆盖为「通识通用」
         - 修读性质 course_attr: c2.course_attr 去重拼接,回退 course.course_attr
         - 课程模块 course_module: c2.course_Module 去重拼接,回退 course.course_Module
         多值用顿号分隔(与 selectCourseChooseStatus 一致)。无引用时整体回退总库课程自身字段。
     -->
     <sql id="quoteAggregateColumns">
-        COALESCE(
-          (SELECT GROUP_CONCAT(DISTINCT ts.education_level SEPARATOR '、')
-             FROM t_csys_course c2
-             INNER JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
-             INNER JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
-            WHERE c2.source_id = course.id AND c2.sysflag = 0
-              AND ts.education_level IS NOT NULL AND ts.education_level != ''),
-          course.education_level) AS education_level,
+        -- 适用对象一律取源课程 education_level
+        course.education_level AS education_level,
         COALESCE(
           (SELECT GROUP_CONCAT(DISTINCT sm.name SEPARATOR '、')
              FROM t_csys_course c2
@@ -357,7 +352,8 @@
             GROUP_CONCAT(DISTINCT NULLIF(ts.education_level, '') SEPARATOR '、') AS educationLevel,
             GROUP_CONCAT(DISTINCT sm.name SEPARATOR '、') AS majorName,
             GROUP_CONCAT(DISTINCT NULLIF(c2.course_attr, '') SEPARATOR '、') AS courseAttr,
-            GROUP_CONCAT(DISTINCT NULLIF(c2.course_Module, '') SEPARATOR '、') AS courseModule
+            GROUP_CONCAT(DISTINCT NULLIF(c2.course_Module, '') SEPARATOR '、') AS courseModule,
+            GROUP_CONCAT(DISTINCT NULLIF(c2.location, '') SEPARATOR '、') AS location
         FROM t_csys_course c2
         LEFT JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
         LEFT JOIN t_csys_training_scheme ts ON ts.id = tcs.scheme_id AND ts.sysflag = 0
@@ -367,6 +363,19 @@
         <foreach collection="courseIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+        GROUP BY c2.source_id
+    </select>
+
+    <!-- 单个总库课程被引用侧聚合：定位所有引用课程 c2(source_id=#{sourceCourseId}) 后按引用课程字段去重拼接 -->
+    <select id="selectQuoteAggBySourceCourseId" resultType="com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo">
+        SELECT
+            c2.source_id AS courseId,
+            GROUP_CONCAT(DISTINCT NULLIF(c2.course_Module, '') SEPARATOR '、') AS courseModule,
+            GROUP_CONCAT(DISTINCT NULLIF(c2.location, '') SEPARATOR '、') AS location
+        FROM t_csys_course c2
+        LEFT JOIN t_csys_training_scheme_course_schedule tcs ON tcs.course_id = c2.id
+        WHERE c2.sysflag = 0
+          AND c2.source_id = #{sourceCourseId}
         GROUP BY c2.source_id
     </select>
 

@@ -12,8 +12,15 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
+import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
+import com.doinner.csys.domain.TeachingPlanContentPurpose;
+import com.doinner.csys.domain.TeachingPlanSupportObjective;
+import com.doinner.csys.domain.TeachingPlanSupportContent;
 
 import java.util.List;
 import java.util.Map;
@@ -84,6 +91,32 @@ public class CourseTeachingPlanModel {
      * 源课被多个培养方案引用时，每组对应 Word 中一张表。
      */
     private List<SchemeObjectiveGroup> schemeObjectiveGroups;
+    /**
+     * 按培养方案分组的「任务背景与目标」。
+     * 实验课程（type=3）第三节用，每组对应 Word 中一张表。
+     */
+    private List<SchemeTaskBackgroundGroup> schemeTaskBackgroundGroups;
+    /**
+     * 按培养方案分组的「训练目的与支撑毕业要求」。
+     * 实践训练课目（type=2）第二节用，每组对应 Word 中一张表。
+     * 通识通用（课目模块仅∈{1,2,3,9}）时合并为单组且 schemeTitle 为 null。
+     */
+    private List<SchemeTrainingPurposeGroup> schemeTrainingPurposeGroups;
+    /**
+     * 训练内容 -> 绑定的训练目的（type2 第四节「目的」列多选）。
+     * 遍历 contents 时按 contentId 取绑定列表，拼接目的文本填入「目的」列。
+     */
+    private Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap;
+    /**
+     * 实践项目(type=4)第二节「支撑的课程目标或训练目的」绑定（计划级多选快照）。
+     * 来源：支撑课程(before_course_id)的课程目标(第四部分，同专业优先) + 支撑训练课目(after_course_id)的训练目的(第二部分)。
+     */
+    private List<TeachingPlanSupportObjective> supportObjectives;
+    /**
+     * 实践项目(type=4)第二节「涉及的知识体系或训练内容」绑定（计划级多选快照）。
+     * 来源：支撑课程的课程知识单元知识点 + 支撑训练课目的训练内容(第四部分)。
+     */
+    private List<TeachingPlanSupportContent> supportContents;
     /** 教学内容与学时安排 */
     private List<TeachingPlanContent> contents;
     /** 目标达成设计（知识/能力/素质，生成器按 designTypeCode 分组） */
@@ -302,6 +335,46 @@ public class CourseTeachingPlanModel {
         this.schemeObjectiveGroups = schemeObjectiveGroups;
     }
 
+    public List<SchemeTaskBackgroundGroup> getSchemeTaskBackgroundGroups() {
+        return schemeTaskBackgroundGroups;
+    }
+
+    public void setSchemeTaskBackgroundGroups(List<SchemeTaskBackgroundGroup> schemeTaskBackgroundGroups) {
+        this.schemeTaskBackgroundGroups = schemeTaskBackgroundGroups;
+    }
+
+    public List<SchemeTrainingPurposeGroup> getSchemeTrainingPurposeGroups() {
+        return schemeTrainingPurposeGroups;
+    }
+
+    public void setSchemeTrainingPurposeGroups(List<SchemeTrainingPurposeGroup> schemeTrainingPurposeGroups) {
+        this.schemeTrainingPurposeGroups = schemeTrainingPurposeGroups;
+    }
+
+    public Map<Long, List<TeachingPlanContentPurpose>> getContentPurposeMap() {
+        return contentPurposeMap;
+    }
+
+    public void setContentPurposeMap(Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap) {
+        this.contentPurposeMap = contentPurposeMap;
+    }
+
+    public List<TeachingPlanSupportObjective> getSupportObjectives() {
+        return supportObjectives;
+    }
+
+    public void setSupportObjectives(List<TeachingPlanSupportObjective> supportObjectives) {
+        this.supportObjectives = supportObjectives;
+    }
+
+    public List<TeachingPlanSupportContent> getSupportContents() {
+        return supportContents;
+    }
+
+    public void setSupportContents(List<TeachingPlanSupportContent> supportContents) {
+        this.supportContents = supportContents;
+    }
+
     public List<TeachingPlanContent> getContents() {
         return contents;
     }
@@ -439,6 +512,94 @@ public class CourseTeachingPlanModel {
 
         public void setObjectiveRefMap(Map<Long, List<TeachingPlanObjectiveRef>> objectiveRefMap) {
             this.objectiveRefMap = objectiveRefMap;
+        }
+    }
+
+    /**
+     * 单个培养方案下的任务背景 + 支撑毕业要求。
+     * 实验课程（type=3）Word「三、任务背景与目标」中每个 group 对应一张表。
+     */
+    public static class SchemeTaskBackgroundGroup {
+        private Long schemeId;
+        /** 展示标题，如培养方案名称（可带版本） */
+        private String schemeTitle;
+        private List<TeachingPlanTaskBackground> taskBackgrounds;
+        private Map<Long, List<TeachingPlanTaskBackgroundRef>> taskBackgroundRefMap;
+
+        public Long getSchemeId() {
+            return schemeId;
+        }
+
+        public void setSchemeId(Long schemeId) {
+            this.schemeId = schemeId;
+        }
+
+        public String getSchemeTitle() {
+            return schemeTitle;
+        }
+
+        public void setSchemeTitle(String schemeTitle) {
+            this.schemeTitle = schemeTitle;
+        }
+
+        public List<TeachingPlanTaskBackground> getTaskBackgrounds() {
+            return taskBackgrounds;
+        }
+
+        public void setTaskBackgrounds(List<TeachingPlanTaskBackground> taskBackgrounds) {
+            this.taskBackgrounds = taskBackgrounds;
+        }
+
+        public Map<Long, List<TeachingPlanTaskBackgroundRef>> getTaskBackgroundRefMap() {
+            return taskBackgroundRefMap;
+        }
+
+        public void setTaskBackgroundRefMap(Map<Long, List<TeachingPlanTaskBackgroundRef>> taskBackgroundRefMap) {
+            this.taskBackgroundRefMap = taskBackgroundRefMap;
+        }
+    }
+
+    /**
+     * 单个培养方案下的训练目的 + 支撑毕业要求。
+     * 实践训练课目（type=2）Word「二、训练目的与支撑毕业要求」中每个 group 对应一张表。
+     */
+    public static class SchemeTrainingPurposeGroup {
+        private Long schemeId;
+        /** 展示标题，如培养方案名称（可带版本）；通识通用单组时为 null */
+        private String schemeTitle;
+        private List<TeachingPlanTrainingPurpose> purposes;
+        private Map<Long, List<TeachingPlanTrainingPurposeRef>> purposeRefMap;
+
+        public Long getSchemeId() {
+            return schemeId;
+        }
+
+        public void setSchemeId(Long schemeId) {
+            this.schemeId = schemeId;
+        }
+
+        public String getSchemeTitle() {
+            return schemeTitle;
+        }
+
+        public void setSchemeTitle(String schemeTitle) {
+            this.schemeTitle = schemeTitle;
+        }
+
+        public List<TeachingPlanTrainingPurpose> getPurposes() {
+            return purposes;
+        }
+
+        public void setPurposes(List<TeachingPlanTrainingPurpose> purposes) {
+            this.purposes = purposes;
+        }
+
+        public Map<Long, List<TeachingPlanTrainingPurposeRef>> getPurposeRefMap() {
+            return purposeRefMap;
+        }
+
+        public void setPurposeRefMap(Map<Long, List<TeachingPlanTrainingPurposeRef>> purposeRefMap) {
+            this.purposeRefMap = purposeRefMap;
         }
     }
 }

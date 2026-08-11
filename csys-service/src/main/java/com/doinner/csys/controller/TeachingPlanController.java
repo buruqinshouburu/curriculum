@@ -16,10 +16,20 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
 import com.doinner.csys.domain.TeachingPlanTextbook;
+import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
+import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
+import com.doinner.csys.domain.TeachingPlanContentPurpose;
+import com.doinner.csys.domain.TeachingPlanSupportObjective;
+import com.doinner.csys.domain.TeachingPlanSupportContent;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
@@ -32,6 +42,12 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundRefSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
@@ -341,6 +357,249 @@ public class TeachingPlanController {
     @DeleteMapping("/objectiveRef/{id}")
     public Message deleteObjectiveRef(@PathVariable("id") Long id) {
         teachingPlanModuleService.deleteObjectiveRef(id);
+        return Message.success();
+    }
+
+    // ============ 任务背景（实验课程第三节，对标课程目标） ============
+
+    /**
+     * 任务背景列表。
+     * schemeId 可选：公共基础恒为 null 单组；有培养方案 tab 时传 schemeId 过滤；
+     * 不传则返回 plan 下全量（供按 scheme 分组渲染）。
+     */
+    @ApiOperation("任务背景列表（实验课程第三节）")
+    @GetMapping("/taskBackground/list")
+    public DataSet<List<TeachingPlanTaskBackground>> taskBackgroundList(
+            @RequestParam("planId") Long planId,
+            @RequestParam(value = "schemeId", required = false) Long schemeId) {
+        return DataSet.success(teachingPlanModuleService.listTaskBackground(planId, schemeId));
+    }
+
+    /**
+     * 任务背景 + 支撑毕业要求大保存；按 planId 删除旧任务背景及绑定后重建。
+     */
+    @ApiOperation("任务背景与支撑毕业要求大保存")
+    @PostMapping("/taskBackground/batchSave")
+    public Message saveTaskBackgroundsBatch(@RequestBody TeachingPlanTaskBackgroundBatchSaveVo saveVo) {
+        teachingPlanModuleService.saveTaskBackgroundsBatch(saveVo);
+        return Message.success();
+    }
+
+    /** 仅新增任务背景（描述/技术目标/能力目标），绑定请走 POST /taskBackgroundRef/save。 */
+    @ApiOperation("新增任务背景（仅描述/技术目标/能力目标）")
+    @PostMapping("/taskBackground")
+    public DataSet<Long> addTaskBackground(@RequestBody TeachingPlanTaskBackground taskBackground) {
+        return DataSet.success(teachingPlanModuleService.addTaskBackground(taskBackground));
+    }
+
+    @ApiOperation("修改任务背景")
+    @PutMapping("/taskBackground")
+    public Message updateTaskBackground(@RequestBody TeachingPlanTaskBackground taskBackground) {
+        teachingPlanModuleService.updateTaskBackground(taskBackground);
+        return Message.success();
+    }
+
+    /** 删除任务背景时同步逻辑删除其支撑毕业要求绑定 */
+    @ApiOperation("删除任务背景")
+    @DeleteMapping("/taskBackground/{id}")
+    public Message deleteTaskBackground(@PathVariable("id") Long id) {
+        teachingPlanModuleService.deleteTaskBackground(id);
+        return Message.success();
+    }
+
+    // ============ 任务背景支撑毕业要求 t_csys_teaching_plan_task_background_ref ============
+
+    /** 回显某任务背景已绑定的毕业要求 */
+    @ApiOperation("任务背景已绑定毕业要求列表（回显）")
+    @GetMapping("/taskBackgroundRef/list")
+    public DataSet<List<TeachingPlanTaskBackgroundRef>> taskBackgroundRefList(
+            @RequestParam("taskBackgroundId") Long taskBackgroundId) {
+        return DataSet.success(teachingPlanModuleService.listTaskBackgroundRef(taskBackgroundId));
+    }
+
+    /**
+     * 整表重建任务背景的毕业要求绑定（与任务背景新增解耦）。
+     * refs 空列表或 null = 清空该任务背景全部绑定。
+     */
+    @ApiOperation("保存任务背景与毕业要求绑定（整表重建）")
+    @PostMapping("/taskBackgroundRef/save")
+    public Message saveTaskBackgroundRefs(@RequestBody TeachingPlanTaskBackgroundRefSaveVo saveVo) {
+        teachingPlanModuleService.saveTaskBackgroundRefs(saveVo);
+        return Message.success();
+    }
+
+    @ApiOperation("新增任务背景支撑毕业要求（单条）")
+    @PostMapping("/taskBackgroundRef")
+    public DataSet<Long> addTaskBackgroundRef(@RequestBody TeachingPlanTaskBackgroundRef ref) {
+        return DataSet.success(teachingPlanModuleService.addTaskBackgroundRef(ref));
+    }
+
+    @ApiOperation("修改任务背景支撑毕业要求")
+    @PutMapping("/taskBackgroundRef")
+    public Message updateTaskBackgroundRef(@RequestBody TeachingPlanTaskBackgroundRef ref) {
+        teachingPlanModuleService.updateTaskBackgroundRef(ref);
+        return Message.success();
+    }
+
+    @ApiOperation("删除任务背景支撑毕业要求")
+    @DeleteMapping("/taskBackgroundRef/{id}")
+    public Message deleteTaskBackgroundRef(@PathVariable("id") Long id) {
+        teachingPlanModuleService.deleteTaskBackgroundRef(id);
+        return Message.success();
+    }
+
+    // ============ 训练目的（实践训练课目 type2 第二节，对标任务背景） ============
+
+    /**
+     * 训练目的列表。
+     * schemeId 可选：通识通用恒为 null 单组；有培养方案 tab 时传 schemeId 过滤；
+     * 不传则返回 plan 下全量（供按 scheme 分组渲染）。
+     */
+    @ApiOperation("训练目的列表（实践训练课目第二节）")
+    @GetMapping("/trainingPurpose/list")
+    public DataSet<List<TeachingPlanTrainingPurpose>> trainingPurposeList(
+            @RequestParam("planId") Long planId,
+            @RequestParam(value = "schemeId", required = false) Long schemeId) {
+        return DataSet.success(teachingPlanModuleService.listTrainingPurpose(planId, schemeId));
+    }
+
+    /**
+     * 训练目的 + 支撑毕业要求大保存；按 planId 删除旧训练目的及绑定后重建。
+     */
+    @ApiOperation("训练目的与支撑毕业要求大保存")
+    @PostMapping("/trainingPurpose/batchSave")
+    public Message saveTrainingPurposesBatch(@RequestBody TeachingPlanTrainingPurposeBatchSaveVo saveVo) {
+        teachingPlanModuleService.saveTrainingPurposesBatch(saveVo);
+        return Message.success();
+    }
+
+    /** 仅新增训练目的（单个值），绑定请走 POST /trainingPurposeRef/save。 */
+    @ApiOperation("新增训练目的（仅目的文本）")
+    @PostMapping("/trainingPurpose")
+    public DataSet<Long> addTrainingPurpose(@RequestBody TeachingPlanTrainingPurpose trainingPurpose) {
+        return DataSet.success(teachingPlanModuleService.addTrainingPurpose(trainingPurpose));
+    }
+
+    @ApiOperation("修改训练目的")
+    @PutMapping("/trainingPurpose")
+    public Message updateTrainingPurpose(@RequestBody TeachingPlanTrainingPurpose trainingPurpose) {
+        teachingPlanModuleService.updateTrainingPurpose(trainingPurpose);
+        return Message.success();
+    }
+
+    /** 删除训练目的时同步逻辑删除其支撑毕业要求绑定 */
+    @ApiOperation("删除训练目的")
+    @DeleteMapping("/trainingPurpose/{id}")
+    public Message deleteTrainingPurpose(@PathVariable("id") Long id) {
+        teachingPlanModuleService.deleteTrainingPurpose(id);
+        return Message.success();
+    }
+
+    // ============ 训练目的支撑毕业要求 t_csys_teaching_plan_training_purpose_ref ============
+
+    /** 回显某训练目的已绑定的毕业要求 */
+    @ApiOperation("训练目的已绑定毕业要求列表（回显）")
+    @GetMapping("/trainingPurposeRef/list")
+    public DataSet<List<TeachingPlanTrainingPurposeRef>> trainingPurposeRefList(
+            @RequestParam("purposeId") Long purposeId) {
+        return DataSet.success(teachingPlanModuleService.listTrainingPurposeRef(purposeId));
+    }
+
+    /**
+     * 整表重建训练目的的毕业要求绑定（与训练目的新增解耦）。
+     * refs 空列表或 null = 清空该训练目的全部绑定。
+     */
+    @ApiOperation("保存训练目的与毕业要求绑定（整表重建）")
+    @PostMapping("/trainingPurposeRef/save")
+    public Message saveTrainingPurposeRefs(@RequestBody TeachingPlanTrainingPurposeRefSaveVo saveVo) {
+        teachingPlanModuleService.saveTrainingPurposeRefs(saveVo);
+        return Message.success();
+    }
+
+    @ApiOperation("新增训练目的支撑毕业要求（单条）")
+    @PostMapping("/trainingPurposeRef")
+    public DataSet<Long> addTrainingPurposeRef(@RequestBody TeachingPlanTrainingPurposeRef ref) {
+        return DataSet.success(teachingPlanModuleService.addTrainingPurposeRef(ref));
+    }
+
+    @ApiOperation("修改训练目的支撑毕业要求")
+    @PutMapping("/trainingPurposeRef")
+    public Message updateTrainingPurposeRef(@RequestBody TeachingPlanTrainingPurposeRef ref) {
+        teachingPlanModuleService.updateTrainingPurposeRef(ref);
+        return Message.success();
+    }
+
+    @ApiOperation("删除训练目的支撑毕业要求")
+    @DeleteMapping("/trainingPurposeRef/{id}")
+    public Message deleteTrainingPurposeRef(@PathVariable("id") Long id) {
+        teachingPlanModuleService.deleteTrainingPurposeRef(id);
+        return Message.success();
+    }
+
+    // ============ 训练内容支撑训练目的（type2 第四节「目的」多选） ============
+
+    /** 回显某训练内容已绑定的训练目的（含目的文本快照） */
+    @ApiOperation("训练内容已绑定训练目的列表（回显）")
+    @GetMapping("/contentPurpose/list")
+    public DataSet<List<TeachingPlanContentPurpose>> contentPurposeList(
+            @RequestParam("contentId") Long contentId) {
+        return DataSet.success(teachingPlanModuleService.listContentPurpose(contentId));
+    }
+
+    /**
+     * 整表重建训练内容的训练目的绑定（与训练内容新增解耦）。
+     * purposeIds 空列表或 null = 清空该训练内容全部绑定。
+     */
+    @ApiOperation("保存训练内容与训练目的绑定（整表重建）")
+    @PostMapping("/contentPurpose/save")
+    public Message saveContentPurposes(@RequestBody TeachingPlanContentPurposeSaveVo saveVo) {
+        teachingPlanModuleService.saveContentPurposes(saveVo);
+        return Message.success();
+    }
+
+    // ============ 实践项目第二节支撑绑定（type4） ============
+
+    /**
+     * 实践项目第二节支撑绑定候选数据（type4）。
+     * 返回 课程目标(同专业优先)/训练目的/知识体系/训练内容 四组候选，
+     * 来源为项目支撑课程(before_course_id)与支撑训练课目(after_course_id)各自教学计划。
+     */
+    @ApiOperation("实践项目第二节支撑绑定候选数据")
+    @GetMapping("/support/candidates")
+    public DataSet<TeachingPlanSupportCandidateVo> supportCandidates(
+            @RequestParam("courseId") Long courseId) {
+        return DataSet.success(teachingPlanModuleService.listSupportCandidates(courseId));
+    }
+
+    /** 回显实践项目计划已绑定的课程目标/训练目的列表。 */
+    @ApiOperation("实践项目已绑定课程目标/训练目的列表（回显）")
+    @GetMapping("/supportObjective/list")
+    public DataSet<List<TeachingPlanSupportObjective>> supportObjectiveList(
+            @RequestParam("planId") Long planId) {
+        return DataSet.success(teachingPlanModuleService.listSupportObjective(planId));
+    }
+
+    /** 整表重建实践项目计划的课程目标/训练目的绑定；objectiveIds/purposeIds 空=清空。 */
+    @ApiOperation("保存实践项目课程目标/训练目的绑定（整表重建）")
+    @PostMapping("/supportObjective/save")
+    public Message saveSupportObjectives(@RequestBody TeachingPlanSupportObjectiveSaveVo saveVo) {
+        teachingPlanModuleService.saveSupportObjectives(saveVo);
+        return Message.success();
+    }
+
+    /** 回显实践项目计划已绑定的知识体系/训练内容列表。 */
+    @ApiOperation("实践项目已绑定知识体系/训练内容列表（回显）")
+    @GetMapping("/supportContent/list")
+    public DataSet<List<TeachingPlanSupportContent>> supportContentList(
+            @RequestParam("planId") Long planId) {
+        return DataSet.success(teachingPlanModuleService.listSupportContent(planId));
+    }
+
+    /** 整表重建实践项目计划的知识体系/训练内容绑定；contentIds 空=清空。 */
+    @ApiOperation("保存实践项目知识体系/训练内容绑定（整表重建）")
+    @PostMapping("/supportContent/save")
+    public Message saveSupportContents(@RequestBody TeachingPlanSupportContentSaveVo saveVo) {
+        teachingPlanModuleService.saveSupportContents(saveVo);
         return Message.success();
     }
 

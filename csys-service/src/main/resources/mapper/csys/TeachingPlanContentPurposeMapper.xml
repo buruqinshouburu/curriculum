@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanContentPurposeMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanContentPurpose">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="content_id" property="contentId" jdbcType="BIGINT"/>
+        <result column="purpose_id" property="purposeId" jdbcType="BIGINT"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <!-- 带训练目的文本的连接查询结果（列表回显/Word 渲染用） -->
+    <resultMap id="WithPurposeResultMap" type="com.doinner.csys.domain.TeachingPlanContentPurpose"
+               extends="BaseResultMap">
+        <result column="purpose_text" property="purposeText" jdbcType="LONGVARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, content_id, purpose_id, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_content_purpose (
+            plan_id, content_id, purpose_id, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.contentId}, #{item.purposeId}, #{item.sort},
+                #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
+                #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByContentId" resultMap="WithPurposeResultMap">
+        SELECT
+            cp.id, cp.plan_id, cp.content_id, cp.purpose_id, cp.sort,
+            cp.creator, cp.create_time, cp.last_modifier, cp.last_modified_time, cp.remark, cp.sysflag,
+            tp.purpose AS purpose_text
+        FROM t_csys_teaching_plan_content_purpose cp
+        LEFT JOIN t_csys_teaching_plan_training_purpose tp ON tp.id = cp.purpose_id AND tp.sysflag = 0
+        WHERE cp.content_id = #{contentId}
+          AND cp.sysflag = 0
+        ORDER BY cp.sort ASC, cp.id ASC
+    </select>
+
+    <select id="selectByPlanId" resultMap="WithPurposeResultMap">
+        SELECT
+            cp.id, cp.plan_id, cp.content_id, cp.purpose_id, cp.sort,
+            cp.creator, cp.create_time, cp.last_modifier, cp.last_modified_time, cp.remark, cp.sysflag,
+            tp.purpose AS purpose_text
+        FROM t_csys_teaching_plan_content_purpose cp
+        LEFT JOIN t_csys_teaching_plan_training_purpose tp ON tp.id = cp.purpose_id AND tp.sysflag = 0
+        WHERE cp.plan_id = #{planId}
+          AND cp.sysflag = 0
+        ORDER BY cp.content_id ASC, cp.sort ASC, cp.id ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_content_purpose
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+
+    <update id="deleteByContentId">
+        UPDATE t_csys_teaching_plan_content_purpose SET sysflag = 2 WHERE content_id = #{contentId}
+    </update>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_content_purpose SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_content_purpose SET sysflag = 2 WHERE id = #{id}
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanContentPurpose"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_content_purpose
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="contentId != null">content_id,</if>
+            <if test="purposeId != null">purpose_id,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="contentId != null">#{contentId},</if>
+            <if test="purposeId != null">#{purposeId},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+</mapper>

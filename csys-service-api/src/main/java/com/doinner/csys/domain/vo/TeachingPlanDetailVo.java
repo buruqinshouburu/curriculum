@@ -11,9 +11,12 @@ import java.util.List;
  *    教学计划表上的 source_* 快照字段已废弃，不再作为详情来源。
  * 2) teachingPlanId / scoreRule / sourceCourseEnName 来自 t_csys_teaching_plan（教学计划自身字段）；
  *    启用时间 enabledTerm 取自 t_csys_course.version（课程版本/启用年份）。
- * 3) 适用对象/适用专业/修读性质/课程模块：被引用课程 c2 + 被引用培养方案 ts 聚合（多值顿号分隔），
- *    无引用时回退总库课程自身字段。
- *    Service 层会把适用对象（sys_education_level）与课程模块（KG 字典 id）译为中文名称后再返回。
+ * 3) 适用对象：一律取源课程 education_level（sys_education_level 译中）。
+ *    适用专业：普通课程(type1/3)被引用课程聚合的课程模块「全部」为公共基础、
+ *    或实践训练课目(type2)课目模块(location)值∈{1,2,3,9} 时固定「通识通用」；
+ *    否则被引用培养方案 major_id 聚合（回退源课 major_id）。
+ *    修读性质/课程模块：被引用课程 c2 聚合（多值顿号分隔），无引用回退总库课程自身字段。
+ *    Service 层会把课程模块（KG 字典 id）译为中文名称后再返回。
  * 4) 开课学期 term：取培养方案关联的课程执行方案 t_csys_training_scheme_course_schedule.term
  *    （字典值 1-10，对应第一学年（秋）~第五学年（春）），跨全部引用培养方案去重后升序拼接；
  *    Service 层会翻译为中文标签；无排课记录时回退 course.open_term。
@@ -54,7 +57,7 @@ public class TeachingPlanDetailVo {
     /** 启用时间（实时取自 t_csys_course.version，如 2026） */
     private String enabledTerm;
 
-    /** 适用对象（被引用培养方案 education_level 聚合后译为 sys_education_level 中文 label，多值顿号分隔） */
+    /** 适用对象（一律取源课程 education_level，sys_education_level 译为中文 label） */
     private String educationLevel;
 
     /**
@@ -69,7 +72,7 @@ public class TeachingPlanDetailVo {
     /** 适用专业id（总库课程 major_Id 兜底单值） */
     private Long majorId;
 
-    /** 适用专业名称(被引用培养方案major_id聚合,多值拼接) */
+    /** 适用专业名称：普通课程(type1/3)被引用课程聚合的课程模块「全部」为公共基础、或实践训练课目(type2)课目模块(location)值∈{1,2,3,9}时固定「通识通用」；否则被引用培养方案 major_id 聚合(回退源课 major_id) */
     private String majorName;
 
     /** 修读性质（被引用课程聚合，多值顿号分隔） */

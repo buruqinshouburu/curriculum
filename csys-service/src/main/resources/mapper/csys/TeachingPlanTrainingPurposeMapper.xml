@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.doinner.csys.dao.TeachingPlanTrainingPurposeMapper">
+
+    <resultMap id="BaseResultMap" type="com.doinner.csys.domain.TeachingPlanTrainingPurpose">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="plan_id" property="planId" jdbcType="BIGINT"/>
+        <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
+        <result column="purpose" property="purpose" jdbcType="LONGVARCHAR"/>
+        <result column="sort" property="sort" jdbcType="INTEGER"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="last_modifier" property="lastModifier" jdbcType="VARCHAR"/>
+        <result column="last_modified_time" property="lastModifiedTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+        <result column="sysflag" property="sysflag" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, plan_id, scheme_id, purpose, sort,
+        creator, create_time, last_modifier, last_modified_time, remark, sysflag
+    </sql>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO t_csys_teaching_plan_training_purpose (
+            plan_id, scheme_id, purpose, sort,
+            creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.planId}, #{item.schemeId}, #{item.purpose}, #{item.sort},
+                #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
+                #{item.remark}, #{item.sysflag}
+            )
+        </foreach>
+    </insert>
+
+    <!--
+        onlyNullScheme=true  -> scheme_id IS NULL（通识通用单组）
+        onlyNullScheme=false + schemeId 非空 -> scheme_id = #{schemeId}
+        onlyNullScheme=false + schemeId 空  -> 不过滤 scheme（plan 下全量，用于按 scheme 分组渲染）
+    -->
+    <select id="selectByPlanAndScheme" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_training_purpose
+        WHERE plan_id = #{planId}
+          AND sysflag = 0
+          <choose>
+              <when test="onlyNullScheme != null and onlyNullScheme">
+                  AND scheme_id IS NULL
+              </when>
+              <when test="schemeId != null">
+                  AND scheme_id = #{schemeId}
+              </when>
+          </choose>
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <update id="deleteByPlanId">
+        UPDATE t_csys_teaching_plan_training_purpose SET sysflag = 2 WHERE plan_id = #{planId}
+    </update>
+
+    <update id="deleteById">
+        UPDATE t_csys_teaching_plan_training_purpose SET sysflag = 2 WHERE id = #{id}
+    </update>
+
+    <update id="clearSchemeIdById">
+        UPDATE t_csys_teaching_plan_training_purpose SET scheme_id = NULL WHERE id = #{id} AND sysflag = 0
+    </update>
+
+    <insert id="insert" parameterType="com.doinner.csys.domain.TeachingPlanTrainingPurpose"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_csys_teaching_plan_training_purpose
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="planId != null">plan_id,</if>
+            <if test="schemeId != null">scheme_id,</if>
+            <if test="purpose != null">purpose,</if>
+            <if test="sort != null">sort,</if>
+            <if test="creator != null">creator,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="lastModifier != null">last_modifier,</if>
+            <if test="lastModifiedTime != null">last_modified_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="sysflag != null">sysflag,</if>
+        </trim>
+        <trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+            <if test="planId != null">#{planId},</if>
+            <if test="schemeId != null">#{schemeId},</if>
+            <if test="purpose != null">#{purpose},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="creator != null">#{creator},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="lastModifier != null">#{lastModifier},</if>
+            <if test="lastModifiedTime != null">#{lastModifiedTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="sysflag != null">#{sysflag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.doinner.csys.domain.TeachingPlanTrainingPurpose">
+        UPDATE t_csys_teaching_plan_training_purpose
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="planId != null">plan_id = #{planId},</if>
+            <if test="schemeId != null">scheme_id = #{schemeId},</if>
+            <if test="purpose != null">purpose = #{purpose},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
+            <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="sysflag != null">sysflag = #{sysflag},</if>
+        </trim>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_csys_teaching_plan_training_purpose
+        WHERE id = #{id}
+          AND sysflag = 0
+    </select>
+</mapper>
