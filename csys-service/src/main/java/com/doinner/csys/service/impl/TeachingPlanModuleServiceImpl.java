@@ -8,6 +8,7 @@ import com.doinner.csys.dao.StandardGraduationMapper;
 import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanConditionMapper;
 import com.doinner.csys.dao.TeachingPlanContentMapper;
+import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
@@ -31,6 +32,7 @@ import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.utils.TreeBuilderUtils;
 import com.doinner.csys.domain.TeachingPlan;
+import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.TeachingPlanAssessment;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
@@ -176,6 +178,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Resource
     private TeachingPlanMapper teachingPlanMapper;
+    @Resource
+    private TeachingPlanContextMapper teachingPlanContextMapper;
 
     @Resource
     private TeachingPlanTextbookMapper teachingPlanTextbookMapper;
@@ -678,6 +682,26 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         return courses.stream().map(Course::getId).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
+    /** 计划关联的引用课程ID（objective_ref.quote_course_id 快照）：优先计划 context，缺失时回退源课调用课/源课自身。 */
+    private Long resolvePlanQuoteCourseId(Long planId) {
+        if (planId == null) {
+            return null;
+        }
+        List<TeachingPlanContext> ctxs = teachingPlanContextMapper.selectByPlanId(planId);
+        if (ObjectUtils.isNotEmpty(ctxs) && ctxs.get(0).getQuoteCourseId() != null) {
+            return ctxs.get(0).getQuoteCourseId();
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan != null && plan.getSourceCourseId() != null) {
+            List<Long> quoteIds = resolveQuoteCourseIds(plan.getSourceCourseId());
+            if (ObjectUtils.isNotEmpty(quoteIds)) {
+                return quoteIds.get(0);
+            }
+            return plan.getSourceCourseId();
+        }
+        return null;
+    }
+
     private List<StandardGraduation> listGraduationsByQuoteCourseIds(List<Long> quoteCourseIds) {
         if (ObjectUtils.isEmpty(quoteCourseIds)) {
             return new ArrayList<>();
@@ -916,6 +940,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             if (StringUtils.isBlank(ref.getGraduationBindSource())) {
                 ref.setGraduationBindSource("course_ref_graduation");
             }
+            // objective_ref.quote_course_id NOT NULL：绑定弹框数据不带该字段，按计划 context 调用课程自动补快照
+            if (ref.getQuoteCourseId() == null) {
+                ref.setQuoteCourseId(resolvePlanQuoteCourseId(planId));
+            }
             UserUtils.reflash(ref);
             teachingPlanObjectiveRefMapper.insert(ref);
         }
@@ -1134,6 +1162,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         }
         Long planId = taskBackground.getPlanId() != null ? taskBackground.getPlanId() : saveVo.getPlanId();
         Long schemeId = taskBackground.getSchemeId() != null ? taskBackground.getSchemeId() : saveVo.getSchemeId();
+        if (planId == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
         // 公共基础：绑定也强制 scheme_id 为空
         if (isPublicFoundationPlan(planId)) {
             schemeId = null;
@@ -1362,6 +1393,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         }
         Long planId = trainingPurpose.getPlanId() != null ? trainingPurpose.getPlanId() : saveVo.getPlanId();
         Long schemeId = trainingPurpose.getSchemeId() != null ? trainingPurpose.getSchemeId() : saveVo.getSchemeId();
+        if (planId == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
         // 通识通用：绑定也强制 scheme_id 为空
         if (isGeneralSubjectPlan(planId)) {
             schemeId = null;
@@ -1459,6 +1493,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("训练内容不存在: " + contentId);
         }
         Long planId = content.getPlanId() != null ? content.getPlanId() : saveVo.getPlanId();
+        if (planId == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
         // 重建绑定：先逻辑删除旧 ref，再按列表插入（空列表=清空）
         teachingPlanContentPurposeMapper.deleteByContentId(contentId);
         List<Long> purposeIds = saveVo.getPurposeIds();

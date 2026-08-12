@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * 教学计划 Word 解析器（与 {@link CourseTeachingPlanGenerator} 版式对称）。
@@ -414,7 +415,7 @@ public class TeachingPlanWordImporter {
         // 非公共基础且课程未被任何培养方案引用：目标无处归属（scheme_id 为空在前端不可见），整组跳过
         if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
             result.issues.add(TeachingPlanImportIssueVo.error("四、课程目标与支撑毕业要求", schemeTitle, "schemeId",
-                    "课程未被任何培养方案引用，目标无法归属培养方案，该组目标跳过"));
+                    "课程未被任何培养方案引用，目标无法归属培养方案，该组目标跳过；请先在培养方案中挂接该课程后重新导入"));
             return;
         }
         Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
@@ -425,7 +426,8 @@ public class TeachingPlanWordImporter {
         if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() > 1
                 && StringUtils.isBlank(schemeTitle)) {
             result.issues.add(TeachingPlanImportIssueVo.error("四、课程目标与支撑毕业要求", null, "schemeId",
-                    "多培养方案但目标表无方案小标题，整组跳过"));
+                    "该课程被 " + ctx.schemes.size() + " 个培养方案引用，但目标表缺方案小标题，无法区分目标归属，该组目标跳过。"
+                            + "请在文档中补齐方案小标题（可选：" + String.join(" / ", availableSchemeTitles(ctx)) + "）"));
             return;
         }
         if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() == 1) {
@@ -568,7 +570,8 @@ public class TeachingPlanWordImporter {
             }
         }
         result.issues.add(TeachingPlanImportIssueVo.error("四、课程目标与支撑毕业要求", schemeTitle, "schemeId",
-                "无法匹配培养方案小标题，该组目标跳过: " + schemeTitle));
+                "无法匹配培养方案小标题「" + schemeTitle + "」，该组目标跳过。可用小标题："
+                        + String.join(" / ", availableSchemeTitles(ctx))));
         return null;
     }
 
@@ -584,6 +587,23 @@ public class TeachingPlanWordImporter {
             return s.getSchemeVersion();
         }
         return name;
+    }
+
+    /** 全部可用的培养方案小标题（buildSchemeTitle 规则），供问题说明列举。 */
+    private List<String> availableSchemeTitles(ParseContext ctx) {
+        List<String> titles = new ArrayList<>();
+        if (ctx != null && ctx.schemes != null) {
+            for (TeachingPlanSchemeVo s : ctx.schemes) {
+                if (s == null) {
+                    continue;
+                }
+                String t = buildSchemeTitle(s);
+                if (StringUtils.isNotBlank(t)) {
+                    titles.add(t);
+                }
+            }
+        }
+        return titles;
     }
 
     private String mapObjectiveType(String typeName, ParseContext ctx) {
@@ -733,8 +753,17 @@ public class TeachingPlanWordImporter {
                 return;
             }
         }
+        List<String> unitNames = new ArrayList<>();
+        if (ctx.knowledgeUnits != null) {
+            for (CourseKnowledgeUnit u : ctx.knowledgeUnits) {
+                if (u != null && StringUtils.isNotBlank(u.getName())) {
+                    unitNames.add(u.getName());
+                }
+            }
+        }
         result.issues.add(TeachingPlanImportIssueVo.warn("六、达成设计", unitName, "knowledgeUnit",
-                "未匹配到知识单元，仅保存名称: " + unitName));
+                "未匹配到知识单元「" + unitName + "」" + candidateContext(unitNames)
+                        + "；仅保存名称、不关联知识单元ID。请核对文字一致性，或先在知识单元库中维护该单元后再导入"));
     }
 
     private void parseAbilityQualityDesign(List<List<String>> grid, String designType, ParseResult result) {
@@ -964,7 +993,7 @@ public class TeachingPlanWordImporter {
         // 非公共基础且课程未被任何培养方案引用：任务背景无处归属（scheme_id 为空在前端不可见），整组跳过
         if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
             result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", schemeTitle, "schemeId",
-                    "课程未被任何培养方案引用，任务背景无法归属培养方案，该组任务背景跳过"));
+                    "课程未被任何培养方案引用，任务背景无法归属培养方案，该组任务背景跳过；请先在培养方案中挂接该课程后重新导入"));
             return;
         }
         Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
@@ -975,7 +1004,8 @@ public class TeachingPlanWordImporter {
         if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() > 1
                 && StringUtils.isBlank(schemeTitle)) {
             result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", null, "schemeId",
-                    "多培养方案但任务背景表无方案小标题，整组跳过"));
+                    "该课程被 " + ctx.schemes.size() + " 个培养方案引用，但任务背景表缺方案小标题，无法区分归属，该组任务背景跳过。"
+                            + "请在文档中补齐方案小标题（可选：" + String.join(" / ", availableSchemeTitles(ctx)) + "）"));
             return;
         }
         if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() == 1) {
@@ -1025,7 +1055,7 @@ public class TeachingPlanWordImporter {
         // 非通识通用且课程未被任何培养方案引用：训练目的无处归属（scheme_id 为空在前端不可见），整组跳过
         if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
             result.issues.add(TeachingPlanImportIssueVo.error("二、训练目的与支撑毕业要求", schemeTitle, "schemeId",
-                    "课程未被任何培养方案引用，训练目的无法归属培养方案，该组训练目的跳过"));
+                    "课程未被任何培养方案引用，训练目的无法归属培养方案，该组训练目的跳过；请先在培养方案中挂接该课程后重新导入"));
             return;
         }
         Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
@@ -1036,7 +1066,8 @@ public class TeachingPlanWordImporter {
         if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() > 1
                 && StringUtils.isBlank(schemeTitle)) {
             result.issues.add(TeachingPlanImportIssueVo.error("二、训练目的与支撑毕业要求", null, "schemeId",
-                    "多培养方案但训练目的表无方案小标题，整组跳过"));
+                    "该课程被 " + ctx.schemes.size() + " 个培养方案引用，但训练目的表缺方案小标题，无法区分归属，该组训练目的跳过。"
+                            + "请在文档中补齐方案小标题（可选：" + String.join(" / ", availableSchemeTitles(ctx)) + "）"));
             return;
         }
         if (schemeId == null && !ctx.publicFoundation && ctx.schemes != null && ctx.schemes.size() == 1) {
@@ -1506,11 +1537,37 @@ public class TeachingPlanWordImporter {
             if (code.equals(p.trim()) && ctx.dictLabelToValue != null
                     && !ctx.dictLabelToValue.containsKey(dictType + "#" + p.trim())) {
                 result.issues.add(TeachingPlanImportIssueVo.warn(section, p.trim(), dictType,
-                        "字典未匹配，保留原文: " + p.trim()));
+                        "字典「" + dictType + "」中无标签「" + p.trim() + "」" + candidateContext(dictLabels(ctx, dictType))
+                                + "；已保留原文（导出仍可原样显示，但无法按字典统计/过滤）。请先在字典维护中新增该标签，或改用已有标签"));
             }
             out.add(code);
         }
         return String.join("、", out);
+    }
+
+    /** 指定字典类型下的全部标签（按导入时预填的 label→value 索引取）。 */
+    private List<String> dictLabels(ParseContext ctx, String dictType) {
+        List<String> labels = new ArrayList<>();
+        if (ctx == null || ctx.dictLabelToValue == null) {
+            return labels;
+        }
+        String prefix = dictType + "#";
+        for (String key : ctx.dictLabelToValue.keySet()) {
+            if (key != null && key.startsWith(prefix)) {
+                labels.add(key.substring(prefix.length()));
+            }
+        }
+        return labels;
+    }
+
+    /** 候选集概况：共 N 条候选，附前 3 个示例，供导入问题说明使用。 */
+    private String candidateContext(List<String> names) {
+        if (names == null || names.isEmpty()) {
+            return "（当前候选集为空，请先在系统中维护对应数据后再导入）";
+        }
+        List<String> sample = names.stream().distinct()
+                .filter(StringUtils::isNotBlank).limit(3).collect(Collectors.toList());
+        return "（候选共 " + names.size() + " 条，如：" + String.join("、", sample) + "）";
     }
 
     /**

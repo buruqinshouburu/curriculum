@@ -39,23 +39,31 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.sql.DataSource;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.jayway.jsonpath.JsonPath.read;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -81,7 +89,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(
         classes = DoinnerCurriculumSystemApplication.class,
         properties = {
-                "spring.datasource.dynamic.datasource.master.url=jdbc:mysql://127.0.0.1:3306/doinner-curriculum-test-3.2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false",
+                "spring.datasource.dynamic.datasource.master.url=jdbc:mysql://127.0.0.1:3306/doinner-curriculum-test-3.2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true",
                 "spring.datasource.dynamic.datasource.master.username=root",
                 "spring.datasource.dynamic.datasource.master.password=123456",
                 // bootstrap.yml 配了 context-path=/csys；测试里清空，MockMvc 直接用 /teachingPlan/...
@@ -381,5 +389,294 @@ class TeachingPlanCreateWordTest {
                 .andExpect(jsonPath("$.data[0].title").value("1"))
                 .andExpect(jsonPath("$.data[1].title").value("2"))
                 .andExpect(jsonPath("$.data[2].title").value("3"));
+    }
+
+    // ==================== 补充：16 个写接口全覆盖 ====================
+    // 种子关键 id：计划 6001(7003课程)/6002(8002课目)/6003(8003实验课程)/6004(8004项目)
+    //   任务背景 6003 种子1行(scheme 7601)；训练目的 6002 两行(62111/62112)；训练目的-毕业要求 62111→90101(GR1)/62112→90103(GR3)
+    //   内容 6002 三行(62211/62212/62213)；内容-训练目的 62211→62111
+    //   计划 6003 为 8003(实验课程)，非公共基础（createWord t4 能渲染 scheme=7601 的任务背景证明 list 不按 onlyNull 过滤）
+    //   计划 6002 为 8002(实践训练课目) 通识通用模块，trainingPurpose 的 schemeId 被强制置 null
+
+    /** POST JSON 断言 code=200，返回响应体（供提取 id 等）。 */
+    private String postJson(String path, String body) throws Exception {
+        return mockMvc.perform(post(path).contentType("application/json").content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    /** PUT JSON 断言 code=200。 */
+    private String putJson(String path, String body) throws Exception {
+        return mockMvc.perform(put(path).contentType("application/json").content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    private long idOf(String responseJson) {
+        return ((Number) read(responseJson, "$.data")).longValue();
+    }
+
+    /** t11 任务背景 CRUD（计划6003 实验课程）：list→add→update→delete 全链路。 */
+    @Test
+    @Order(11)
+    void t11_taskBackgroundCRUD() throws Exception {
+        mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].backgroundDesc")
+                        .value("围绕力学、电磁学核心原理开展实验验证，强化理论与实验结合"));
+        long newId = idOf(postJson("/teachingPlan/taskBackground",
+                "{\"planId\":6003,\"schemeId\":7601,\"backgroundDesc\":\"新增任务背景\","
+                        + "\"technicalGoal\":\"技术目标A\",\"abilityGoal\":\"能力目标A\"}"));
+        mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003"))
+                .andExpect(jsonPath("$.data.length()").value(2));
+        putJson("/teachingPlan/taskBackground",
+                "{\"id\":" + newId + ",\"planId\":6003,\"schemeId\":7601,\"backgroundDesc\":\"修改后任务背景\","
+                        + "\"technicalGoal\":\"技术目标B\"}");
+        mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003"))
+                .andExpect(jsonPath("$.data[?(@.id==" + newId + ")].backgroundDesc").value("修改后任务背景"));
+        mockMvc.perform(delete("/teachingPlan/taskBackground/" + newId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003"))
+                .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    /** t12 任务背景-毕业要求 引用：list→save(整表重建)→清空。 */
+    @Test
+    @Order(12)
+    void t12_taskBackgroundRef() throws Exception {
+        String listJson = mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003"))
+                .andReturn().getResponse().getContentAsString();
+        long tbId = ((Number) read(listJson, "$.data[0].id")).longValue();
+        // 种子任务背景已绑 90102(GR2)
+        mockMvc.perform(get("/teachingPlan/taskBackgroundRef/list").param("taskBackgroundId", String.valueOf(tbId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].graduationId").value(90102))
+                .andExpect(jsonPath("$.data[0].graduationCode").value("GR2"));
+        // 整表重建：绑 90102(GR2)
+        postJson("/teachingPlan/taskBackgroundRef/save",
+                "{\"taskBackgroundId\":" + tbId + ",\"planId\":6003,\"schemeId\":7601,"
+                        + "\"refs\":[{\"graduationId\":90102}]}");
+        mockMvc.perform(get("/teachingPlan/taskBackgroundRef/list").param("taskBackgroundId", String.valueOf(tbId)))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].graduationId").value(90102))
+                .andExpect(jsonPath("$.data[0].graduationCode").value("GR2"));
+        // 空 refs = 清空
+        postJson("/teachingPlan/taskBackgroundRef/save",
+                "{\"taskBackgroundId\":" + tbId + ",\"planId\":6003,\"schemeId\":7601,\"refs\":[]}");
+        mockMvc.perform(get("/teachingPlan/taskBackgroundRef/list").param("taskBackgroundId", String.valueOf(tbId)))
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    /** t13 训练目的 CRUD（计划6002 通识通用，schemeId 强制 null）。 */
+    @Test
+    @Order(13)
+    void t13_trainingPurposeCRUD() throws Exception {
+        mockMvc.perform(get("/teachingPlan/trainingPurpose/list").param("planId", "6002"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(4))
+                .andExpect(jsonPath("$.data[0].purpose")
+                        .value("掌握单个军人队列动作、班队列组织等基本军事素养"));
+        long newId = idOf(postJson("/teachingPlan/trainingPurpose",
+                "{\"planId\":6002,\"purpose\":\"新增训练目的：应急处突训练\"}"));
+        mockMvc.perform(get("/teachingPlan/trainingPurpose/list").param("planId", "6002"))
+                .andExpect(jsonPath("$.data.length()").value(5));
+        putJson("/teachingPlan/trainingPurpose",
+                "{\"id\":" + newId + ",\"planId\":6002,\"purpose\":\"修改后的训练目的\"}");
+        mockMvc.perform(get("/teachingPlan/trainingPurpose/list").param("planId", "6002"))
+                .andExpect(jsonPath("$.data[?(@.id==" + newId + ")].purpose").value("修改后的训练目的"));
+        mockMvc.perform(delete("/teachingPlan/trainingPurpose/" + newId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/teachingPlan/trainingPurpose/list").param("planId", "6002"))
+                .andExpect(jsonPath("$.data.length()").value(4));
+    }
+
+    /** t14 训练目的-毕业要求 引用：list→save 增删。 */
+    @Test
+    @Order(14)
+    void t14_trainingPurposeRef() throws Exception {
+        // 种子：62111 绑 90101(GR1)
+        mockMvc.perform(get("/teachingPlan/trainingPurposeRef/list").param("purposeId", "62111"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].graduationCode").value("GR1"));
+        postJson("/teachingPlan/trainingPurposeRef/save",
+                "{\"purposeId\":62111,\"planId\":6002,\"refs\":[{\"graduationId\":90101},{\"graduationId\":90103}]}");
+        mockMvc.perform(get("/teachingPlan/trainingPurposeRef/list").param("purposeId", "62111"))
+                .andExpect(jsonPath("$.data.length()").value(2));
+    }
+
+    /** t15 内容-训练目的 关联：list→save 整表重建。 */
+    @Test
+    @Order(15)
+    void t15_contentPurpose() throws Exception {
+        mockMvc.perform(get("/teachingPlan/contentPurpose/list").param("contentId", "62211"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].purposeId").value(62111));
+        postJson("/teachingPlan/contentPurpose/save",
+                "{\"contentId\":62211,\"planId\":6002,\"purposeIds\":[62111,62112]}");
+        mockMvc.perform(get("/teachingPlan/contentPurpose/list").param("contentId", "62211"))
+                .andExpect(jsonPath("$.data.length()").value(2));
+    }
+
+    /** t16 任务背景 batchSave（整表重建：删旧 1 行 → 插新 2 行，第一条绑 GR2）。 */
+    @Test
+    @Order(16)
+    void t16_taskBackgroundBatchSave() throws Exception {
+        postJson("/teachingPlan/taskBackground/batchSave",
+                "{\"planId\":6003,\"schemeId\":7601,\"taskBackgrounds\":["
+                        + "{\"taskBackground\":{\"backgroundDesc\":\"整表A\",\"technicalGoal\":\"技术A\",\"abilityGoal\":\"能力A\"},"
+                        + "\"refs\":[{\"graduationId\":90102}]},"
+                        + "{\"taskBackground\":{\"backgroundDesc\":\"整表B\",\"technicalGoal\":\"技术B\",\"abilityGoal\":\"能力B\"}}]}");
+        String listJson = mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003"))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].backgroundDesc").value("整表A"))
+                .andExpect(jsonPath("$.data[1].backgroundDesc").value("整表B"))
+                .andReturn().getResponse().getContentAsString();
+        long firstId = ((Number) read(listJson, "$.data[0].id")).longValue();
+        mockMvc.perform(get("/teachingPlan/taskBackgroundRef/list").param("taskBackgroundId", String.valueOf(firstId)))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].graduationCode").value("GR2"));
+    }
+
+    /** t17 训练目的 batchSave（整表重建：删旧 2 行 → 插新 2 行）。 */
+    @Test
+    @Order(17)
+    void t17_trainingPurposeBatchSave() throws Exception {
+        postJson("/teachingPlan/trainingPurpose/batchSave",
+                "{\"planId\":6002,\"purposes\":["
+                        + "{\"purpose\":{\"purpose\":\"整表目的A\"},\"refs\":[{\"graduationId\":90101}]},"
+                        + "{\"purpose\":{\"purpose\":\"整表目的B\"}}]}");
+        mockMvc.perform(get("/teachingPlan/trainingPurpose/list").param("planId", "6002"))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].purpose").value("整表目的A"))
+                .andExpect(jsonPath("$.data[1].purpose").value("整表目的B"));
+    }
+
+    /** t18 四类文档落盘到 target/gen-docs-full（本轮加厚种子专用，避免覆盖 Word 中打开的 gen-docs 旧档）。 */
+    @Test
+    @Order(18)
+    void t18_dumpFourDocsToDisk() throws Exception {
+        File dir = new File("target/gen-docs-full-0812");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IllegalStateException("无法创建目录: " + dir.getAbsolutePath());
+        }
+        long[][] cases = {{7003L, 1}, {8003L, 2}, {8002L, 3}, {8004L, 4}};
+        for (long[] c : cases) {
+            byte[] docx = generateDocx(c[0]);
+            String name = "type" + c[1] + "_" + c[0] + ".docx";
+            File out = new File(dir, name);
+            try (FileOutputStream fos = new FileOutputStream(out)) {
+                fos.write(docx);
+            }
+            assertTrue(out.length() > 0, "应生成文档: " + name);
+        }
+    }
+
+    /**
+     * t19 导入往返：四类教学计划导出的 Word → importWord 原样导入。
+     * 正式环境「导出的文档没有办法原样导入」，本用例把四类文档各自导入回其草稿计划，
+     * 校验：无 ERROR 问题、各子模块计数与种子一致、评价标准反转为字典编码、
+     * type1 学时安排/观测点补齐后往返不丢、type3 考核项目为字典编码。
+     * 类上 @Transactional/@Rollback：导入写入随方法回滚，不影响后续用例与本地库。
+     */
+    @Test
+    @Order(19)
+    void t19_importRoundTripAllFourTypes() throws Exception {
+        long[][] cases = {{7003L, 1}, {8003L, 2}, {8002L, 3}, {8004L, 4}};
+        for (long[] c : cases) {
+            long courseId = c[0];
+            int planType = (int) c[1];
+            String tag = "type" + planType;
+            byte[] docx = generateDocx(courseId);
+            assertTrue(docx.length > 0, tag + " 生成文档非空");
+            MockMultipartFile file = new MockMultipartFile("file",
+                    "roundtrip_" + tag + ".docx",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    docx);
+            String resp = mockMvc.perform(multipart("/teachingPlan/importWord")
+                            .file(file)
+                            .param("courseId", String.valueOf(courseId))
+                            .param("planType", String.valueOf(planType)))
+                    .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+            assertEquals(200, ((Number) read(resp, "$.code")).intValue(), tag + " 导入业务码应为200，响应: " + resp);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> errors = read(resp, "$.data.issues[?(@.severity == 'ERROR')]");
+            assertTrue(errors.isEmpty(), tag + " 导入不应有 ERROR 问题: " + resp);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> warns = read(resp, "$.data.issues[?(@.severity == 'WARN')]");
+            List<String> warnMsgs = warns.stream()
+                    .map(m -> String.valueOf(m.get("message")))
+                    .collect(Collectors.toList());
+            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+            switch (planType) {
+                case 1:
+                    assertEquals(8, countOf(resp, "objective"), tag + " 目标数应原样导入: " + warnMsgs);
+                    assertEquals(15, countOf(resp, "objectiveRef"), tag + " 目标-毕业要求应原样导入: " + warnMsgs);
+                    assertEquals(4, countOf(resp, "content"), tag + " 教学内容数应原样导入: " + warnMsgs);
+                    assertEquals(9, countOf(resp, "targetDesign"), tag + " 目标达成设计应原样导入: " + warnMsgs);
+                    assertEquals(6, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
+                    assertEquals(13, countOf(resp, "objectiveAssessment"), tag + " 目标达成考核关联应原样导入: " + warnMsgs);
+                    // 评价标准应反转为字典编码（正式环境导入丢失/存标签的根因）
+                    List<String> standards = jdbc.queryForList(
+                            "SELECT standard FROM t_csys_teaching_plan_assessment WHERE plan_id=6001 AND standard IS NOT NULL AND sysflag = 0",
+                            String.class);
+                    assertTrue(!standards.isEmpty()
+                                    && standards.stream().noneMatch(s -> s.contains("优秀")),
+                            tag + " 评价标准应为字典编码(1,2,3,4,5)而非标签: " + standards);
+                    // 学时安排/观测点：修复后导出含值，导入不应丢
+                    Integer contentHours = jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM t_csys_teaching_plan_content WHERE plan_id=6001 AND hours IS NOT NULL AND sysflag = 0",
+                            Integer.class);
+                    assertEquals(4, contentHours, tag + " 教学内容学时(学时安排)应全部导入: " + warnMsgs);
+                    Integer obsCount = jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM t_csys_teaching_plan_target_design WHERE plan_id=6001 AND observation_point IS NOT NULL AND observation_point <> '' AND sysflag = 0",
+                            Integer.class);
+                    assertEquals(5, obsCount, tag + " 能力/素质目标观测点应全部导入: " + warnMsgs);
+                    break;
+                case 2:
+                    assertEquals(3, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
+                    assertEquals(2, countOf(resp, "textbook"), tag + " 实验教材应原样导入: " + warnMsgs);
+                    break;
+                case 3:
+                    assertEquals(4, countOf(resp, "trainingPurpose"), tag + " 训练目的应原样导入: " + warnMsgs);
+                    assertEquals(4, countOf(resp, "trainingPurposeRef"), tag + " 训练目的-毕业要求应原样导入: " + warnMsgs);
+                    assertEquals(3, countOf(resp, "content"), tag + " 训练内容应原样导入: " + warnMsgs);
+                    assertEquals(2, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
+                    List<String> items = jdbc.queryForList(
+                            "SELECT assessment_item FROM t_csys_teaching_plan_assessment WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
+                            String.class);
+                    assertEquals(Arrays.asList("5", "7"), items, tag + " 考核项目应为字典编码 5/7: " + items);
+                    // 内容行「目的」绑定训练目的：目的名含「、」时 greedy 整串匹配不应拆碎失配
+                    Integer cpCount = jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM t_csys_teaching_plan_content_purpose WHERE plan_id=6002 AND sysflag = 0",
+                            Integer.class);
+                    assertEquals(5, cpCount, tag + " 内容-目的绑定应整串命中(1+2+2): " + warnMsgs);
+                    break;
+                case 4:
+                    assertEquals(4, countOf(resp, "supportObjective"), tag + " 支撑目标应原样导入: " + warnMsgs);
+                    assertEquals(4, countOf(resp, "supportContent"), tag + " 支撑内容应原样导入: " + warnMsgs);
+                    assertEquals(3, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /** 导入成功计数；键缺失按 0 处理。 */
+    private int countOf(String resp, String key) {
+        try {
+            Object v = com.jayway.jsonpath.JsonPath.read(resp, "$.data.successCounts." + key);
+            return v == null ? 0 : ((Number) v).intValue();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

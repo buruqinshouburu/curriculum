@@ -4,6 +4,7 @@ import com.doinner.csys.dao.CourseMapper;
 import com.doinner.csys.dao.TeachingPlanAssessmentMapper;
 import com.doinner.csys.dao.TeachingPlanConditionMapper;
 import com.doinner.csys.dao.TeachingPlanContentMapper;
+import com.doinner.csys.dao.TeachingPlanContextMapper;
 import com.doinner.csys.dao.TeachingPlanMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveMapper;
 import com.doinner.csys.dao.TeachingPlanObjectiveRefMapper;
@@ -27,6 +28,7 @@ import com.doinner.csys.dao.StandardMajorMapper;
 import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
 import com.doinner.csys.domain.Course;
 import com.doinner.csys.domain.CourseSchedule;
+import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.StandardMajor;
 import com.doinner.csys.domain.TeachingPlan;
@@ -244,6 +246,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private TeachingPlanProcessStepMapper teachingPlanProcessStepMapper;
     @Resource
     private TeachingPlanRefMapper teachingPlanRefMapper;
+
+    @Resource
+    private TeachingPlanContextMapper teachingPlanContextMapper;
 
     @Resource
     private CourseMapper courseMapper;
@@ -2057,7 +2062,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             result.getIssues().addAll(parsed.issues);
         }
 
-        persistImportData(planId, courseId, ctx.publicFoundation, parsed, result);
+        persistImportData(planId, courseId, planType, ctx.publicFoundation, parsed, result);
         if (ObjectUtils.isNotEmpty(result.getIssues())) {
             log.warn("教学计划 Word 导入完成但存在 {} 条问题, courseId={}, planId={}, planType={}",
                     result.getIssues().size(), courseId, planId, planType);
@@ -2129,9 +2134,34 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         teachingPlanRefMapper.deleteByPlanId(planId);
     }
 
-    private void persistImportData(Long planId, Long courseId, boolean publicFoundation,
+    /** 导入用引用课程ID：优先计划 context.quote_course_id（与生成时快照一致），
+     *  缺失时回退源课的第一个调用课，再无则源课自身。 */
+    private Long resolveImportQuoteCourseId(Long planId, Long courseId) {
+        if (planId != null) {
+            List<TeachingPlanContext> ctxs = teachingPlanContextMapper.selectByPlanId(planId);
+            if (ObjectUtils.isNotEmpty(ctxs) && ctxs.get(0).getQuoteCourseId() != null) {
+                return ctxs.get(0).getQuoteCourseId();
+            }
+        }
+        if (courseId != null) {
+            List<Course> quotes = courseMapper.selectCourseBySourceId(courseId);
+            if (ObjectUtils.isNotEmpty(quotes) && quotes.get(0).getId() != null) {
+                return quotes.get(0).getId();
+            }
+            return courseId;
+        }
+        return null;
+    }
+
+    private void persistImportData(Long planId, Long courseId, Integer planType, boolean publicFoundation,
                                    TeachingPlanWordImporter.ParseResult parsed,
                                    TeachingPlanImportResultVo result) {
+        // practice_item.item_type NOT NULL，但 Word 不编码项目类型：
+        // 实践项目计划(type4) 兜底 2(实践项目)，其余按 1(实验)
+        int defaultItemType = (planType != null && planType == 4) ? 2 : 1;
+        // 引用课程ID快照：objective_ref 该列 NOT NULL，取自计划 context（导出时的调用课程），
+        // 无 context 时回退源课的第一个调用课/源课自身，保证导入不因空快照抛 SQL 异常
+        Long quoteCourseId = resolveImportQuoteCourseId(planId, courseId);
         // 教员
         if (ObjectUtils.isNotEmpty(parsed.teachers)) {
             for (TeachingPlanTeacher t : parsed.teachers) {
@@ -2190,39 +2220,20 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 Map<String, List<StandardGraduation>> nameMap = schemeGradCache.computeIfAbsent(
                         schemeId == null ? -1L : schemeId,
                         k -> buildGraduationNameMap(courseId, schemeId));
-                // 整串优先：名称本身含「、，；」时单元格原文可整体命中一条，避免被拆碎后全部失配
-                List<String> names = po.graduationNames;
-                if (StringUtils.isNotBlank(po.graduationRaw)
-                        && lookupGraduations(nameMap, po.graduationRaw) != null) {
-                    names = Collections.singletonList(po.graduationRaw);
-                }
+                // 整串优先，未命中则对原文贪心最长前缀匹配：
+                // 名称自身可含「、，；」（如"具有良好的职业道德、团队合作与终身学习意识"），不能先按分隔符拆碎再逐段匹配
                 int sort = 1;
-                Set<Long> boundGradIds = new HashSet<>();
-                for (String gName : names) {
-                    List<StandardGraduation> matches = lookupGraduations(nameMap, gName);
-                    if (ObjectUtils.isEmpty(matches)) {
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "四、课程目标与支撑毕业要求", o.getContent(), "graduationName",
-                                "未匹配到毕业要求，已跳过: " + gName));
-                        continue;
-                    }
-                    // 同名多条：默认绑定第一条，记日志并返回提示
-                    StandardGraduation g = matches.get(0);
-                    if (matches.size() > 1) {
-                        log.warn("教学计划导入毕业要求同名多条, planId={}, objectiveId={}, name={}, 命中{}条, 默认绑定第一条 id={}",
-                                planId, o.getId(), gName, matches.size(), g.getId());
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "四、课程目标与支撑毕业要求", o.getContent(), "graduationName",
-                                "毕业要求同名存在 " + matches.size() + " 条，默认绑定第一条: " + gName));
-                    }
-                    // 同一目标重复绑定去重
-                    if (g.getId() != null && !boundGradIds.add(g.getId())) {
+                List<StandardGraduation> boundGrads = resolveGraduationBindings(
+                        po.graduationRaw, "四、课程目标与支撑毕业要求", o.getContent(), nameMap, result.getIssues());
+                for (StandardGraduation g : boundGrads) {
+                    if (g == null || g.getId() == null) {
                         continue;
                     }
                     TeachingPlanObjectiveRef ref = new TeachingPlanObjectiveRef();
                     ref.setPlanId(planId);
                     ref.setObjectiveId(o.getId());
                     ref.setSchemeId(schemeId);
+                    ref.setQuoteCourseId(quoteCourseId);
                     ref.setGraduationId(g.getId());
                     ref.setSourceGraduationId(g.getSourceId());
                     ref.setGraduationCode(g.getCode());
@@ -2265,39 +2276,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 Map<String, List<StandardGraduation>> nameMap = tbSchemeGradCache.computeIfAbsent(
                         tbSchemeId == null ? -1L : tbSchemeId,
                         k -> buildGraduationNameMap(courseId, tbSchemeId));
-                // 整串优先：名称本身含「、，；」时单元格原文可整体命中一条，避免被拆碎后全部失配
-                List<String> names = ptb.graduationNames;
-                if (StringUtils.isNotBlank(ptb.graduationRaw)
-                        && lookupGraduations(nameMap, ptb.graduationRaw) != null) {
-                    names = Collections.singletonList(ptb.graduationRaw);
-                }
+                // 整串优先，未命中则对原文贪心最长前缀匹配（支持名称自身含「、，；」）
                 int tbSort = 1;
-                Set<Long> boundTbGradIds = new HashSet<>();
-                for (String gName : names) {
-                    List<StandardGraduation> matches = lookupGraduations(nameMap, gName);
-                    if (ObjectUtils.isEmpty(matches)) {
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "三、任务背景与目标", ptb.taskBackground.getBackgroundDesc(), "graduationName",
-                                "未匹配到毕业要求，已跳过: " + gName));
-                        continue;
-                    }
-                    // 同名多条：默认绑定第一条，记日志并返回提示
-                    StandardGraduation g = matches.get(0);
-                    if (matches.size() > 1) {
-                        log.warn("教学计划导入毕业要求同名多条, planId={}, taskBackgroundId={}, name={}, 命中{}条, 默认绑定第一条 id={}",
-                                planId, tb.getId(), gName, matches.size(), g.getId());
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "三、任务背景与目标", ptb.taskBackground.getBackgroundDesc(), "graduationName",
-                                "毕业要求同名存在 " + matches.size() + " 条，默认绑定第一条: " + gName));
-                    }
-                    // 同一任务背景重复绑定去重
-                    if (g.getId() != null && !boundTbGradIds.add(g.getId())) {
+                List<StandardGraduation> boundTbGrads = resolveGraduationBindings(
+                        ptb.graduationRaw, "三、任务背景与目标", ptb.taskBackground.getBackgroundDesc(), nameMap, result.getIssues());
+                for (StandardGraduation g : boundTbGrads) {
+                    if (g == null || g.getId() == null) {
                         continue;
                     }
                     TeachingPlanTaskBackgroundRef ref = new TeachingPlanTaskBackgroundRef();
                     ref.setPlanId(planId);
                     ref.setTaskBackgroundId(tb.getId());
                     ref.setSchemeId(tbSchemeId);
+                    ref.setQuoteCourseId(quoteCourseId);
                     ref.setGraduationId(g.getId());
                     ref.setSourceGraduationId(g.getSourceId());
                     ref.setGraduationCode(g.getCode());
@@ -2340,39 +2331,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 Map<String, List<StandardGraduation>> nameMap = tpSchemeGradCache.computeIfAbsent(
                         tpSchemeId == null ? -1L : tpSchemeId,
                         k -> buildGraduationNameMap(courseId, tpSchemeId));
-                // 整串优先：名称本身含「、，；」时单元格原文可整体命中一条，避免被拆碎后全部失配
-                List<String> names = ptp.graduationNames;
-                if (StringUtils.isNotBlank(ptp.graduationRaw)
-                        && lookupGraduations(nameMap, ptp.graduationRaw) != null) {
-                    names = Collections.singletonList(ptp.graduationRaw);
-                }
+                // 整串优先，未命中则对原文贪心最长前缀匹配（支持名称自身含「、，；」）
                 int tpSort = 1;
-                Set<Long> boundTpGradIds = new HashSet<>();
-                for (String gName : names) {
-                    List<StandardGraduation> matches = lookupGraduations(nameMap, gName);
-                    if (ObjectUtils.isEmpty(matches)) {
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "二、训练目的与支撑毕业要求", p.getPurpose(), "graduationName",
-                                "未匹配到毕业要求，已跳过: " + gName));
-                        continue;
-                    }
-                    // 同名多条：默认绑定第一条，记日志并返回提示
-                    StandardGraduation g = matches.get(0);
-                    if (matches.size() > 1) {
-                        log.warn("教学计划导入毕业要求同名多条, planId={}, purposeId={}, name={}, 命中{}条, 默认绑定第一条 id={}",
-                                planId, p.getId(), gName, matches.size(), g.getId());
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "二、训练目的与支撑毕业要求", p.getPurpose(), "graduationName",
-                                "毕业要求同名存在 " + matches.size() + " 条，默认绑定第一条: " + gName));
-                    }
-                    // 同一训练目的重复绑定去重
-                    if (g.getId() != null && !boundTpGradIds.add(g.getId())) {
+                List<StandardGraduation> boundTpGrads = resolveGraduationBindings(
+                        ptp.graduationRaw, "二、训练目的与支撑毕业要求", p.getPurpose(), nameMap, result.getIssues());
+                for (StandardGraduation g : boundTpGrads) {
+                    if (g == null || g.getId() == null) {
                         continue;
                     }
                     TeachingPlanTrainingPurposeRef ref = new TeachingPlanTrainingPurposeRef();
                     ref.setPlanId(planId);
                     ref.setPurposeId(p.getId());
                     ref.setSchemeId(tpSchemeId);
+                    ref.setQuoteCourseId(quoteCourseId);
                     ref.setGraduationId(g.getId());
                     ref.setSourceGraduationId(g.getSourceId());
                     ref.setGraduationCode(g.getCode());
@@ -2411,20 +2382,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 if (c.getId() == null) {
                     continue;
                 }
-                // 「目的」单元格按顿号/逗号拆分，逐段匹配已存在的训练目的并建立绑定；
+                // 「目的」单元格整串/greedy 最长前缀匹配已存在的训练目的并建立绑定（与支撑目标同套路）：
+                // 目的名自身可含「、，；」（如"掌握单个军人队列动作、班队列组织等基本军事素养"），
+                // 先按分隔符拆碎再逐段匹配会把单个名称拆成多段全部失配，甚至碎片误中别的目的名；
                 // 未命中的文本保留在 content.purpose（兼容旧数据/新录入自由文本），命中的生成器优先展示绑定目的
                 if (StringUtils.isBlank(c.getPurpose())) {
                     continue;
                 }
                 int purposeSort = 1;
-                Set<Long> boundPurposeIds = new HashSet<>();
-                for (String part : c.getPurpose().split("[、,，;；]")) {
-                    String text = part == null ? "" : part.trim();
-                    if (StringUtils.isBlank(text)) {
-                        continue;
-                    }
-                    TeachingPlanTrainingPurpose p = purposeTextIndex.get(text);
-                    if (p == null || p.getId() == null || !boundPurposeIds.add(p.getId())) {
+                List<TeachingPlanTrainingPurpose> matchedPurposes = resolveContentPurposeList(
+                        c.getPurpose(), purposeTextIndex, result.getIssues(),
+                        "训练内容-目的", c.getPurpose(), "contentPurpose");
+                for (TeachingPlanTrainingPurpose p : matchedPurposes) {
+                    if (p == null || p.getId() == null) {
                         continue;
                     }
                     TeachingPlanContentPurpose cp = new TeachingPlanContentPurpose();
@@ -2464,24 +2434,21 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                         }
                     }
                 }
-                for (String part : parsed.supportObjectiveRaw.split("[、,，;；]")) {
-                    String text = part == null ? "" : part.trim();
-                    if (StringUtils.isBlank(text)) {
+                // 整串优先，未命中则对原文贪心最长前缀匹配：
+                // 支撑目标名自身可含「、，；」（如"掌握面向对象程序设计的基本思想与类、继承、多态等核心机制"），
+                // 若先按分隔符拆碎再逐段匹配会把单个名称拆成多段全部失配。
+                List<TeachingPlanSupportCandidateItem> boundItems = resolveSupportRaw(
+                        parsed.supportObjectiveRaw, objNameIndex, purposeNameIndex, result.getIssues(),
+                        "二、任务背景与目标", parsed.supportObjectiveRaw, "supportObjective");
+                for (TeachingPlanSupportCandidateItem it : boundItems) {
+                    if (it == null || it.getId() == null) {
                         continue;
                     }
-                    TeachingPlanSupportCandidateItem match = objNameIndex.get(text);
-                    if (match != null && match.getId() != null && boundObjective.add(match.getId())) {
-                        objectiveIds.add(match.getId());
-                        continue;
+                    if (objNameIndex.containsKey(it.getName()) && boundObjective.add(it.getId())) {
+                        objectiveIds.add(it.getId());
+                    } else if (purposeNameIndex.containsKey(it.getName()) && boundPurpose.add(it.getId())) {
+                        purposeIds.add(it.getId());
                     }
-                    match = purposeNameIndex.get(text);
-                    if (match != null && match.getId() != null && boundPurpose.add(match.getId())) {
-                        purposeIds.add(match.getId());
-                        continue;
-                    }
-                    result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                            "二、任务背景与目标", text, "supportObjective",
-                            "未匹配到候选课程目标或训练目的，已跳过: " + text));
                 }
                 TeachingPlanSupportObjectiveSaveVo saveVo = new TeachingPlanSupportObjectiveSaveVo();
                 saveVo.setPlanId(planId);
@@ -2507,22 +2474,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                         }
                     }
                 }
-                for (String part : parsed.supportContentRaw.split("[、,，;；]")) {
-                    String text = part == null ? "" : part.trim();
-                    if (StringUtils.isBlank(text)) {
-                        continue;
+                // 与支撑目标同口径：整串优先 + 贪心最长前缀匹配（名称可含分隔符）
+                List<TeachingPlanSupportCandidateItem> boundContentItems = resolveSupportRaw(
+                        parsed.supportContentRaw, kpNameIndex, tcNameIndex, result.getIssues(),
+                        "二、任务背景与目标", parsed.supportContentRaw, "supportContent");
+                for (TeachingPlanSupportCandidateItem it : boundContentItems) {
+                    if (it != null && it.getId() != null && boundContent.add(it.getId())) {
+                        contentIds.add(it.getId());
                     }
-                    TeachingPlanSupportCandidateItem match = kpNameIndex.get(text);
-                    if (match == null) {
-                        match = tcNameIndex.get(text);
-                    }
-                    if (match == null || match.getId() == null || !boundContent.add(match.getId())) {
-                        result.getIssues().add(TeachingPlanImportIssueVo.warn(
-                                "二、任务背景与目标", text, "supportContent",
-                                "未匹配到候选知识体系或训练内容，已跳过: " + text));
-                        continue;
-                    }
-                    contentIds.add(match.getId());
                 }
                 TeachingPlanSupportContentSaveVo saveVo = new TeachingPlanSupportContentSaveVo();
                 saveVo.setPlanId(planId);
@@ -2543,7 +2502,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                         d.setKnowledgePointsJson("[]");
                         result.getIssues().add(TeachingPlanImportIssueVo.warn(
                                 "六、达成设计", d.getObjectiveText(), "knowledgePoints",
-                                "知识点 JSON 序列化失败，已置空"));
+                                "目标「" + d.getObjectiveText() + "」的知识点 JSON 序列化失败，已置空，"
+                                        + "导出时该行知识点可能为空；请手工核对/补录该行知识点"));
                     }
                 }
                 prepareEntity(d);
@@ -2562,6 +2522,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 TeachingPlanPracticeItem item = pi.item;
                 item.setId(null);
                 item.setPlanId(planId);
+                if (item.getItemType() == null) {
+                    item.setItemType(defaultItemType);
+                }
                 prepareEntity(item);
                 teachingPlanPracticeItemMapper.insert(item);
                 itemCount++;
@@ -2615,7 +2578,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 if (objective == null || objective.getId() == null) {
                     result.getIssues().add(TeachingPlanImportIssueVo.warn(
                             "八、考核评价", parsedObjective.objective.getContent(), "objectiveId",
-                            "未匹配到课程目标，课程目标达成考核评价设计关联已跳过"));
+                            "达成考核设计中的课程目标「" + parsedObjective.objective.getContent()
+                                    + "」未匹配到已导入的课程目标（可能文字与「四、课程目标」单元格不一致），"
+                                    + "该目标的达成考核关联已跳过"));
                     continue;
                 }
                 for (TeachingPlanWordImporter.ParsedObjectiveAssessment parsedRelation
@@ -2627,9 +2592,15 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     TeachingPlanAssessment assessment = assessmentMap.get(
                             normalizeImportKey(parsedRelation.assessmentItem));
                     if (assessment == null || assessment.getId() == null) {
+                        List<String> assessmentNames = assessmentMap.values().stream()
+                                .filter(a -> a != null && StringUtils.isNotBlank(a.getAssessmentItem()))
+                                .map(TeachingPlanAssessment::getAssessmentItem)
+                                .collect(Collectors.toList());
                         result.getIssues().add(TeachingPlanImportIssueVo.warn(
                                 "八、考核评价", parsedObjective.objective.getContent(), "assessmentItem",
-                                "未匹配到考核评价项，关联已跳过: " + parsedRelation.assessmentItem));
+                                "达成考核设计引用了考核评价项「" + parsedRelation.assessmentItem
+                                        + "」，但已导入考核项中不存在" + candidateContext(assessmentNames)
+                                        + "；该关联已跳过，请核对文字一致性"));
                         continue;
                     }
                     TeachingPlanObjectiveAssessment relation = new TeachingPlanObjectiveAssessment();
@@ -2723,6 +2694,205 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         return ObjectUtils.isEmpty(matches) ? null : matches;
     }
 
+    /**
+     * 解析单元格内毕业要求：整串优先；未命中时对原文贪心最长前缀匹配。
+     * 毕业要求名称自身可含「、，；」（如"具有良好的职业道德、团队合作与终身学习意识"），
+     * 若先按分隔符拆碎再逐段匹配会导致部分名称失配跳过，这里改为直接从原文消费最长已知名称，
+     * 天然支持名称含分隔符、多名称同格（顿号分隔）的场景。同名多条默认取第一条并加提示。
+     */
+    private List<StandardGraduation> resolveGraduationBindings(String raw, String sourceSection, String sourceText,
+                                                               Map<String, List<StandardGraduation>> nameMap,
+                                                               List<TeachingPlanImportIssueVo> issues) {
+        List<StandardGraduation> whole = lookupGraduations(nameMap, raw);
+        if (whole != null) {
+            return whole;
+        }
+        List<String> candidates = new ArrayList<>(nameMap.keySet());
+        candidates.removeIf(c -> c == null || StringUtils.isBlank(c));
+        candidates.sort((a, b) -> b.length() - a.length());
+        String remaining = raw == null ? "" : raw;
+        List<StandardGraduation> result = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        while (StringUtils.isNotBlank(remaining)) {
+            String cur = remaining.trim();
+            // 跳过分隔符
+            if (cur.length() > 0 && "、,，;；/|".indexOf(cur.charAt(0)) >= 0) {
+                remaining = cur.substring(1);
+                continue;
+            }
+            boolean matched = false;
+            for (String cand : candidates) {
+                if (cur.startsWith(cand)) {
+                    List<StandardGraduation> list = nameMap.get(cand);
+                    if (ObjectUtils.isEmpty(list)) {
+                        continue;
+                    }
+                    StandardGraduation g = list.get(0);
+                    if (g != null && g.getId() != null && seen.add(g.getId())) {
+                        if (list.size() > 1) {
+                            log.warn("教学计划导入毕业要求同名多条, section={}, name={}, 命中{}条, 默认绑定第一条 id={}",
+                                    sourceSection, cand, list.size(), g.getId());
+                            issues.add(TeachingPlanImportIssueVo.warn(
+                                    sourceSection, sourceText, "graduationName",
+                                    "毕业要求「" + cand + "」同名存在 " + list.size()
+                                            + " 条，默认绑定第一条(id=" + g.getId() + ")，其余同名条目不参与该目标绑定"));
+                        }
+                        result.add(g);
+                    }
+                    remaining = cur.substring(cand.length());
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                issues.add(TeachingPlanImportIssueVo.warn(
+                        sourceSection, sourceText, "graduationName",
+                        "未匹配到毕业要求「" + cur + "」" + candidateContext(candidates)
+                                + "；该段绑定已跳过，其后的毕业要求继续匹配。请核对文档文字与系统中毕业要求名称（含顿号/空格等）是否一致，"
+                                + "否则该目标将缺少对应的毕业要求绑定"));
+                // 跳过当前未匹配段（到下一个分隔符为止），继续匹配后续候选，避免首个失配后剩余内容被静默丢弃
+                remaining = skipUnmatchedSegment(cur);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 支撑目标/支撑内容单元格贪心最长前缀匹配：候选名称自身可含「、，；」，
+     * 整串命中优先；未命中时从原文逐个消费最长的已知候选名，天然支持多候选同格。
+     * 返回按原文顺序命中的候选项（同一 id 只返回一次，路由/去重由调用方完成）。
+     */
+    private List<TeachingPlanSupportCandidateItem> resolveSupportRaw(String raw,
+            Map<String, TeachingPlanSupportCandidateItem> firstIndex,
+            Map<String, TeachingPlanSupportCandidateItem> secondIndex,
+            List<TeachingPlanImportIssueVo> issues, String section, String sourceText, String issueField) {
+        List<TeachingPlanSupportCandidateItem> result = new ArrayList<>();
+        if (StringUtils.isBlank(raw)) {
+            return result;
+        }
+        String remaining = raw.trim();
+        // 整串优先
+        TeachingPlanSupportCandidateItem whole = firstIndex.get(remaining);
+        if (whole == null) {
+            whole = secondIndex.get(remaining);
+        }
+        if (whole != null && whole.getId() != null) {
+            result.add(whole);
+            return result;
+        }
+        // 未命中：按名称长度降序，从原文贪心消费最长已知候选名
+        List<String> candidates = new ArrayList<>(firstIndex.keySet());
+        candidates.addAll(secondIndex.keySet());
+        candidates.removeIf(c -> c == null || StringUtils.isBlank(c));
+        candidates.sort((a, b) -> b.length() - a.length());
+        Set<Long> seen = new HashSet<>();
+        while (StringUtils.isNotBlank(remaining)) {
+            String cur = remaining.trim();
+            // 跳过分隔符
+            if (cur.length() > 0 && "、,，;；/|".indexOf(cur.charAt(0)) >= 0) {
+                remaining = cur.substring(1);
+                continue;
+            }
+            boolean matched = false;
+            for (String cand : candidates) {
+                if (cur.startsWith(cand)) {
+                    TeachingPlanSupportCandidateItem item = firstIndex.get(cand);
+                    if (item == null) {
+                        item = secondIndex.get(cand);
+                    }
+                    if (item != null && item.getId() != null && seen.add(item.getId())) {
+                        result.add(item);
+                    }
+                    remaining = cur.substring(cand.length());
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                issues.add(TeachingPlanImportIssueVo.warn(section, sourceText, issueField,
+                        "未匹配到候选课程目标或训练目的「" + cur + "」" + candidateContext(candidates)
+                                + "；该段支撑绑定已跳过（Word 原文仍保留展示），其后的候选继续匹配。"
+                                + "请核对文字一致性，或在页面「支撑绑定」中重新选择"));
+                remaining = skipUnmatchedSegment(cur);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 内容行「目的」单元格 -> 训练目的绑定（与 resolveSupportRaw 同套路）：
+     * 整串优先；未命中则按名称长度降序，从原文贪心消费最长已知目的名，按出现顺序去重返回。
+     * 目的名自身可含「、，；」，先拆碎再逐段精确匹配会把单个名称拆成多段全部失配。
+     */
+    private List<TeachingPlanTrainingPurpose> resolveContentPurposeList(String raw,
+            Map<String, TeachingPlanTrainingPurpose> index, List<TeachingPlanImportIssueVo> issues,
+            String section, String sourceText, String issueField) {
+        List<TeachingPlanTrainingPurpose> result = new ArrayList<>();
+        if (StringUtils.isBlank(raw) || index == null || index.isEmpty()) {
+            return result;
+        }
+        String remaining = raw.trim();
+        TeachingPlanTrainingPurpose whole = index.get(remaining);
+        if (whole != null && whole.getId() != null) {
+            result.add(whole);
+            return result;
+        }
+        List<String> candidates = new ArrayList<>(index.keySet());
+        candidates.removeIf(c -> c == null || StringUtils.isBlank(c));
+        candidates.sort((a, b) -> b.length() - a.length());
+        Set<Long> seen = new HashSet<>();
+        while (StringUtils.isNotBlank(remaining)) {
+            String cur = remaining.trim();
+            if (cur.length() > 0 && "、,，;；/|".indexOf(cur.charAt(0)) >= 0) {
+                remaining = cur.substring(1);
+                continue;
+            }
+            boolean matched = false;
+            for (String cand : candidates) {
+                if (cur.startsWith(cand)) {
+                    TeachingPlanTrainingPurpose p = index.get(cand);
+                    if (p != null && p.getId() != null && seen.add(p.getId())) {
+                        result.add(p);
+                    }
+                    remaining = cur.substring(cand.length());
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                issues.add(TeachingPlanImportIssueVo.warn(section, sourceText, issueField,
+                        "未匹配到训练目的「" + cur + "」" + candidateContext(candidates)
+                                + "；该段绑定已跳过，目的列仍显示原文，其后的训练目的继续匹配。"
+                                + "请核对文字一致性，或先在本计划的训练目的中录入该目的"));
+                remaining = skipUnmatchedSegment(cur);
+            }
+        }
+        return result;
+    }
+
+    /** 候选集概况：共 N 条候选，附前 3 个示例，供导入问题说明使用。 */
+    private String candidateContext(List<String> names) {
+        if (names == null || names.isEmpty()) {
+            return "（当前候选集为空，请先在系统中维护对应数据后再导入）";
+        }
+        List<String> sample = names.stream().distinct()
+                .filter(StringUtils::isNotBlank).limit(3).collect(Collectors.toList());
+        return "（候选共 " + names.size() + " 条，如：" + String.join("、", sample) + "）";
+    }
+
+    /** 跳过原文中当前未匹配段（到下一个分隔符为止），返回剩余待匹配文本；无后续分隔符时返回空串。 */
+    private String skipUnmatchedSegment(String cur) {
+        if (cur == null) {
+            return "";
+        }
+        for (int i = 0; i < cur.length(); i++) {
+            if ("、,，;；/|".indexOf(cur.charAt(i)) >= 0) {
+                return cur.substring(i + 1);
+            }
+        }
+        return "";
+    }
+
     private void prepareEntity(Object entity) {
         UserUtils.reflash(entity);
         try {
@@ -2758,10 +2928,39 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (ObjectUtils.isEmpty(list)) {
             return label;
         }
+        Map<String, String> labelToValue = new LinkedHashMap<>();
         for (SysDictData d : list) {
-            if (d != null && label.equals(d.getDictLabel())) {
-                return d.getDictValue();
+            if (d == null || StringUtils.isBlank(d.getDictValue())) {
+                continue;
             }
+            String value = d.getDictValue().trim();
+            String lbl = StringUtils.defaultIfBlank(d.getDictLabel(), value).trim();
+            labelToValue.putIfAbsent(lbl, value);
+            // 已是字典 value（编码）时原样保留，避免 label 恰为编码的情况误反转
+            labelToValue.putIfAbsent(value, value);
+        }
+        String trimmed = label.trim();
+        if (labelToValue.containsKey(trimmed)) {
+            return labelToValue.get(trimmed);
+        }
+        // 多值标签（评价标准等逗号/顿号串）：逐段反查，保留原分隔符，未命中段原样保留
+        if (!labelToValue.isEmpty() && label.matches(".*[、,，;；/|].*")) {
+            StringBuilder sb = new StringBuilder();
+            int last = 0;
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("[、,，;；/|]").matcher(label);
+            while (m.find()) {
+                String part = label.substring(last, m.start()).trim();
+                if (StringUtils.isNotBlank(part)) {
+                    sb.append(labelToValue.getOrDefault(part, part));
+                }
+                sb.append(m.group());
+                last = m.end();
+            }
+            String tail = label.substring(last).trim();
+            if (StringUtils.isNotBlank(tail)) {
+                sb.append(labelToValue.getOrDefault(tail, tail));
+            }
+            return sb.toString();
         }
         return label;
     }
