@@ -45,6 +45,11 @@ public interface TeachingPlanTaskBackgroundMapper {
      */
     int deleteByPlanId(@Param("planId") Long planId);
 
+    /** 按当前培养方案逻辑删除；公共基础课程只删除 scheme_id IS NULL。 */
+    int deleteByPlanAndScheme(@Param("planId") Long planId,
+                              @Param("schemeId") Long schemeId,
+                              @Param("onlyNullScheme") Boolean onlyNullScheme);
+
     /**
      * 根据主键逻辑删除
      */

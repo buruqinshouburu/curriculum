@@ -28,6 +28,7 @@ import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
@@ -260,13 +261,7 @@ public class TeachingPlanController {
         return DataSet.success(teachingPlanModuleService.listObjectiveTree(planId, schemeId, objectiveTypeCode));
     }
 
-    /**
-     * 仅新增目标类型与内容（不含毕业要求绑定）。
-     * 绑定请走 POST /objectiveRef/save。
-     */
-    /**
-     * 课程目标、支撑毕业要求、权重大保存；按 planId 删除旧目标及绑定后重建。
-     */
+    /** 课程目标、支撑毕业要求、权重大保存；按当前 planId + schemeId 重建。 */
     @ApiOperation("课程目标与支撑毕业要求大保存")
     @PostMapping("/objective/batchSave")
     public Message saveObjectivesBatch(@RequestBody TeachingPlanObjectiveBatchSaveVo saveVo) {
@@ -375,9 +370,7 @@ public class TeachingPlanController {
         return DataSet.success(teachingPlanModuleService.listTaskBackground(planId, schemeId));
     }
 
-    /**
-     * 任务背景 + 支撑毕业要求大保存；按 planId 删除旧任务背景及绑定后重建。
-     */
+    /** 任务背景 + 支撑毕业要求大保存；按当前 planId + schemeId 重建。 */
     @ApiOperation("任务背景与支撑毕业要求大保存")
     @PostMapping("/taskBackground/batchSave")
     public Message saveTaskBackgroundsBatch(@RequestBody TeachingPlanTaskBackgroundBatchSaveVo saveVo) {
@@ -529,6 +522,14 @@ public class TeachingPlanController {
     public DataSet<TeachingPlanSupportCandidateVo> supportCandidates(
             @RequestParam("courseId") Long courseId) {
         return DataSet.success(teachingPlanModuleService.listSupportCandidates(courseId));
+    }
+
+    @ApiOperation("实践项目支撑绑定候选树（按培养方案分组，同方案优先）")
+    @GetMapping("/support/candidateTree")
+    public DataSet<List<TeachingPlanSupportCandidateGroupVo>> supportCandidateTree(
+            @RequestParam("courseId") Long courseId,
+            @RequestParam(value = "projectPlanId", required = false) Long projectPlanId) {
+        return DataSet.success(teachingPlanModuleService.listSupportCandidateGroups(courseId, projectPlanId));
     }
 
     /** 回显实践项目计划已绑定的课程目标/训练目的列表。 */

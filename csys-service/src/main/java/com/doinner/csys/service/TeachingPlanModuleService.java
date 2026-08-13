@@ -34,6 +34,7 @@ import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
@@ -200,6 +201,8 @@ public interface TeachingPlanModuleService {
      * 课程目标按同专业(与项目首个培养方案 major_id 一致)优先排序。
      */
     TeachingPlanSupportCandidateVo listSupportCandidates(Long courseId);
+
+    List<TeachingPlanSupportCandidateGroupVo> listSupportCandidateGroups(Long courseId, Long projectPlanId);
 
     /** 实践项目计划(type4)已绑定的课程目标/训练目的列表（按 sort）。 */
     List<TeachingPlanSupportObjective> listSupportObjective(Long planId);

@@ -21,6 +21,12 @@ public class TeachingPlanSupportCandidateItem {
     /** 来源课程/课目名称 */
     private String sourceCourseName;
 
+    /** 候选内容所属培养方案ID；通识通用为 null */
+    private Long schemeId;
+
+    /** 候选内容所属培养方案名称 */
+    private String schemeName;
+
     /** 是否与项目同专业（仅课程目标有意义：目标 major_id == 项目首个培养方案 major_id） */
     private Boolean sameMajor;
 
@@ -62,6 +68,22 @@ public class TeachingPlanSupportCandidateItem {
 
     public void setSourceCourseName(String sourceCourseName) {
         this.sourceCourseName = sourceCourseName;
+    }
+
+    public Long getSchemeId() {
+        return schemeId;
+    }
+
+    public void setSchemeId(Long schemeId) {
+        this.schemeId = schemeId;
+    }
+
+    public String getSchemeName() {
+        return schemeName;
+    }
+
+    public void setSchemeName(String schemeName) {
+        this.schemeName = schemeName;
     }
 
     public Boolean getSameMajor() {

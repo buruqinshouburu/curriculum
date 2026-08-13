@@ -145,12 +145,13 @@ CREATE TABLE `t_csys_teaching_plan_section` (
 CREATE TABLE `t_csys_teaching_plan_objective` (
                                                   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
                                                   `plan_id` bigint NOT NULL COMMENT '教学计划ID',
-                                                  `context_id` bigint NOT NULL COMMENT '教学计划调用上下文ID，对应页面当前培养方案tab',
+                                                  `scheme_id` bigint DEFAULT NULL COMMENT '培养方案ID，公共基础课程为NULL',
                                                   `major_id` bigint DEFAULT NULL COMMENT '专业ID',
                                                   `objective_type_code` varchar(64) NOT NULL COMMENT '目标类型字典编码：知识目标/能力目标/素质目标',
                                                   `objective_type_name` varchar(100) DEFAULT NULL COMMENT '目标类型名称快照',
                                                   `content` text NOT NULL COMMENT '目标内容，手工录入',
                                                   `source_mode` tinyint DEFAULT 2 COMMENT '来源方式：2手工录入',
+                                                  `weight` decimal(8,4) DEFAULT NULL COMMENT '课程目标权重，普通课程目标合计为1',
                                                   `sort` int DEFAULT 1 COMMENT '排序',
                                                   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                                                   `creator` varchar(64) DEFAULT NULL COMMENT '创建人',
@@ -160,19 +161,18 @@ CREATE TABLE `t_csys_teaching_plan_objective` (
                                                   `sysflag` tinyint unsigned NOT NULL DEFAULT 0 COMMENT '删除标识',
                                                   PRIMARY KEY (`id`),
                                                   KEY `idx_tp_obj_plan` (`plan_id`),
-                                                  KEY `idx_tp_obj_context` (`context_id`),
+                                                  KEY `idx_tp_obj_scheme` (`scheme_id`),
                                                   KEY `idx_tp_obj_type` (`objective_type_code`),
-                                                  KEY `idx_tp_obj_context_type` (`plan_id`,`context_id`,`objective_type_code`)
+                                                  KEY `idx_tp_obj_plan_scheme_type` (`plan_id`,`scheme_id`,`objective_type_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教学计划目标';
 
 CREATE TABLE `t_csys_teaching_plan_objective_ref` (
                                                       `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
                                                       `plan_id` bigint NOT NULL COMMENT '教学计划ID',
-                                                      `context_id` bigint NOT NULL COMMENT '教学计划调用上下文ID，对应页面当前培养方案tab',
                                                       `objective_id` bigint NOT NULL COMMENT '教学计划目标ID',
                                                       `scheme_course_graduation_id` bigint DEFAULT NULL COMMENT '培养方案调用课程毕业要求关联ID，优先关联t_csys_scheme_course_ref_graduation.id',
                                                       `quote_course_id` bigint NOT NULL COMMENT '调用课程ID快照',
-                                                      `scheme_id` bigint NOT NULL COMMENT '培养方案ID快照',
+                                                      `scheme_id` bigint DEFAULT NULL COMMENT '培养方案ID快照，公共基础课程为NULL',
                                                       `graduation_id` bigint NOT NULL COMMENT '方案内毕业标准ID，t_csys_std_graduation.id',
                                                       `source_graduation_id` bigint DEFAULT NULL COMMENT '毕业标准总库ID，通常为t_csys_std_graduation.source_id',
                                                       `graduation_code` varchar(100) DEFAULT NULL COMMENT '毕业标准编码快照',
@@ -188,12 +188,11 @@ CREATE TABLE `t_csys_teaching_plan_objective_ref` (
                                                       `sysflag` tinyint unsigned NOT NULL DEFAULT 0 COMMENT '删除标识',
                                                       PRIMARY KEY (`id`),
                                                       KEY `idx_tp_obj_ref_plan` (`plan_id`),
-                                                      KEY `idx_tp_obj_ref_context` (`context_id`),
                                                       KEY `idx_tp_obj_ref_obj` (`objective_id`),
                                                       KEY `idx_tp_obj_ref_scheme_course_graduation` (`scheme_course_graduation_id`),
                                                       KEY `idx_tp_obj_ref_scheme_course` (`scheme_id`,`quote_course_id`),
                                                       KEY `idx_tp_obj_ref_graduation` (`graduation_id`),
-                                                      UNIQUE KEY `uk_tp_obj_ref` (`objective_id`,`context_id`,`graduation_id`)
+                                                      UNIQUE KEY `uk_tp_obj_ref` (`objective_id`,`scheme_id`,`graduation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='教学计划目标支撑毕业要求';
 
 CREATE TABLE `t_csys_teaching_plan_content` (
@@ -291,7 +290,7 @@ CREATE TABLE `t_csys_teaching_plan_assessment` (
                                                    `method` varchar(255) DEFAULT NULL COMMENT '考核方式',
                                                    `mechanism` varchar(255) DEFAULT NULL COMMENT '评定机制',
                                                    `score_system` varchar(100) DEFAULT NULL COMMENT '成绩评定：百分制/五级制/两级制',
-                                                   `outcome_type` tinyint DEFAULT 0 COMMENT '成果类型：0无 1个人成果 2团队成果',
+                                                   `outcome_type` tinyint DEFAULT 0 COMMENT '成果类型字典 sys_plan_outcome_type：0无 1个人成果 2团队成果 3过程成果',
                                                    `assessed_content` text COMMENT '评价的知识和能力',
                                                    `weight` decimal(6,2) DEFAULT NULL COMMENT '权重',
                                                    `standard` longtext COMMENT '评价标准/评价准则',

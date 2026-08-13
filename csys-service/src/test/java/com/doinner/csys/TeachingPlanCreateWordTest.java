@@ -5,7 +5,16 @@ import com.doinner.common.core.domain.DataTable;
 import com.doinner.common.core.domain.Message;
 import com.doinner.common.security.utils.DictUtils;
 import com.doinner.csys.domain.TeachingPlanContent;
+import com.doinner.csys.domain.TeachingPlanObjective;
+import com.doinner.csys.domain.TeachingPlanTaskBackground;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
 import com.doinner.csys.entity.csys.TeachingPlanWordImporter;
+import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.file.api.domain.FileInfo;
 import com.doinner.file.api.domain.vo.FileInfoVO;
@@ -40,7 +49,9 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.sql.DataSource;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -106,6 +117,9 @@ class TeachingPlanCreateWordTest {
 
     @Autowired
     private DataSource dataSource;
+
+    @Autowired
+    private TeachingPlanModuleService teachingPlanModuleService;
 
     /** 远程文件服务（Feign）：upload 时捕获生成的 Word，供 docx 断言与导入复用 */
     @MockBean
@@ -653,16 +667,22 @@ class TeachingPlanCreateWordTest {
                             "SELECT assessment_item FROM t_csys_teaching_plan_assessment WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
                             String.class);
                     assertEquals(Arrays.asList("5", "7"), items, tag + " 考核项目应为字典编码 5/7: " + items);
-                    // 内容行「目的」绑定训练目的：目的名含「、」时 greedy 整串匹配不应拆碎失配
-                    Integer cpCount = jdbc.queryForObject(
-                            "SELECT COUNT(*) FROM t_csys_teaching_plan_content_purpose WHERE plan_id=6002 AND sysflag = 0",
-                            Integer.class);
-                    assertEquals(5, cpCount, tag + " 内容-目的绑定应整串命中(1+2+2): " + warnMsgs);
+                    List<String> purposes = jdbc.queryForList(
+                            "SELECT purpose FROM t_csys_teaching_plan_content WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
+                            String.class);
+                    assertTrue(purposes.stream().anyMatch(p -> p != null && p.contains("动作、班队列")),
+                            tag + " 训练内容目的应整格导入，正文顿号不能拆分: " + purposes);
                     break;
                 case 4:
                     assertEquals(4, countOf(resp, "supportObjective"), tag + " 支撑目标应原样导入: " + warnMsgs);
                     assertEquals(4, countOf(resp, "supportContent"), tag + " 支撑内容应原样导入: " + warnMsgs);
                     assertEquals(3, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
+                    List<Map<String, Object>> outcomes = jdbc.queryForList(
+                            "SELECT outcome_type, assessment_item, method, assessed_content, weight "
+                                    + "FROM t_csys_teaching_plan_assessment WHERE plan_id=6004 AND sysflag=0 ORDER BY sort");
+                    assertTrue(outcomes.stream().allMatch(o -> o.get("outcome_type") != null
+                                    && o.get("assessment_item") != null && o.get("method") == null),
+                            tag + " 成果类型/成果形式应按专用字段原样导入: " + outcomes);
                     break;
                 default:
                     break;
@@ -670,7 +690,206 @@ class TeachingPlanCreateWordTest {
         }
     }
 
+    /** 现有数据库实验项目生成后导入，五类明细内容与项目分组均不能丢失。 */
+    @Test
+    @Order(20)
+    void t20_experimentItemDetailRoundTrip() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        Map<String, String> before = jdbc.query(
+                "SELECT CONCAT(i.name, '#', d.detail_type) k, d.content v "
+                        + "FROM t_csys_teaching_plan_practice_item i "
+                        + "JOIN t_csys_teaching_plan_practice_item_detail d ON d.item_id=i.id "
+                        + "WHERE i.plan_id=6003 AND i.sysflag=0",
+                rs -> {
+                    Map<String, String> values = new HashMap<>();
+                    while (rs.next()) values.put(rs.getString("k"), rs.getString("v"));
+                    return values;
+                });
+        byte[] docx = generateDocx(8003L);
+        String text = extractText(docx);
+        assertTrue(text.contains("实验目的与任务"));
+        assertTrue(text.contains("训练的能力点"));
+        assertTrue(text.contains("实验原理"));
+        assertTrue(text.contains("实验内容及要求"));
+        assertTrue(text.contains("实验结果及要求"));
+
+        MockMultipartFile file = new MockMultipartFile("file", "experiment-roundtrip.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", docx);
+        mockMvc.perform(multipart("/teachingPlan/importWord").file(file)
+                        .param("courseId", "8003").param("planType", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.issues[?(@.severity == 'ERROR')]").isEmpty());
+
+        Map<String, String> after = jdbc.query(
+                "SELECT CONCAT(i.name, '#', d.detail_type) k, d.content v "
+                        + "FROM t_csys_teaching_plan_practice_item i "
+                        + "JOIN t_csys_teaching_plan_practice_item_detail d ON d.item_id=i.id "
+                        + "WHERE i.plan_id=6003 AND i.sysflag=0",
+                rs -> {
+                    Map<String, String> values = new HashMap<>();
+                    while (rs.next()) values.put(rs.getString("k"), rs.getString("v"));
+                    return values;
+                });
+        for (Map.Entry<String, String> entry : before.entrySet()) {
+            assertEquals(entry.getValue(), after.get(entry.getKey()), "实验明细往返后内容应保持: " + entry.getKey());
+        }
+    }
+
+    /** 实践项目模板必须包含拟解决的复杂问题，成果评价使用 outcomeType/assessmentItem 专用映射。 */
+    @Test
+    @Order(21)
+    void t21_practiceProjectTemplateAndOutcomeMapping() throws Exception {
+        byte[] docx = generateDocx(8004L);
+        String text = extractText(docx);
+        assertTrue(text.contains("拟解决的复杂问题"));
+        assertTrue(text.contains("成果类型"));
+        assertTrue(text.contains("成果形式"));
+        assertTrue(text.contains("个人成果") || text.contains("团队成果"));
+        assertTrue(text.contains("成果答辩与文档评审"));
+        assertTrue(text.contains("系统设计、编码实现与文档质量"));
+    }
+
+    /** Word 类型错误属于 ERROR，且必须在清空旧计划前返回。 */
+    @Test
+    @Order(22)
+    void t22_importTypeErrorDoesNotClearExistingPlan() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        Integer before = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM t_csys_teaching_plan_content WHERE plan_id=6002 AND sysflag=0", Integer.class);
+        byte[] courseDocx = generateDocx(7003L);
+        MockMultipartFile file = new MockMultipartFile("file", "wrong-type.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", courseDocx);
+        mockMvc.perform(multipart("/teachingPlan/importWord").file(file)
+                        .param("courseId", "8002").param("planType", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.issues[?(@.severity == 'ERROR')]").isNotEmpty());
+        Integer after = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM t_csys_teaching_plan_content WHERE plan_id=6002 AND sysflag=0", Integer.class);
+        assertEquals(before, after, "导入 ERROR 不得清空现有计划");
+    }
+
     /** 导入成功计数；键缺失按 0 处理。 */
+    /** 四类生成结果必须覆盖 2026-07-30 模板中的关键字段与专用表头。 */
+    @Test
+    @Order(23)
+    void t23_generatedDocumentsMatchUpdatedTemplateKeyFields() throws Exception {
+        File template = new File("C:/Users/31019/Desktop/计划模板（20260730更新）.docx");
+        assertTrue(template.isFile(), "缺少模板文件: " + template.getAbsolutePath());
+        String templateText;
+        try (FileInputStream in = new FileInputStream(template);
+             XWPFDocument templateDoc = new XWPFDocument(in)) {
+            templateText = extractText(templateDoc);
+        }
+
+        assertTemplateFields(templateText, extractText(generateDocx(7003L)),
+                "课程目标", "观测点", "拟解决的复杂问题", "考核项目", "评价标准");
+        assertTemplateFields(templateText, extractText(generateDocx(8003L)),
+                "实验项目名称", "实验目的与任务", "训练的能力点", "实验原理",
+                "实验内容及要求", "实验结果及要求");
+        assertTemplateFields(templateText, extractText(generateDocx(8002L)),
+                "训练目的", "训练任务", "训练内容与时间安排", "模块", "时间安排");
+        assertTemplateFields(templateText, extractText(generateDocx(8004L)),
+                "拟解决的复杂问题", "成果类型", "成果形式", "评价的知识和能力", "评价准则");
+    }
+
+    /** 课程目标、实验任务背景只重建当前 planId + schemeId，不影响同计划的其他培养方案。 */
+    @Test
+    @Order(24)
+    void t24_batchRebuildIsolatedByPlanAndScheme() {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        Long otherSchemeId = 7699L;
+
+        TeachingPlanObjective otherObjective = new TeachingPlanObjective();
+        otherObjective.setPlanId(6001L);
+        otherObjective.setSchemeId(otherSchemeId);
+        otherObjective.setObjectiveTypeCode("1");
+        otherObjective.setObjectiveTypeName("知识目标");
+        otherObjective.setContent("其他培养方案目标");
+        otherObjective.setWeight(BigDecimal.ONE);
+        otherObjective.setSort(1);
+        teachingPlanModuleService.addObjective(otherObjective);
+
+        TeachingPlanObjective currentObjective = new TeachingPlanObjective();
+        currentObjective.setObjectiveTypeCode("1");
+        currentObjective.setObjectiveTypeName("知识目标");
+        currentObjective.setContent("当前培养方案重建目标");
+        currentObjective.setWeight(BigDecimal.ONE);
+        TeachingPlanObjectiveSaveVo objectiveRow = new TeachingPlanObjectiveSaveVo();
+        objectiveRow.setObjective(currentObjective);
+        objectiveRow.setRefs(Collections.emptyList());
+        TeachingPlanObjectiveBatchSaveVo objectiveBatch = new TeachingPlanObjectiveBatchSaveVo();
+        objectiveBatch.setPlanId(6001L);
+        objectiveBatch.setSchemeId(7601L);
+        objectiveBatch.setObjectives(Collections.singletonList(objectiveRow));
+        teachingPlanModuleService.saveObjectivesBatch(objectiveBatch);
+
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_objective "
+                + "WHERE plan_id=6001 AND scheme_id=7601 AND sysflag=0", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_objective "
+                + "WHERE plan_id=6001 AND scheme_id=7699 AND sysflag=0", Integer.class));
+
+        TeachingPlanTaskBackground otherBackground = new TeachingPlanTaskBackground();
+        otherBackground.setPlanId(6003L);
+        otherBackground.setSchemeId(otherSchemeId);
+        otherBackground.setBackgroundDesc("其他培养方案实验任务背景");
+        teachingPlanModuleService.addTaskBackground(otherBackground);
+
+        TeachingPlanTaskBackground currentBackground = new TeachingPlanTaskBackground();
+        currentBackground.setBackgroundDesc("当前培养方案实验任务背景");
+        TeachingPlanTaskBackgroundSaveVo backgroundRow = new TeachingPlanTaskBackgroundSaveVo();
+        backgroundRow.setTaskBackground(currentBackground);
+        backgroundRow.setRefs(Collections.emptyList());
+        TeachingPlanTaskBackgroundBatchSaveVo backgroundBatch = new TeachingPlanTaskBackgroundBatchSaveVo();
+        backgroundBatch.setPlanId(6003L);
+        backgroundBatch.setSchemeId(7601L);
+        backgroundBatch.setTaskBackgrounds(Collections.singletonList(backgroundRow));
+        teachingPlanModuleService.saveTaskBackgroundsBatch(backgroundBatch);
+
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_task_background "
+                + "WHERE plan_id=6003 AND scheme_id=7601 AND sysflag=0", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_task_background "
+                + "WHERE plan_id=6003 AND scheme_id=7699 AND sysflag=0", Integer.class));
+    }
+
+    /** 实践项目绑定候选按培养方案分组，候选节点携带培养方案名称。 */
+    @Test
+    @Order(25)
+    void t25_supportCandidateTreeCarriesSchemeNames() {
+        List<TeachingPlanSupportCandidateGroupVo> groups =
+                teachingPlanModuleService.listSupportCandidateGroups(8004L, 6004L);
+        assertFalse(groups.isEmpty(), "实践项目应能读取支撑候选树");
+        assertTrue(Boolean.TRUE.equals(groups.get(0).getSameScheme()), "相同培养方案应优先展示");
+        for (TeachingPlanSupportCandidateGroupVo group : groups) {
+            List<TeachingPlanSupportCandidateItem> items = new ArrayList<>();
+            items.addAll(group.getObjectives());
+            items.addAll(group.getPurposes());
+            items.addAll(group.getKnowledgePoints());
+            items.addAll(group.getTrainingContents());
+            for (TeachingPlanSupportCandidateItem item : items) {
+                assertEquals(group.getSchemeId(), item.getSchemeId());
+                assertEquals(group.getSchemeName(), item.getSchemeName());
+            }
+        }
+    }
+
+    private String extractText(XWPFDocument doc) {
+        StringBuilder sb = new StringBuilder();
+        for (XWPFParagraph paragraph : doc.getParagraphs()) sb.append(paragraph.getText()).append('\n');
+        for (XWPFTable table : doc.getTables()) {
+            for (XWPFTableRow row : table.getRows()) {
+                for (XWPFTableCell cell : row.getTableCells()) sb.append(cell.getText()).append('\n');
+            }
+        }
+        return sb.toString();
+    }
+
+    private void assertTemplateFields(String templateText, String generatedText, String... fields) {
+        for (String field : fields) {
+            assertTrue(templateText.contains(field), "更新模板缺少关键字段: " + field);
+            assertTrue(generatedText.contains(field), "生成文档缺少模板关键字段: " + field);
+        }
+    }
+
     private int countOf(String resp, String key) {
         try {
             Object v = com.jayway.jsonpath.JsonPath.read(resp, "$.data.successCounts." + key);

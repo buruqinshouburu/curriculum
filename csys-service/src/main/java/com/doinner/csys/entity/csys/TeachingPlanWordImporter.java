@@ -60,10 +60,14 @@ public class TeachingPlanWordImporter {
 
     static {
         DETAIL_LABEL_TO_CODE.put("目的与任务", "purpose_task");
+        DETAIL_LABEL_TO_CODE.put("实验目的与任务", "purpose_task");
         DETAIL_LABEL_TO_CODE.put("训练的能力点", "ability_point");
         DETAIL_LABEL_TO_CODE.put("原理", "principle");
+        DETAIL_LABEL_TO_CODE.put("实验原理", "principle");
         DETAIL_LABEL_TO_CODE.put("内容及要求", "content_requirement");
+        DETAIL_LABEL_TO_CODE.put("实验内容及要求", "content_requirement");
         DETAIL_LABEL_TO_CODE.put("结果及要求", "result_requirement");
+        DETAIL_LABEL_TO_CODE.put("实验结果及要求", "result_requirement");
         DETAIL_LABEL_TO_CODE.put("教学设计", "teaching_design");
         DETAIL_LABEL_TO_CODE.put("拟解决的复杂问题", "complex_problem");
         DETAIL_LABEL_TO_CODE.put("主要任务", "main_task");
@@ -330,7 +334,7 @@ public class TeachingPlanWordImporter {
         // 考核
         if (header.contains("考核项目") || header.contains("成果类型") || header.contains("评价标准")
                 || header.contains("评价准则")) {
-            parseAssessments(grid, result);
+            parseAssessments(grid, result, ctx);
             return;
         }
         // 教材
@@ -798,36 +802,45 @@ public class TeachingPlanWordImporter {
             List<String> row = grid.get(r);
             String seq = cell(row, 0);
             String name = cell(row, 1);
-            String detailCell = cell(row, 2);
+            String detailLabel = cell(row, 2);
+            String detailContent = cell(row, 3);
+            // 生成器会纵向合并序号/名称；tableToGrid 可能把 continue 格回填为上一行文本。
+            // 只有序号或名称相较上一项目发生变化时才创建新项目。
+            boolean newItem = current == null
+                    || (StringUtils.isNotBlank(seq) && StringUtils.isNotBlank(lastSeq) && !seq.equals(lastSeq))
+                    || (StringUtils.isNotBlank(name) && StringUtils.isNotBlank(lastName) && !name.equals(lastName));
+            if (newItem || current == null) {
+                if (current != null && StringUtils.isNotBlank(current.item.getName())) {
+                    result.practiceItems.add(current);
+                }
+                current = new ParsedPracticeItem();
+                String effectiveName = StringUtils.defaultIfBlank(name, lastName);
+                String effectiveSeq = StringUtils.defaultIfBlank(seq, lastSeq);
+                current.item.setName(effectiveName);
+                current.item.setSort(parseInt(effectiveSeq) != null
+                        ? parseInt(effectiveSeq)
+                        : result.practiceItems.size() + 1);
+                detailSort = 1;
+            }
             if (StringUtils.isNotBlank(seq)) {
                 lastSeq = seq;
             }
             if (StringUtils.isNotBlank(name)) {
                 lastName = name;
             }
-            boolean newItem = StringUtils.isNotBlank(cell(row, 0)) || StringUtils.isNotBlank(cell(row, 1));
-            if (newItem || current == null) {
-                if (current != null && StringUtils.isNotBlank(current.item.getName())) {
-                    result.practiceItems.add(current);
-                }
-                current = new ParsedPracticeItem();
-                current.item.setName(StringUtils.defaultIfBlank(name, lastName));
-                current.item.setSort(parseInt(StringUtils.defaultIfBlank(seq, lastSeq)) != null
-                        ? parseInt(StringUtils.defaultIfBlank(seq, lastSeq))
-                        : result.practiceItems.size() + 1);
-                detailSort = 1;
-            }
-            if (StringUtils.isNotBlank(detailCell) && current != null) {
+            if ((StringUtils.isNotBlank(detailLabel) || StringUtils.isNotBlank(detailContent)) && current != null) {
                 TeachingPlanPracticeItemDetail d = new TeachingPlanPracticeItemDetail();
-                int colon = indexOfColon(detailCell);
+                int colon = indexOfColon(detailLabel);
                 if (colon > 0) {
-                    String label = detailCell.substring(0, colon).trim();
-                    String content = detailCell.substring(colon + 1).trim();
+                    String label = detailLabel.substring(0, colon).trim();
+                    String content = StringUtils.defaultIfBlank(detailContent,
+                            detailLabel.substring(colon + 1).trim());
                     d.setDetailType(DETAIL_LABEL_TO_CODE.getOrDefault(label, label));
                     d.setContent(content);
                 } else {
-                    d.setDetailType("content_requirement");
-                    d.setContent(detailCell);
+                    String label = detailLabel.trim();
+                    d.setDetailType(DETAIL_LABEL_TO_CODE.getOrDefault(label, label));
+                    d.setContent(detailContent);
                 }
                 d.setSort(detailSort++);
                 current.details.add(d);
@@ -867,7 +880,7 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    private void parseAssessments(List<List<String>> grid, ParseResult result) {
+    private void parseAssessments(List<List<String>> grid, ParseResult result, ParseContext ctx) {
         String header = joinHeader(grid.get(0));
         boolean isOutcome = header.contains("成果");
         boolean hasCategoryColumn = false;
@@ -892,11 +905,11 @@ public class TeachingPlanWordImporter {
             TeachingPlanAssessment a = new TeachingPlanAssessment();
             if (isOutcome) {
                 // 成果类型|成果形式|评价的知识和能力|权重|评价准则
-                Integer ot = parseInt(c0);
+                Integer ot = parseOutcomeType(c0, ctx);
                 if (ot != null) {
                     a.setOutcomeType(ot);
                 }
-                a.setAssessmentItem(StringUtils.isNotBlank(cell(row, 1)) ? cell(row, 1) : c0);
+                a.setAssessmentItem(cell(row, 1));
                 a.setAssessedContent(cell(row, 2));
                 a.setWeight(parseDecimal(cell(row, 3)));
                 a.setStandard(cell(row, 4));
@@ -919,12 +932,36 @@ public class TeachingPlanWordImporter {
                 a.setWeight(parseDecimal(cell(row, 3)));
                 a.setStandard(cell(row, 4));
             }
-            if (StringUtils.isBlank(a.getAssessmentItem()) && a.getOutcomeType() == null) {
+            // 模板会预置成果类型空行；仅有类型、没有任何用户填写内容时不落库。
+            if (isOutcome && StringUtils.isBlank(a.getAssessmentItem())
+                    && StringUtils.isBlank(a.getAssessedContent()) && a.getWeight() == null
+                    && StringUtils.isBlank(a.getStandard())) {
+                continue;
+            }
+            if (!isOutcome && StringUtils.isBlank(a.getAssessmentItem())) {
                 continue;
             }
             a.setSort(result.assessments.size() + 1);
             result.assessments.add(a);
         }
+    }
+
+    private Integer parseOutcomeType(String value, ParseContext ctx) {
+        String code = reverseDict(value, "sys_plan_outcome_type", ctx);
+        Integer parsed = parseInt(code);
+        if (parsed != null) {
+            return parsed;
+        }
+        if ("个人成果".equals(value)) {
+            return 1;
+        }
+        if ("团队成果".equals(value)) {
+            return 2;
+        }
+        if ("过程成果".equals(value) || "过程表现".equals(value)) {
+            return 3;
+        }
+        return null;
     }
 
     private void splitMechanism(String raw, TeachingPlanAssessment a) {
@@ -1280,7 +1317,7 @@ public class TeachingPlanWordImporter {
     /**
      * 识别文档类型：首段标题必须命中教学计划关键字，否则视为非教学计划文档直接拒绝，
      * 避免误传任意 docx 触发覆盖清空。expected（前端传入的 planType 已由调用方转换为
-     * docType 编号）非空时以前端为准，与识别结果不一致仅记 WARN。
+     * docType 编号）非空时以前端为准；与识别结果不一致记 ERROR，由调用方在覆盖前终止。
      */
     private int detectDocType(XWPFDocument doc, List<TeachingPlanImportIssueVo> issues, Integer expected) {
         String title = firstNonBlankParagraph(doc);
@@ -1301,8 +1338,8 @@ public class TeachingPlanWordImporter {
                     + (StringUtils.isBlank(title) ? "" : "（首段：" + StringUtils.abbreviate(title, 30) + "）"));
         }
         if (expected != null && !expected.equals(detected)) {
-            issues.add(TeachingPlanImportIssueVo.warn("文档识别", title, "docType",
-                    "Word 识别类型=" + detected + " 与前端传入类型=" + expected + " 不一致，以前端传入为准"));
+            issues.add(TeachingPlanImportIssueVo.error("文档识别", title, "docType",
+                    "Word 识别类型=" + detected + " 与前端传入类型=" + expected + " 不一致，已拒绝覆盖导入"));
             return expected;
         }
         return detected;

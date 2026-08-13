@@ -46,12 +46,21 @@
     </insert>
 
     <select id="selectByPlanId" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List"/>
-        FROM t_csys_teaching_plan_support_objective
-        WHERE plan_id = #{planId}
-          AND sysflag = 0
-        ORDER BY sort ASC, id ASC
+        SELECT so.id, so.plan_id, so.ref_type, so.ref_plan_id, so.ref_course_id,
+               so.objective_id, so.purpose_id,
+               COALESCE(o.content, p.purpose, so.item_name) AS item_name,
+               so.item_type_name AS item_type_name,
+               COALESCE(o.major_id, so.major_id) AS major_id,
+               so.sort, so.creator, so.create_time, so.last_modifier,
+               so.last_modified_time, so.remark, so.sysflag
+        FROM t_csys_teaching_plan_support_objective so
+        LEFT JOIN t_csys_teaching_plan_objective o
+          ON so.ref_type = 1 AND o.id = so.objective_id AND o.sysflag = 0
+        LEFT JOIN t_csys_teaching_plan_training_purpose p
+          ON so.ref_type = 2 AND p.id = so.purpose_id AND p.sysflag = 0
+        WHERE so.plan_id = #{planId}
+          AND so.sysflag = 0
+        ORDER BY so.sort ASC, so.id ASC
     </select>
 
     <update id="deleteByPlanId">

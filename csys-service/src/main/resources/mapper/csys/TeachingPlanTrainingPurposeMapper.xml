@@ -60,6 +60,11 @@
     <update id="deleteByPlanId">
         UPDATE t_csys_teaching_plan_training_purpose SET sysflag = 2 WHERE plan_id = #{planId}
     </update>
+    <update id="deleteByPlanAndScheme">
+        UPDATE t_csys_teaching_plan_training_purpose SET sysflag = 2 WHERE plan_id = #{planId}
+        <choose><when test="onlyNullScheme != null and onlyNullScheme">AND scheme_id IS NULL</when>
+            <when test="schemeId != null">AND scheme_id = #{schemeId}</when></choose>
+    </update>
 
     <update id="deleteById">
         UPDATE t_csys_teaching_plan_training_purpose SET sysflag = 2 WHERE id = #{id}

@@ -64,6 +64,20 @@
         UPDATE t_csys_teaching_plan_task_background SET sysflag = 2 WHERE plan_id = #{planId}
     </update>
 
+    <update id="deleteByPlanAndScheme">
+        UPDATE t_csys_teaching_plan_task_background
+        SET sysflag = 2
+        WHERE plan_id = #{planId} AND sysflag = 0
+        <choose>
+            <when test="onlyNullScheme != null and onlyNullScheme">
+                AND scheme_id IS NULL
+            </when>
+            <otherwise>
+                AND scheme_id = #{schemeId}
+            </otherwise>
+        </choose>
+    </update>
+
     <update id="deleteById">
         UPDATE t_csys_teaching_plan_task_background SET sysflag = 2 WHERE id = #{id}
     </update>

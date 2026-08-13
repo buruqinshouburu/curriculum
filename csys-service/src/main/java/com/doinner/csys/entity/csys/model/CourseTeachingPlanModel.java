@@ -18,7 +18,6 @@ import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
-import com.doinner.csys.domain.TeachingPlanContentPurpose;
 import com.doinner.csys.domain.TeachingPlanSupportObjective;
 import com.doinner.csys.domain.TeachingPlanSupportContent;
 
@@ -106,7 +105,6 @@ public class CourseTeachingPlanModel {
      * 训练内容 -> 绑定的训练目的（type2 第四节「目的」列多选）。
      * 遍历 contents 时按 contentId 取绑定列表，拼接目的文本填入「目的」列。
      */
-    private Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap;
     /**
      * 实践项目(type=4)第二节「支撑的课程目标或训练目的」绑定（计划级多选快照）。
      * 来源：支撑课程(before_course_id)的课程目标(第四部分，同专业优先) + 支撑训练课目(after_course_id)的训练目的(第二部分)。
@@ -349,14 +347,6 @@ public class CourseTeachingPlanModel {
 
     public void setSchemeTrainingPurposeGroups(List<SchemeTrainingPurposeGroup> schemeTrainingPurposeGroups) {
         this.schemeTrainingPurposeGroups = schemeTrainingPurposeGroups;
-    }
-
-    public Map<Long, List<TeachingPlanContentPurpose>> getContentPurposeMap() {
-        return contentPurposeMap;
-    }
-
-    public void setContentPurposeMap(Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap) {
-        this.contentPurposeMap = contentPurposeMap;
     }
 
     public List<TeachingPlanSupportObjective> getSupportObjectives() {

@@ -45,6 +45,9 @@ public interface TeachingPlanTrainingPurposeMapper {
      */
     int deleteByPlanId(@Param("planId") Long planId);
 
+    int deleteByPlanAndScheme(@Param("planId") Long planId, @Param("schemeId") Long schemeId,
+                              @Param("onlyNullScheme") Boolean onlyNullScheme);
+
     /**
      * 根据主键逻辑删除
      */

@@ -40,12 +40,16 @@
     </insert>
 
     <select id="selectByPlanId" resultMap="BaseResultMap">
-        SELECT
-        <include refid="Base_Column_List"/>
-        FROM t_csys_teaching_plan_support_content
-        WHERE plan_id = #{planId}
-          AND sysflag = 0
-        ORDER BY sort ASC, id ASC
+        SELECT sc.id, sc.plan_id, sc.ref_type, sc.ref_plan_id, sc.ref_course_id,
+               sc.content_id, COALESCE(c.title, sc.item_title) AS item_title,
+               sc.sort, sc.creator, sc.create_time, sc.last_modifier,
+               sc.last_modified_time, sc.remark, sc.sysflag
+        FROM t_csys_teaching_plan_support_content sc
+        LEFT JOIN t_csys_teaching_plan_content c
+          ON c.id = sc.content_id AND c.sysflag = 0
+        WHERE sc.plan_id = #{planId}
+          AND sc.sysflag = 0
+        ORDER BY sc.sort ASC, sc.id ASC
     </select>
 
     <update id="deleteByPlanId">

@@ -16,7 +16,6 @@ import com.doinner.csys.domain.TeachingPlanTaskBackground;
 import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
 import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
-import com.doinner.csys.domain.TeachingPlanContentPurpose;
 import com.doinner.csys.domain.TeachingPlanSupportContent;
 import com.doinner.csys.domain.TeachingPlanSupportObjective;
 import com.doinner.csys.domain.TeachingPlanTeacher;
@@ -91,7 +90,7 @@ public class CourseTeachingPlanGenerator {
     private static final Map<String, String> DETAIL_LABEL = new LinkedHashMap<String, String>() {{
         put("purpose_task", "实验目的与任务");
         put("ability_point", "训练的能力点");
-        put("principle", "原理");
+        put("principle", "实验原理");
         put("content_requirement", "实验内容及要求");
         put("result_requirement", "实验结果及要求");
         put("teaching_design", "教学设计");
@@ -103,8 +102,8 @@ public class CourseTeachingPlanGenerator {
 
     /** 实验类项目明细优先顺序 */
     private static final List<String> EXPERIMENT_DETAIL_ORDER = Arrays.asList(
-            "purpose_task", "content_requirement", "result_requirement", "teaching_design",
-            "ability_point", "principle"
+            "purpose_task", "ability_point", "principle", "content_requirement", "result_requirement",
+            "teaching_design"
     );
 
     /** 实践类项目明细优先顺序 */
@@ -251,7 +250,7 @@ public class CourseTeachingPlanGenerator {
         trainingTaskTable(m, doc);
 
         h1(doc, "四、训练内容与时间安排");
-        trainingContentTable(m.getContents(), m.getContentPurposeMap(), doc);
+        trainingContentTable(m.getContents(), doc);
 
         h1(doc, "五、组织实施");
         organizationTable(m, doc);
@@ -883,10 +882,11 @@ public class CourseTeachingPlanGenerator {
         }
         boolean practiceLike = itemType != null && itemType == 2;
         List<String> order = practiceLike ? PRACTICE_DETAIL_ORDER : EXPERIMENT_DETAIL_ORDER;
-        // 实践项目：无「拟解决的复杂问题」行；实验仍固定 4 行
+        // 实践项目固定保留「拟解决的复杂问题」；实验项目与前端新增页的五个输入字段一致。
         List<String> required = practiceLike
-                ? Arrays.asList("main_task", "overall_design", "outcome_requirement")
-                : Arrays.asList("purpose_task", "content_requirement", "result_requirement", "teaching_design");
+                ? Arrays.asList("complex_problem", "main_task", "overall_design", "outcome_requirement")
+                : Arrays.asList("purpose_task", "ability_point", "principle",
+                "content_requirement", "result_requirement");
         List<TeachingPlanPracticeItemDetail> ordered = new ArrayList<>();
         Set<String> used = new LinkedHashSet<>();
         for (String type : required) {
@@ -899,12 +899,9 @@ public class CourseTeachingPlanGenerator {
             ordered.add(d);
             used.add(type);
         }
-        // 其余类型按优先序追加（实践项目跳过 complex_problem）
+        // 其余已有扩展类型按优先序追加。
         for (String type : order) {
             if (used.contains(type)) {
-                continue;
-            }
-            if (practiceLike && "complex_problem".equals(type)) {
                 continue;
             }
             TeachingPlanPracticeItemDetail d = byType.get(type);
@@ -914,9 +911,6 @@ public class CourseTeachingPlanGenerator {
             }
         }
         for (Map.Entry<String, TeachingPlanPracticeItemDetail> e : byType.entrySet()) {
-            if (practiceLike && "complex_problem".equals(e.getKey())) {
-                continue;
-            }
             if (!used.contains(e.getKey())) {
                 ordered.add(e.getValue());
             }
@@ -1419,14 +1413,8 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 2, 1, m.getSupportingCourses(), false);
     }
 
-    /**
-     * 训练内容与时间安排表（type2 四）：模块 | 内容 | 目的 | 时间安排。
-     * 「目的」列：取该训练内容绑定的训练目的（第四节多选），按 sort 顿号拼接；
-     * 未绑定（无选择或兼容旧数据）时回退内容行的目的文本。
-     */
-    private void trainingContentTable(List<TeachingPlanContent> contents,
-                                      Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap,
-                                      XWPFDocument doc) {
+    /** 训练内容与时间安排表（type2 四）：目的为整格自由文本，不建立训练目的 ID 绑定。 */
+    private void trainingContentTable(List<TeachingPlanContent> contents, XWPFDocument doc) {
         int cols = 4;
         int rows = 1 + Math.max(size(contents), 1);
         XWPFTable t = createTable(doc, rows, cols);
@@ -1440,7 +1428,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 1;
                 setCell(t, r, 0, c.getTitle(), false);
                 setCell(t, r, 1, c.getContent(), false);
-                setCell(t, r, 2, joinContentPurposes(contentPurposeMap, c), false);
+                setCell(t, r, 2, c.getPurpose(), false);
                 setCell(t, r, 3, c.getTimeArrange(), false);
             }
         } else {
@@ -1448,22 +1436,6 @@ public class CourseTeachingPlanGenerator {
                 setCell(t, 1, cc, "", false);
             }
         }
-    }
-
-    /** 拼接某训练内容绑定的训练目的文本（按 sort 保序）；无绑定回退内容行目的文本。 */
-    private String joinContentPurposes(Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap,
-                                       TeachingPlanContent content) {
-        if (content == null || content.getId() == null) {
-            return content == null ? "" : str(content.getPurpose());
-        }
-        List<TeachingPlanContentPurpose> binds = contentPurposeMap == null ? null : contentPurposeMap.get(content.getId());
-        if (ObjectUtils.isEmpty(binds)) {
-            return str(content.getPurpose());
-        }
-        return binds.stream()
-                .filter(b -> b != null && StringUtils.isNotBlank(b.getPurposeText()))
-                .map(TeachingPlanContentPurpose::getPurposeText)
-                .collect(Collectors.joining("、"));
     }
 
     /**
@@ -1704,8 +1676,9 @@ public class CourseTeachingPlanGenerator {
         int r = 1;
         if (ObjectUtils.isNotEmpty(assessments)) {
             for (TeachingPlanAssessment a : assessments) {
-                setCell(t, r, 0, a.getAssessmentItem(), false);
-                setCell(t, r, 1, a.getMethod(), false);
+                setCell(t, r, 0, StringUtils.defaultIfBlank(a.getOutcomeTypeName(),
+                        a.getOutcomeType() == null ? "" : String.valueOf(a.getOutcomeType())), false);
+                setCell(t, r, 1, a.getAssessmentItem(), false);
                 setCell(t, r, 2, a.getAssessedContent(), false);
                 setCell(t, r, 3, toStr(a.getWeight()), false);
                 setCell(t, r, 4, a.getStandard(), false);

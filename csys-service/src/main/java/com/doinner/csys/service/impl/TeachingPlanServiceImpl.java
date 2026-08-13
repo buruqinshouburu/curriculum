@@ -153,6 +153,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_ASSESSMENT_MECHANISM = "sys_assessment_mechanism";
     /** 评价标准字典 type */
     private static final String DICT_EVALUATION_STANDARD = "sys_evaluation_standard";
+    /** 实践项目成果类型：字典值保存到 outcome_type。 */
+    private static final String DICT_PLAN_OUTCOME_TYPE = "sys_plan_outcome_type";
     /** 教材性质字典 type */
     private static final String DICT_TEXTBOOK_NATURE = "sys_textbook_nature";
     /** 出版方式字典 type */
@@ -1119,22 +1121,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 }
             }
             m.setContents(contents);
-            // 训练内容 -> 绑定的训练目的（type2 第四节「目的」列多选）：按 contentId 建索引供生成器拼接
-            Map<Long, List<TeachingPlanContentPurpose>> contentPurposeMap = new HashMap<>();
-            List<TeachingPlanContentPurpose> contentPurposes =
-                    teachingPlanContentPurposeMapper.selectByPlanId(planId);
-            if (ObjectUtils.isNotEmpty(contentPurposes)) {
-                for (TeachingPlanContentPurpose cp : contentPurposes) {
-                    if (cp == null || cp.getContentId() == null) {
-                        continue;
-                    }
-                    contentPurposeMap.computeIfAbsent(cp.getContentId(), k -> new ArrayList<>()).add(cp);
-                }
-            }
-            m.setContentPurposeMap(contentPurposeMap);
             // 实践项目第二节支撑绑定（type4）：支撑的课程目标/训练目的 + 知识体系/训练内容（计划级多选）
-            m.setSupportObjectives(teachingPlanSupportObjectiveMapper.selectByPlanId(planId));
-            m.setSupportContents(teachingPlanSupportContentMapper.selectByPlanId(planId));
+            m.setSupportObjectives(teachingPlanModuleService.listSupportObjective(planId));
+            m.setSupportContents(teachingPlanModuleService.listSupportContent(planId));
             // 目标达成设计：design_type_code 现存字典 value，不再按中文 type 精确查询；
             // 一次取 plan 下全量，由生成器按 designTypeName(字典 label) 分流到知识/能力/素质三表
             List<TeachingPlanTargetDesign> designs =
@@ -1617,8 +1606,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         Map<String, String> methodMap = dictValueToLabelMap(DICT_ASSESSMENT_METHOD);
         Map<String, String> mechanismMap = dictValueToLabelMap(DICT_ASSESSMENT_MECHANISM);
         Map<String, String> standardMap = dictValueToLabelMap(DICT_EVALUATION_STANDARD);
+        Map<String, String> outcomeTypeMap = dictValueToLabelMap(DICT_PLAN_OUTCOME_TYPE);
         for (TeachingPlanAssessment a : assessments) {
             if (a == null) {
+                continue;
+            }
+            if (Objects.equals(a.getAssessmentCategory(), 5)) {
+                String code = a.getOutcomeType() == null ? null : String.valueOf(a.getOutcomeType());
+                String name = translateDictJoined(code, outcomeTypeMap);
+                if (Objects.equals(code, name)) {
+                    name = "1".equals(code) ? "个人成果"
+                            : ("2".equals(code) ? "团队成果" : ("3".equals(code) ? "过程成果" : name));
+                }
+                a.setOutcomeTypeName(name);
                 continue;
             }
             a.setAssessmentItem(translateDictJoined(a.getAssessmentItem(), itemMap));
@@ -2003,6 +2003,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             throw new IllegalArgumentException("无法解析 Word 文件: " + e.getMessage());
         }
 
+        // ERROR 表示文档类型、培养方案归属等关键路径无法确定。必须在新建计划或清空旧模块前返回，
+        // 保证整单不落库；WARN 仍按原策略跳过单条并继续导入。
+        if (hasImportError(parsed.issues)) {
+            TeachingPlanImportResultVo rejected = new TeachingPlanImportResultVo();
+            rejected.setCourseId(courseId);
+            rejected.setDocType(planType);
+            rejected.setCreatedPlan(false);
+            TeachingPlan current = teachingPlanMapper.selectBySourceCourseIdAndPlanType(courseId, planType);
+            rejected.setPlanId(current == null ? null : current.getId());
+            rejected.setIssues(parsed.issues);
+            return rejected;
+        }
+
         // 类型以前端传入为准；严格按 (courseId, planType) 定位，不再回退其他类型的计划
         TeachingPlan existing = teachingPlanMapper.selectBySourceCourseIdAndPlanType(courseId, planType);
         if (existing != null && existing.getStatus() != null
@@ -2070,6 +2083,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         return result;
     }
 
+    private boolean hasImportError(List<TeachingPlanImportIssueVo> issues) {
+        return ObjectUtils.isNotEmpty(issues) && issues.stream()
+                .anyMatch(issue -> issue != null && "ERROR".equalsIgnoreCase(issue.getSeverity()));
+    }
+
     private TeachingPlanWordImporter.ParseContext buildImportParseContext(Long courseId, CourseVo course,
                                                                           Integer planType) {
         TeachingPlanWordImporter.ParseContext ctx = new TeachingPlanWordImporter.ParseContext();
@@ -2091,6 +2109,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 "sys_plan_target_type",
                 DICT_PLAN_TEACHING_LINK, DICT_PLAN_TEACHING_METHOD, DICT_PLAN_LEARNING_METHOD,
                 DICT_ASSESSMENT_ITEM, DICT_ASSESSMENT_METHOD, DICT_ASSESSMENT_MECHANISM, DICT_EVALUATION_STANDARD,
+                DICT_PLAN_OUTCOME_TYPE,
                 DICT_TEXTBOOK_NATURE, DICT_PUBLICATION_METHOD, DICT_CONDITION_TYPE,
                 DICT_PLAN_TRAINING_MODULE, DICT_PLAN_IMPLEMENTATION_STEP
         };
@@ -2359,52 +2378,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         result.addCount("trainingPurpose", tpCount);
         result.addCount("trainingPurposeRef", tpRefCount);
 
-        // 教学内容 + 第四部分「目的」绑定训练目的（type2 多选）
+        // 教学内容；实践训练课目第四部分「目的」整格保存到 content.purpose，不建立 ID 绑定。
         if (ObjectUtils.isNotEmpty(parsed.contents)) {
-            // 以已落库的训练目的构建「目的文本 -> 目的id」索引（按文本精确匹配绑定；
-            // 通识通用/单方案或多方案统一取 plan 下全量目的，内容行不区分方案）
-            Map<String, TeachingPlanTrainingPurpose> purposeTextIndex = new HashMap<>();
-            List<TeachingPlanTrainingPurpose> allPurposes =
-                    teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(planId, null, false);
-            if (ObjectUtils.isNotEmpty(allPurposes)) {
-                for (TeachingPlanTrainingPurpose p : allPurposes) {
-                    if (p == null || StringUtils.isBlank(p.getPurpose()) || p.getId() == null) {
-                        continue;
-                    }
-                    purposeTextIndex.putIfAbsent(p.getPurpose().trim(), p);
-                }
-            }
             for (TeachingPlanContent c : parsed.contents) {
                 c.setId(null);
                 c.setPlanId(planId);
                 prepareEntity(c);
                 teachingPlanContentMapper.insert(c);
-                if (c.getId() == null) {
-                    continue;
-                }
-                // 「目的」单元格整串/greedy 最长前缀匹配已存在的训练目的并建立绑定（与支撑目标同套路）：
-                // 目的名自身可含「、，；」（如"掌握单个军人队列动作、班队列组织等基本军事素养"），
-                // 先按分隔符拆碎再逐段匹配会把单个名称拆成多段全部失配，甚至碎片误中别的目的名；
-                // 未命中的文本保留在 content.purpose（兼容旧数据/新录入自由文本），命中的生成器优先展示绑定目的
-                if (StringUtils.isBlank(c.getPurpose())) {
-                    continue;
-                }
-                int purposeSort = 1;
-                List<TeachingPlanTrainingPurpose> matchedPurposes = resolveContentPurposeList(
-                        c.getPurpose(), purposeTextIndex, result.getIssues(),
-                        "训练内容-目的", c.getPurpose(), "contentPurpose");
-                for (TeachingPlanTrainingPurpose p : matchedPurposes) {
-                    if (p == null || p.getId() == null) {
-                        continue;
-                    }
-                    TeachingPlanContentPurpose cp = new TeachingPlanContentPurpose();
-                    cp.setPlanId(planId);
-                    cp.setContentId(c.getId());
-                    cp.setPurposeId(p.getId());
-                    cp.setSort(purposeSort++);
-                    prepareEntity(cp);
-                    teachingPlanContentPurposeMapper.insert(cp);
-                }
             }
             result.addCount("content", parsed.contents.size());
         }
@@ -2550,10 +2530,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 a.setPlanId(planId);
                 String importedAssessmentItem = a.getAssessmentItem();
                 // 字典反查已在解析阶段尽量完成；此处再补 assessment 字段
-                a.setAssessmentItem(reverseImportDict(a.getAssessmentItem(), DICT_ASSESSMENT_ITEM));
-                a.setMethod(reverseImportDict(a.getMethod(), DICT_ASSESSMENT_METHOD));
-                a.setMechanism(reverseImportDict(a.getMechanism(), DICT_ASSESSMENT_MECHANISM));
-                a.setStandard(reverseImportDict(a.getStandard(), DICT_EVALUATION_STANDARD));
+                if (!Objects.equals(a.getAssessmentCategory(), 5)) {
+                    a.setAssessmentItem(reverseImportDict(a.getAssessmentItem(), DICT_ASSESSMENT_ITEM));
+                    a.setMethod(reverseImportDict(a.getMethod(), DICT_ASSESSMENT_METHOD));
+                    a.setMechanism(reverseImportDict(a.getMechanism(), DICT_ASSESSMENT_MECHANISM));
+                    a.setStandard(reverseImportDict(a.getStandard(), DICT_EVALUATION_STANDARD));
+                }
+                if (a.getWeight() != null && (a.getWeight().compareTo(BigDecimal.ZERO) < 0
+                        || a.getWeight().compareTo(BigDecimal.ONE) > 0)) {
+                    result.getIssues().add(TeachingPlanImportIssueVo.warn(
+                            "考核评价", importedAssessmentItem, "weight",
+                            "权重必须为0到1之间的小数，该考核项已跳过"));
+                    continue;
+                }
                 prepareEntity(a);
                 teachingPlanAssessmentMapper.insert(a);
                 if (StringUtils.isNotBlank(importedAssessmentItem)) {

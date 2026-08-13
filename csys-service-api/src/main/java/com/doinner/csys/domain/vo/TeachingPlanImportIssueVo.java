@@ -17,7 +17,7 @@ public class TeachingPlanImportIssueVo {
     /** 问题说明 */
     private String message;
 
-    /** WARN=跳过该条继续；ERROR=整组/关键路径失败但仍不中断整单 */
+    /** WARN=跳过该条继续；ERROR=关键路径失败，整单不落库 */
     private String severity;
 
     public TeachingPlanImportIssueVo() {

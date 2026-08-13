@@ -58,6 +58,7 @@ import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
 import com.doinner.csys.domain.vo.CourseIdAndName;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
@@ -126,6 +127,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     /** 训练内容与时间安排模块字典 type（type2 content.title 存 value 编码） */
     private static final String DICT_PLAN_TRAINING_MODULE = "sys_plan_training_module";
+
+    /** 实践项目成果类型字典，value 保存到 assessment.outcome_type。 */
+    private static final String DICT_PLAN_OUTCOME_TYPE = "sys_plan_outcome_type";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>> KP_LIST_TYPE =
@@ -517,6 +521,12 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("教学计划不存在: " + saveVo.getPlanId());
         }
         List<TeachingPlanObjectiveSaveVo> rows = saveVo.getObjectives();
+        boolean batchPublicFoundation = isPublicFoundationPlan(saveVo.getPlanId());
+        Long batchSchemeId = batchPublicFoundation ? null : saveVo.getSchemeId();
+        if (!batchPublicFoundation && batchSchemeId == null) {
+            throw new IllegalArgumentException("非公共基础课程批量保存目标必须指定 schemeId");
+        }
+        validateObjectiveBatchScheme(rows, batchSchemeId, batchPublicFoundation);
         if (plan.getPlanType() != null && plan.getPlanType() == 1 && ObjectUtils.isNotEmpty(rows)) {
             BigDecimal total = BigDecimal.ZERO;
             for (TeachingPlanObjectiveSaveVo row : rows) {
@@ -532,8 +542,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 throw new IllegalArgumentException("课程目标权重合计必须等于1，当前为" + total.stripTrailingZeros().toPlainString());
             }
         }
-        teachingPlanObjectiveRefMapper.deleteByPlanId(saveVo.getPlanId());
-        teachingPlanObjectiveMapper.deleteByPlanId(saveVo.getPlanId());
+        teachingPlanObjectiveRefMapper.deleteByPlanAndScheme(
+                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation);
+        teachingPlanObjectiveMapper.deleteByPlanAndScheme(
+                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation);
         if (ObjectUtils.isEmpty(rows)) {
             return;
         }
@@ -546,7 +558,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             objective.setId(null);
             objective.setPlanId(saveVo.getPlanId());
             if (objective.getSchemeId() == null) {
-                objective.setSchemeId(saveVo.getSchemeId());
+                objective.setSchemeId(batchSchemeId);
             }
             boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
             if (publicFoundation) {
@@ -1032,8 +1044,16 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("教学计划不存在: " + saveVo.getPlanId());
         }
         List<TeachingPlanTaskBackgroundSaveVo> rows = saveVo.getTaskBackgrounds();
-        teachingPlanTaskBackgroundRefMapper.deleteByPlanId(saveVo.getPlanId());
-        teachingPlanTaskBackgroundMapper.deleteByPlanId(saveVo.getPlanId());
+        boolean batchPublicFoundation = isPublicFoundationPlan(saveVo.getPlanId());
+        Long batchSchemeId = batchPublicFoundation ? null : saveVo.getSchemeId();
+        if (!batchPublicFoundation && batchSchemeId == null) {
+            throw new IllegalArgumentException("非公共基础课程批量保存任务背景必须指定 schemeId");
+        }
+        validateTaskBackgroundBatchScheme(rows, batchSchemeId, batchPublicFoundation);
+        teachingPlanTaskBackgroundRefMapper.deleteByPlanAndScheme(
+                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation);
+        teachingPlanTaskBackgroundMapper.deleteByPlanAndScheme(
+                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation);
         if (ObjectUtils.isEmpty(rows)) {
             return;
         }
@@ -1046,7 +1066,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             taskBackground.setId(null);
             taskBackground.setPlanId(saveVo.getPlanId());
             if (taskBackground.getSchemeId() == null) {
-                taskBackground.setSchemeId(saveVo.getSchemeId());
+                taskBackground.setSchemeId(batchSchemeId);
             }
             boolean publicFoundation = forceNullSchemeIfPublicFoundation(taskBackground);
             if (publicFoundation) {
@@ -1263,8 +1283,30 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("教学计划不存在: " + saveVo.getPlanId());
         }
         List<TeachingPlanTrainingPurposeSaveVo> rows = saveVo.getPurposes();
-        teachingPlanTrainingPurposeRefMapper.deleteByPlanId(saveVo.getPlanId());
-        teachingPlanTrainingPurposeMapper.deleteByPlanId(saveVo.getPlanId());
+        boolean generalSubject = isGeneralSubjectPlan(saveVo.getPlanId());
+        Long schemeId = generalSubject ? null : saveVo.getSchemeId();
+        if (!generalSubject && schemeId == null && ObjectUtils.isNotEmpty(rows)) {
+            TeachingPlanTrainingPurpose first = rows.stream()
+                    .filter(Objects::nonNull)
+                    .map(TeachingPlanTrainingPurposeSaveVo::getPurpose)
+                    .filter(Objects::nonNull)
+                    .findFirst().orElse(null);
+            schemeId = first == null ? null : first.getSchemeId();
+        }
+        if (!generalSubject && schemeId != null && ObjectUtils.isNotEmpty(rows)) {
+            for (TeachingPlanTrainingPurposeSaveVo row : rows) {
+                if (row != null && row.getPurpose() != null
+                        && row.getPurpose().getSchemeId() != null
+                        && !schemeId.equals(row.getPurpose().getSchemeId())) {
+                    throw new IllegalArgumentException("同一次批量保存不能混入不同培养方案的训练目的");
+                }
+            }
+        }
+        if (!generalSubject && schemeId == null) {
+            throw new IllegalArgumentException("非通识通用课目批量保存训练目的必须指定 schemeId");
+        }
+        teachingPlanTrainingPurposeRefMapper.deleteByPlanAndScheme(saveVo.getPlanId(), schemeId, generalSubject);
+        teachingPlanTrainingPurposeMapper.deleteByPlanAndScheme(saveVo.getPlanId(), schemeId, generalSubject);
         if (ObjectUtils.isEmpty(rows)) {
             return;
         }
@@ -1277,13 +1319,13 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             trainingPurpose.setId(null);
             trainingPurpose.setPlanId(saveVo.getPlanId());
             if (trainingPurpose.getSchemeId() == null) {
-                trainingPurpose.setSchemeId(saveVo.getSchemeId());
+                trainingPurpose.setSchemeId(schemeId);
             }
-            boolean generalSubject = forceNullSchemeIfGeneralSubject(trainingPurpose);
-            if (generalSubject) {
+            boolean rowGeneralSubject = forceNullSchemeIfGeneralSubject(trainingPurpose);
+            if (rowGeneralSubject) {
                 trainingPurpose.setSchemeId(null);
             }
-            validateTrainingPurposeForInsert(trainingPurpose, generalSubject);
+            validateTrainingPurposeForInsert(trainingPurpose, rowGeneralSubject);
             if (trainingPurpose.getSort() == null) {
                 trainingPurpose.setSort(sort);
             }
@@ -1646,6 +1688,131 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     }
 
     @Override
+    public List<TeachingPlanSupportCandidateGroupVo> listSupportCandidateGroups(Long courseId, Long projectPlanId) {
+        List<TeachingPlanSupportCandidateGroupVo> result = new ArrayList<>();
+        CourseVo source = courseMapper.selectCourseById(courseId);
+        if (source == null) return result;
+        Long projectSchemeId = null;
+        TeachingPlan projectPlan = projectPlanId == null ? null : teachingPlanMapper.selectById(projectPlanId);
+        if (projectPlan != null) {
+            List<TeachingPlanSchemeVo> projectSchemes = listSchemes(projectPlan.getSourceCourseId());
+            if (ObjectUtils.isNotEmpty(projectSchemes)) projectSchemeId = projectSchemes.get(0).getSchemeId();
+        }
+        Map<Long, TeachingPlanSupportCandidateGroupVo> groups = new LinkedHashMap<>();
+        List<Long> sourceIds = new ArrayList<>();
+        sourceIds.addAll(parseCourseIdCsv(source.getBeforeCourseId()));
+        sourceIds.addAll(parseCourseIdCsv(source.getAfterCourseId()));
+        for (Long sourceId : new LinkedHashSet<>(sourceIds)) {
+            Course c = courseMapper.selectCourseById(sourceId);
+            if (c == null || StringUtils.isBlank(c.getType())) continue;
+            Integer courseType = parseInt(c.getType());
+            Integer lookupPlanType = Objects.equals(courseType, 2) ? 3 : courseType;
+            TeachingPlan plan = teachingPlanMapper.selectBySourceCourseIdAndPlanType(sourceId, lookupPlanType);
+            if (plan == null) continue;
+            List<TeachingPlanSchemeVo> schemes = listSchemes(sourceId);
+            Map<Long, TeachingPlanSchemeVo> schemeMap = new LinkedHashMap<>();
+            if (ObjectUtils.isNotEmpty(schemes)) for (TeachingPlanSchemeVo s : schemes) {
+                if (s != null) schemeMap.put(s.getSchemeId(), s);
+            }
+            List<Long> schemeIds = new ArrayList<>(schemeMap.keySet());
+            if (schemeIds.isEmpty()) schemeIds.add(null);
+            for (Long sid : schemeIds) {
+                TeachingPlanSupportCandidateGroupVo group = groups.get(sid);
+                if (group == null) {
+                    group = new TeachingPlanSupportCandidateGroupVo();
+                    group.setSchemeId(sid);
+                    TeachingPlanSchemeVo scheme = schemeMap.get(sid);
+                    if (scheme != null) { group.setSchemeName(scheme.getSchemeName()); group.setSchemeVersion(scheme.getSchemeVersion()); }
+                    group.setSameScheme(Objects.equals(sid, projectSchemeId));
+                    groups.put(sid, group);
+                }
+                if (Objects.equals(courseType, 2)) {
+                    List<TeachingPlanTrainingPurpose> purposes =
+                            teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(plan.getId(), sid, sid == null);
+                    if (ObjectUtils.isNotEmpty(purposes)) for (TeachingPlanTrainingPurpose p : purposes) {
+                        TeachingPlanSupportCandidateItem item = new TeachingPlanSupportCandidateItem();
+                        item.setId(p.getId()); item.setName(p.getPurpose()); item.setSourceCourseId(sourceId);
+                        item.setSourceCourseName(c.getName());
+                        item.setSchemeId(sid); item.setSchemeName(group.getSchemeName());
+                        item.setSameMajor(Objects.equals(sid, projectSchemeId));
+                        group.getPurposes().add(item);
+                    }
+                    appendContentCandidatesForScheme(plan.getId(), sourceId, c.getName(), sid,
+                            group.getSchemeName(), group.getTrainingContents());
+                } else {
+                    List<TeachingPlanObjective> objectives =
+                            teachingPlanObjectiveMapper.selectByPlanAndScheme(plan.getId(), sid, sid == null);
+                    if (ObjectUtils.isNotEmpty(objectives)) for (TeachingPlanObjective o : objectives) {
+                        TeachingPlanSupportCandidateItem item = new TeachingPlanSupportCandidateItem();
+                        item.setId(o.getId()); item.setName(o.getContent()); item.setTypeName(o.getObjectiveTypeName());
+                        item.setSourceCourseId(sourceId); item.setSourceCourseName(c.getName());
+                        item.setSchemeId(sid); item.setSchemeName(group.getSchemeName());
+                        item.setSameMajor(Objects.equals(sid, projectSchemeId));
+                        group.getObjectives().add(item);
+                    }
+                    appendContentCandidatesForScheme(plan.getId(), sourceId, c.getName(), sid,
+                            group.getSchemeName(), group.getKnowledgePoints());
+                }
+            }
+        }
+        result.addAll(groups.values());
+        result.sort(Comparator.comparing(g -> !Boolean.TRUE.equals(g.getSameScheme())));
+        return result;
+    }
+
+    private void appendContentCandidatesForScheme(Long planId, Long courseId, String courseName, Long schemeId,
+                                                   String schemeName,
+                                                   List<TeachingPlanSupportCandidateItem> target) {
+        List<TeachingPlanContent> contents = teachingPlanContentMapper.selectByPlanId(planId);
+        if (ObjectUtils.isEmpty(contents)) return;
+        for (TeachingPlanContent c : contents) {
+            if (c == null || c.getId() == null || StringUtils.isBlank(c.getTitle())) continue;
+            TeachingPlanSupportCandidateItem item = new TeachingPlanSupportCandidateItem();
+            item.setId(c.getId()); item.setName(translateTrainingModuleName(c.getTitle()));
+            item.setSourceCourseId(courseId); item.setSourceCourseName(courseName);
+            item.setSchemeId(schemeId); item.setSchemeName(schemeName);
+            item.setSameMajor(Boolean.FALSE);
+            target.add(item);
+        }
+    }
+
+    private void validateTaskBackgroundBatchScheme(List<TeachingPlanTaskBackgroundSaveVo> rows, Long schemeId,
+                                                   boolean publicFoundation) {
+        if (ObjectUtils.isEmpty(rows)) {
+            return;
+        }
+        for (TeachingPlanTaskBackgroundSaveVo row : rows) {
+            if (row == null || row.getTaskBackground() == null) {
+                continue;
+            }
+            Long rowSchemeId = row.getTaskBackground().getSchemeId();
+            if (publicFoundation && rowSchemeId != null) {
+                row.getTaskBackground().setSchemeId(null);
+            } else if (!publicFoundation && rowSchemeId != null && !schemeId.equals(rowSchemeId)) {
+                throw new IllegalArgumentException("同一次批量保存不能混入不同培养方案的任务背景");
+            }
+        }
+    }
+
+    private void validateObjectiveBatchScheme(List<TeachingPlanObjectiveSaveVo> rows, Long schemeId,
+                                              boolean publicFoundation) {
+        if (ObjectUtils.isEmpty(rows)) {
+            return;
+        }
+        for (TeachingPlanObjectiveSaveVo row : rows) {
+            if (row == null || row.getObjective() == null) {
+                continue;
+            }
+            Long rowSchemeId = row.getObjective().getSchemeId();
+            if (publicFoundation && rowSchemeId != null) {
+                row.getObjective().setSchemeId(null);
+            } else if (!publicFoundation && rowSchemeId != null && !schemeId.equals(rowSchemeId)) {
+                throw new IllegalArgumentException("同一次批量保存不能混入不同培养方案的课程目标");
+            }
+        }
+    }
+
+    @Override
     public List<TeachingPlanSupportObjective> listSupportObjective(Long planId) {
         if (planId == null) {
             return Collections.emptyList();
@@ -1720,7 +1887,15 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (planId == null) {
             return Collections.emptyList();
         }
-        return teachingPlanSupportContentMapper.selectByPlanId(planId);
+        List<TeachingPlanSupportContent> contents = teachingPlanSupportContentMapper.selectByPlanId(planId);
+        if (ObjectUtils.isNotEmpty(contents)) {
+            for (TeachingPlanSupportContent content : contents) {
+                if (content != null && Objects.equals(content.getRefType(), 2)) {
+                    content.setItemTitle(translateTrainingModuleName(content.getItemTitle()));
+                }
+            }
+        }
+        return contents;
     }
 
     @Override
@@ -2162,6 +2337,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     public List<TeachingPlanAssessment> listAssessment(Long planId) {
         List<TeachingPlanAssessment> list = teachingPlanAssessmentMapper.selectByPlanId(planId);
+        fillOutcomeTypeNames(list);
         // 列表回传主表计分规则（非 assessment 表字段，便于考核页回显）
         if (planId != null && ObjectUtils.isNotEmpty(list)) {
             TeachingPlan plan = teachingPlanMapper.selectById(planId);
@@ -2177,6 +2353,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long addAssessment(TeachingPlanAssessment assessment) {
+        validateAssessment(assessment);
         UserUtils.reflash(assessment);
         teachingPlanAssessmentMapper.insert(assessment);
         // scoreRule 为非本表透传字段：有值时回写主表 t_csys_teaching_plan.score_rule
@@ -2187,6 +2364,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateAssessment(TeachingPlanAssessment assessment) {
+        validateAssessment(assessment);
         UserUtils.reflash(assessment);
         teachingPlanAssessmentMapper.updateById(assessment);
         // scoreRule 为非本表透传字段：有值时回写主表；planId 未传时无法定位主表则跳过
@@ -2197,6 +2375,77 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     @Transactional(rollbackFor = Exception.class)
     public void deleteAssessment(Long id) {
         teachingPlanAssessmentMapper.deleteById(id);
+    }
+
+    private void validateAssessment(TeachingPlanAssessment assessment) {
+        if (assessment == null) {
+            throw new IllegalArgumentException("考核评价不能为空");
+        }
+        BigDecimal weight = assessment.getWeight();
+        if (weight != null && (weight.compareTo(BigDecimal.ZERO) < 0
+                || weight.compareTo(BigDecimal.ONE) > 0)) {
+            throw new IllegalArgumentException("考核权重必须为0到1之间的小数");
+        }
+        if (Objects.equals(assessment.getAssessmentCategory(), 5)) {
+            if (assessment.getOutcomeType() == null) {
+                throw new IllegalArgumentException("成果评价必须选择成果类型");
+            }
+            if (StringUtils.isBlank(assessment.getAssessmentItem())) {
+                throw new IllegalArgumentException("成果评价必须填写成果形式");
+            }
+            validateOutcomeType(assessment.getOutcomeType());
+            // 成果评价不复用普通考核的方式、机制、成绩评定字段。
+            assessment.setMethod(null);
+            assessment.setMechanism(null);
+            assessment.setScoreSystem(null);
+        }
+    }
+
+    private void validateOutcomeType(Integer outcomeType) {
+        List<SysDictData> dicts = CurDictUtils.getDictData(DICT_PLAN_OUTCOME_TYPE);
+        if (ObjectUtils.isEmpty(dicts)) {
+            return;
+        }
+        boolean matched = dicts.stream().filter(Objects::nonNull)
+                .anyMatch(d -> String.valueOf(outcomeType).equals(StringUtils.trim(d.getDictValue())));
+        if (!matched) {
+            throw new IllegalArgumentException("成果类型不在字典 " + DICT_PLAN_OUTCOME_TYPE + " 中: " + outcomeType);
+        }
+    }
+
+    private void fillOutcomeTypeNames(List<TeachingPlanAssessment> list) {
+        if (ObjectUtils.isEmpty(list)) {
+            return;
+        }
+        Map<String, String> labels = new HashMap<>();
+        List<SysDictData> dicts = CurDictUtils.getDictData(DICT_PLAN_OUTCOME_TYPE);
+        if (ObjectUtils.isNotEmpty(dicts)) {
+            for (SysDictData d : dicts) {
+                if (d != null && StringUtils.isNotBlank(d.getDictValue())) {
+                    labels.put(d.getDictValue().trim(), d.getDictLabel());
+                }
+            }
+        }
+        for (TeachingPlanAssessment assessment : list) {
+            if (assessment != null && Objects.equals(assessment.getAssessmentCategory(), 5)
+                    && assessment.getOutcomeType() != null) {
+                String code = String.valueOf(assessment.getOutcomeType());
+                assessment.setOutcomeTypeName(labels.getOrDefault(code, defaultOutcomeTypeName(code)));
+            }
+        }
+    }
+
+    private String defaultOutcomeTypeName(String code) {
+        if ("1".equals(code)) {
+            return "个人成果";
+        }
+        if ("2".equals(code)) {
+            return "团队成果";
+        }
+        if ("3".equals(code)) {
+            return "过程成果";
+        }
+        return code;
     }
 
     /**

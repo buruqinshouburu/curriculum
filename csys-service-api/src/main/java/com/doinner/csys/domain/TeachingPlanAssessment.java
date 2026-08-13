@@ -55,6 +55,9 @@ public class TeachingPlanAssessment extends AbstractDoinnerLogicalDelBaseEntity 
      */
     private Integer outcomeType;
 
+    /** 成果类型字典名称（非数据库字段，列表与 Word 展示用） */
+    private transient String outcomeTypeName;
+
     /**
      * 评价的知识和能力
      */
@@ -152,6 +155,14 @@ public class TeachingPlanAssessment extends AbstractDoinnerLogicalDelBaseEntity 
 
     public void setOutcomeType(Integer outcomeType) {
         this.outcomeType = outcomeType;
+    }
+
+    public String getOutcomeTypeName() {
+        return outcomeTypeName;
+    }
+
+    public void setOutcomeTypeName(String outcomeTypeName) {
+        this.outcomeTypeName = outcomeTypeName;
     }
 
     public String getAssessedContent() {

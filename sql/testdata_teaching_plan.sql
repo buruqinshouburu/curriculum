@@ -392,12 +392,12 @@ VALUES
 INSERT INTO t_csys_teaching_plan_assessment
 (id, plan_id, assessment_category, assessment_item, method, mechanism, standard, weight, outcome_type, sort)
 VALUES
-(68011, 6001, 1, '1', '1', '1', NULL,       50, 1, 1),
-(68012, 6001, 1, '3', '1', '1', NULL,       10, 1, 2),
-(68013, 6001, 2, '2', '2', '2', '1,2,3,4,5',15, 2, 3),
-(68014, 6001, 2, '4', '3', '1', NULL,       5,  2, 4),
-(68015, 6001, 2, '8', '2', '4', '1,2,3,4', 10, 2, 5),
-(68016, 6001, 2, '7', '2', '3', '6,7',     10, 2, 6);
+(68011, 6001, 1, '1', '1', '1', NULL,       0.50, 1, 1),
+(68012, 6001, 1, '3', '1', '1', NULL,       0.10, 1, 2),
+(68013, 6001, 2, '2', '2', '2', '1,2,3,4,5',0.15, 2, 3),
+(68014, 6001, 2, '4', '3', '1', NULL,       0.05, 2, 4),
+(68015, 6001, 2, '8', '2', '4', '1,2,3,4', 0.10, 2, 5),
+(68016, 6001, 2, '7', '2', '3', '6,7',     0.10, 2, 6);
 
 -- 目标达成考核设计（第八部分（二））；objective_assessment.assessment_item 存与 assessment 相同的字典编码
 INSERT INTO t_csys_teaching_plan_objective_assessment
@@ -454,23 +454,14 @@ VALUES
 (6002, 62113, 1002, 80021, 7601, 90102, 90102, 'GR2', '具备计算机工程实践与系统开发能力',           'scheme_course', 3),
 (6002, 62114, 1004, 80021, 7601, 90103, 90103, 'GR3', '具有良好的职业道德、团队合作与终身学习意识', 'scheme_course', 4);
 
--- 第四部分 训练内容与时间安排：title=字典value(1/2/3)，保持 3 行（测试 t6/t9/t10 依赖）
--- id 显式给定 62211/62212/62213，供 content_purpose / support_content 引用
+-- 第四部分 训练内容与时间安排：title=字典value(1/2/3)，目的为整格字符串，不建立训练目的绑定
+-- id 显式给定 62211/62212/62213，供 support_content 引用
 INSERT INTO t_csys_teaching_plan_content
 (id, plan_id, content_type, title, content, purpose, time_arrange, sort)
 VALUES
-(62211, 6002, 1, '1', '单个军人队列动作与班队列组织', NULL, '第1-2周', 1),
-(62212, 6002, 1, '2', '指挥口令运用与队列指挥',       NULL, '第3-4周', 2),
-(62213, 6002, 1, '3', '新质新域装备认知与操作基础',   NULL, '第5-6周', 3);
-
--- 训练内容 -> 训练目的（第四部分「目的」列，模块可绑定多个目的）
-INSERT INTO t_csys_teaching_plan_content_purpose (plan_id, content_id, purpose_id, sort)
-VALUES
-(6002, 62211, 62111, 1),
-(6002, 62212, 62111, 2),
-(6002, 62212, 62113, 3),
-(6002, 62213, 62112, 4),
-(6002, 62213, 62114, 5);
+(62211, 6002, 1, '1', '单个军人队列动作与班队列组织', '掌握单个军人队列动作、班队列组织等基本军事素养', '第1-2周', 1),
+(62212, 6002, 1, '2', '指挥口令运用与队列指挥',       '培养按作战流程组织指挥、协同配合的班组指挥能力', '第3-4周', 2),
+(62213, 6002, 1, '3', '新质新域装备认知与操作基础',   '了解新质新域装备基本原理并形成规范操作意识',       '第5-6周', 3);
 
 -- 第三部分 训练任务与总体设计（训练任务/总体设计 section；配套支撑课程来自课程库配置）
 INSERT INTO t_csys_teaching_plan_section
@@ -501,8 +492,8 @@ VALUES
 INSERT INTO t_csys_teaching_plan_assessment
 (plan_id, assessment_category, assessment_item, method, mechanism, standard, weight, outcome_type, sort)
 VALUES
-(6002, 1, '5', '队列会操评分', '2', '1,2,3,4,5', 60, 1, 1),
-(6002, 2, '7', '出勤与作风',   '3', '6,7',      40, 2, 2);
+(6002, 1, '5', '队列会操评分', '2', '1,2,3,4,5', 0.60, 1, 1),
+(6002, 2, '7', '出勤与作风',   '3', '6,7',      0.40, 2, 2);
 
 INSERT INTO t_csys_teaching_plan_condition (plan_id, condition_type, requirement, sort)
 VALUES
@@ -566,22 +557,33 @@ VALUES
 INSERT INTO t_csys_teaching_plan_practice_item_detail (item_id, detail_type, content, sort)
 VALUES
 (66511, 'purpose_task',        '验证牛顿第二定律',           1),
-(66511, 'content_requirement', '记录并处理实验数据',         2),
+(66511, 'ability_point',       '训练实验方案执行与数据分析能力', 2),
+(66511, 'principle',           '牛顿第二定律及控制变量法',   3),
+(66511, 'content_requirement', '记录并处理实验数据',         4),
+(66511, 'result_requirement',  '形成规范实验报告',           5),
 (66512, 'purpose_task',        '测定感应电动势与互感系数',   1),
-(66512, 'result_requirement',  '提交实验报告',               2),
+(66512, 'ability_point',       '训练电磁学实验操作与误差分析能力', 2),
+(66512, 'principle',           '法拉第电磁感应定律与互感原理', 3),
+(66512, 'content_requirement', '测量感应电动势并计算互感系数', 4),
+(66512, 'result_requirement',  '提交实验报告',               5),
 (66513, 'purpose_task',        '掌握电桥法测量原理',         1),
-(66513, 'content_requirement', '完成应变片贴片与电桥电路搭建',2),
-(66513, 'result_requirement',  '提交实验报告',               3),
+(66513, 'ability_point',       '训练电桥搭建、调试与测量能力', 2),
+(66513, 'principle',           '惠斯通电桥平衡原理与应变测量原理', 3),
+(66513, 'content_requirement', '完成应变片贴片与电桥电路搭建',4),
+(66513, 'result_requirement',  '提交实验报告',               5),
 (66514, 'purpose_task',        '掌握示波器使用方法',         1),
-(66514, 'content_requirement', '测量正弦/方波信号参数',      2);
+(66514, 'ability_point',       '训练示波器操作与信号测量能力', 2),
+(66514, 'principle',           '示波器扫描、触发与波形显示原理', 3),
+(66514, 'content_requirement', '测量正弦/方波信号参数',      4),
+(66514, 'result_requirement',  '准确记录波形参数并完成实验报告', 5);
 
 -- 考核评价（第六部分）：期末百分制 / 实验报告五级制 / 实验操作四级制
 INSERT INTO t_csys_teaching_plan_assessment
 (plan_id, assessment_category, assessment_item, method, mechanism, standard, weight, outcome_type, sort)
 VALUES
-(6003, 1, '期末考核', '闭卷考试', '1', NULL,         30, 1, 1),
-(6003, 2, '实验报告', '考查',   '2', '1,2,3,4,5', 40, 2, 2),
-(6003, 2, '实验操作', '现场操作', '4', '1,2,3,4',   30, 2, 3);
+(6003, 1, '期末考核', '闭卷考试', '1', NULL,         0.30, 1, 1),
+(6003, 2, '实验报告', '考查',   '2', '1,2,3,4,5', 0.40, 2, 2),
+(6003, 2, '实验操作', '现场操作', '4', '1,2,3,4',   0.30, 2, 3);
 
 -- 实验教材（第七部分）
 INSERT INTO t_csys_teaching_plan_textbook
@@ -644,9 +646,9 @@ VALUES
 INSERT INTO t_csys_teaching_plan_assessment
 (plan_id, assessment_category, assessment_item, method, assessed_content, mechanism, standard, weight, outcome_type, sort)
 VALUES
-(6004, 1, '个人成果', '成果答辩与文档评审', '系统设计、编码实现与文档质量', '2', '1,2,3,4,5', 40, 1, 1),
-(6004, 2, '团队成果', '团队成果展示与互评', '团队协作、系统集成与整体效能', '2', '1,2,3,4,5', 30, 2, 2),
-(6004, 2, '过程表现', '进度、协作与出勤',   '项目过程管理与责任心',         '3', '6,7',      30, 0, 3);
+(6004, 5, '成果答辩与文档评审', NULL, '系统设计、编码实现与文档质量', NULL, '能够完整说明设计方案并提交规范文档', 0.40, 1, 1),
+(6004, 5, '团队成果展示与互评', NULL, '团队协作、系统集成与整体效能', NULL, '系统集成完整，团队分工与协作清晰', 0.30, 2, 2),
+(6004, 5, '项目过程记录',       NULL, '项目过程管理与责任心',         NULL, '过程记录完整并按计划完成阶段任务', 0.30, 3, 3);
 
 -- 实践条件（第五部分）
 INSERT INTO t_csys_teaching_plan_condition (plan_id, condition_type, requirement, sort)

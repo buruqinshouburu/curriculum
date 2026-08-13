@@ -48,3 +48,21 @@ VALUES
 (333, 1, '战斗准备', '1', 'sys_plan_implementation_step', NULL, 'default', 'N', '0', 'cur', NOW(), '', NULL, NULL),
 (334, 2, '战斗实施', '2', 'sys_plan_implementation_step', NULL, 'default', 'N', '0', 'cur', NOW(), '', NULL, NULL),
 (335, 3, '撤出战斗', '3', 'sys_plan_implementation_step', NULL, 'default', 'N', '0', 'cur', NOW(), '', NULL, NULL);
+
+-- =====================================================================
+-- 新增字典：实践项目成果类型
+-- 用途：实践项目教学计划「成果与评价」成果类型；value 保存到
+-- t_csys_teaching_plan_assessment.outcome_type，assessment_category 固定为 5。
+-- =====================================================================
+
+INSERT INTO `sys_dict_type`
+(`dict_id`, `dict_name`, `dict_type`, `status`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+VALUES
+(155, '实践项目成果类型', 'sys_plan_outcome_type', '0', 'cur', NOW(), '', NULL, '实践项目成果与评价成果类型字段');
+
+INSERT INTO `sys_dict_data`
+(`dict_code`, `dict_sort`, `dict_label`, `dict_value`, `dict_type`, `css_class`, `list_class`, `is_default`, `status`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+VALUES
+(336, 1, '个人成果', '1', 'sys_plan_outcome_type', NULL, 'default', 'N', '0', 'cur', NOW(), '', NULL, NULL),
+(337, 2, '团队成果', '2', 'sys_plan_outcome_type', NULL, 'default', 'N', '0', 'cur', NOW(), '', NULL, NULL),
+(338, 3, '过程成果', '3', 'sys_plan_outcome_type', NULL, 'default', 'N', '0', 'cur', NOW(), '', NULL, NULL);
