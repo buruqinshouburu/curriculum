@@ -69,6 +69,8 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundVo;
 import com.doinner.csys.domain.vo.TeachingPlanQuoteAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
@@ -1813,6 +1815,89 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     }
 
     @Override
+    public TeachingPlanPracticeProjectBackgroundVo getPracticeProjectBackground(Long planId) {
+        validatePracticeProjectPlan(planId);
+        TeachingPlanPracticeProjectBackgroundVo result = new TeachingPlanPracticeProjectBackgroundVo();
+        result.setPlanId(planId);
+
+        List<TeachingPlanSection> sections = teachingPlanSectionMapper.selectByPlanId(planId);
+        result.setComplexProblem(findSectionContent(sections, "complex_problem", "拟解决的复杂问题"));
+        result.setMainTask(findSectionContent(sections, "main_task", "主要任务"));
+
+        List<TeachingPlanSupportObjective> objectives = listSupportObjective(planId);
+        result.setSupportObjectives(objectives);
+        result.setObjectiveIds(objectives.stream()
+                .filter(row -> Objects.equals(row.getRefType(), 1) && row.getObjectiveId() != null)
+                .map(TeachingPlanSupportObjective::getObjectiveId)
+                .collect(Collectors.toList()));
+        result.setPurposeIds(objectives.stream()
+                .filter(row -> Objects.equals(row.getRefType(), 2) && row.getPurposeId() != null)
+                .map(TeachingPlanSupportObjective::getPurposeId)
+                .collect(Collectors.toList()));
+
+        List<TeachingPlanSupportContent> contents = listSupportContent(planId);
+        result.setSupportContents(contents);
+        result.setContentIds(contents.stream()
+                .map(TeachingPlanSupportContent::getContentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList()));
+        return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void savePracticeProjectBackground(TeachingPlanPracticeProjectBackgroundSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        Long planId = saveVo.getPlanId();
+        validatePracticeProjectPlan(planId);
+
+        // 整页保存：正文 null 与空串均表示清空，不能遗留上一次提交的数据。
+        upsertSection(planId, "拟解决的复杂问题", "complex_problem",
+                StringUtils.defaultString(saveVo.getComplexProblem()), 1);
+        upsertSection(planId, "主要任务", "main_task",
+                StringUtils.defaultString(saveVo.getMainTask()), 2);
+
+        TeachingPlanSupportObjectiveSaveVo objectiveSaveVo = new TeachingPlanSupportObjectiveSaveVo();
+        objectiveSaveVo.setPlanId(planId);
+        objectiveSaveVo.setObjectiveIds(saveVo.getObjectiveIds());
+        objectiveSaveVo.setPurposeIds(saveVo.getPurposeIds());
+        saveSupportObjectives(objectiveSaveVo);
+
+        TeachingPlanSupportContentSaveVo contentSaveVo = new TeachingPlanSupportContentSaveVo();
+        contentSaveVo.setPlanId(planId);
+        contentSaveVo.setContentIds(saveVo.getContentIds());
+        saveSupportContents(contentSaveVo);
+    }
+
+    private void validatePracticeProjectPlan(Long planId) {
+        if (planId == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + planId);
+        }
+        if (!Objects.equals(plan.getPlanType(), 4)) {
+            throw new IllegalArgumentException("仅实践项目教学计划可保存任务背景与目标");
+        }
+    }
+
+    private String findSectionContent(List<TeachingPlanSection> sections, String sectionCode, String sectionTitle) {
+        if (ObjectUtils.isEmpty(sections)) {
+            return "";
+        }
+        for (TeachingPlanSection section : sections) {
+            if (section != null && (Objects.equals(sectionCode, section.getSectionCode())
+                    || Objects.equals(sectionTitle, section.getSectionTitle()))) {
+                return StringUtils.defaultString(section.getContent());
+            }
+        }
+        return "";
+    }
+
+    @Override
     public List<TeachingPlanSupportObjective> listSupportObjective(Long planId) {
         if (planId == null) {
             return Collections.emptyList();
@@ -2670,6 +2755,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
      * value 为 null：不改原值；为空串：清空 content（保留行）；非空：写入/更新 content。
      */
     private void upsertSection(Long planId, String sectionTitle, String sectionCode, String value) {
+        upsertSection(planId, sectionTitle, sectionCode, value, 0);
+    }
+
+    private void upsertSection(Long planId, String sectionTitle, String sectionCode, String value, int sort) {
         if (value == null) {
             return;
         }
@@ -2685,7 +2774,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         s.setSectionTitle(sectionTitle);
         s.setSectionCode(sectionCode);
         s.setContent(value);
-        s.setSort(0);
+        s.setSort(sort);
         UserUtils.reflash(s);
         s.setSysflag(0);
         teachingPlanSectionMapper.insert(s);

@@ -22,15 +22,12 @@ import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
 import com.doinner.csys.domain.TeachingPlanContentPurpose;
-import com.doinner.csys.domain.TeachingPlanSupportObjective;
-import com.doinner.csys.domain.TeachingPlanSupportContent;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
-import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
-import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
-import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
 import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
@@ -512,18 +509,6 @@ public class TeachingPlanController {
 
     // ============ 实践项目第二节支撑绑定（type4） ============
 
-    /**
-     * 实践项目第二节支撑绑定候选数据（type4）。
-     * 返回 课程目标(同专业优先)/训练目的/知识体系/训练内容 四组候选，
-     * 来源为项目支撑课程(before_course_id)与支撑训练课目(after_course_id)各自教学计划。
-     */
-    @ApiOperation("实践项目第二节支撑绑定候选数据")
-    @GetMapping("/support/candidates")
-    public DataSet<TeachingPlanSupportCandidateVo> supportCandidates(
-            @RequestParam("courseId") Long courseId) {
-        return DataSet.success(teachingPlanModuleService.listSupportCandidates(courseId));
-    }
-
     @ApiOperation("实践项目支撑绑定候选树（按培养方案分组，同方案优先）")
     @GetMapping("/support/candidateTree")
     public DataSet<List<TeachingPlanSupportCandidateGroupVo>> supportCandidateTree(
@@ -532,35 +517,19 @@ public class TeachingPlanController {
         return DataSet.success(teachingPlanModuleService.listSupportCandidateGroups(courseId, projectPlanId));
     }
 
-    /** 回显实践项目计划已绑定的课程目标/训练目的列表。 */
-    @ApiOperation("实践项目已绑定课程目标/训练目的列表（回显）")
-    @GetMapping("/supportObjective/list")
-    public DataSet<List<TeachingPlanSupportObjective>> supportObjectiveList(
+    @ApiOperation("实践项目任务背景与目标整页详情")
+    @GetMapping("/practiceProject/background/detail")
+    public DataSet<TeachingPlanPracticeProjectBackgroundVo> practiceProjectBackgroundDetail(
             @RequestParam("planId") Long planId) {
-        return DataSet.success(teachingPlanModuleService.listSupportObjective(planId));
+        return DataSet.success(teachingPlanModuleService.getPracticeProjectBackground(planId));
     }
 
-    /** 整表重建实践项目计划的课程目标/训练目的绑定；objectiveIds/purposeIds 空=清空。 */
-    @ApiOperation("保存实践项目课程目标/训练目的绑定（整表重建）")
-    @PostMapping("/supportObjective/save")
-    public Message saveSupportObjectives(@RequestBody TeachingPlanSupportObjectiveSaveVo saveVo) {
-        teachingPlanModuleService.saveSupportObjectives(saveVo);
-        return Message.success();
-    }
-
-    /** 回显实践项目计划已绑定的知识体系/训练内容列表。 */
-    @ApiOperation("实践项目已绑定知识体系/训练内容列表（回显）")
-    @GetMapping("/supportContent/list")
-    public DataSet<List<TeachingPlanSupportContent>> supportContentList(
-            @RequestParam("planId") Long planId) {
-        return DataSet.success(teachingPlanModuleService.listSupportContent(planId));
-    }
-
-    /** 整表重建实践项目计划的知识体系/训练内容绑定；contentIds 空=清空。 */
-    @ApiOperation("保存实践项目知识体系/训练内容绑定（整表重建）")
-    @PostMapping("/supportContent/save")
-    public Message saveSupportContents(@RequestBody TeachingPlanSupportContentSaveVo saveVo) {
-        teachingPlanModuleService.saveSupportContents(saveVo);
+    /** 正文、目标/目的绑定、知识体系/训练内容绑定在同一事务内整页保存。 */
+    @ApiOperation("实践项目任务背景与目标整页保存")
+    @PostMapping("/practiceProject/background/save")
+    public Message savePracticeProjectBackground(
+            @RequestBody TeachingPlanPracticeProjectBackgroundSaveVo saveVo) {
+        teachingPlanModuleService.savePracticeProjectBackground(saveVo);
         return Message.success();
     }
 

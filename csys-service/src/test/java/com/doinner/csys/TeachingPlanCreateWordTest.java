@@ -306,54 +306,56 @@ class TeachingPlanCreateWordTest {
                 .andExpect(jsonPath("$.data[2].title").value("3"));
     }
 
-    /** t7 type4 支撑绑定候选：课程目标/训练目的/知识体系/训练内容四组，训练内容显示为模块名称。 */
+    /** t7 type4 支撑绑定候选树：按培养方案分组返回页面四类候选。 */
     @Test
     @Order(7)
     void t7_supportCandidates_type4() throws Exception {
-        mockMvc.perform(get("/teachingPlan/support/candidates").param("courseId", "8004"))
+        mockMvc.perform(get("/teachingPlan/support/candidateTree")
+                        .param("courseId", "8004")
+                        .param("projectPlanId", "6004"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.objectives[?(@.name=='掌握结构化程序设计的基本方法与三种基本结构')]").exists())
-                .andExpect(jsonPath("$.data.objectives[?(@.name=='具备运用线性表、树等数据结构解决实际问题的能力')]").exists())
-                .andExpect(jsonPath("$.data.objectives[?(@.name=='培养规范编码习惯、调试能力与团队协作意识')]").exists())
-                .andExpect(jsonPath("$.data.purposes[?(@.name=='掌握单个军人队列动作、班队列组织等基本军事素养')]").exists())
-                .andExpect(jsonPath("$.data.knowledgePoints[0].name").value("第一章 程序设计基础"))
-                .andExpect(jsonPath("$.data.trainingContents.length()").value(3))
-                .andExpect(jsonPath("$.data.trainingContents[0].name").value("战斗体技能提升模块"))
-                .andExpect(jsonPath("$.data.trainingContents[1].name").value("指挥素养培塑模块"))
-                .andExpect(jsonPath("$.data.trainingContents[2].name").value("新质新域能力拓展模块"));
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(org.hamcrest.Matchers.greaterThan(0)));
     }
 
-    /** t8 type4 支撑绑定保存+回显（整表重建，与预置种子等值）。 */
+    /** t8 type4 第二部分统一大保存+统一回显，旧拆分 HTTP 接口均已下线。 */
     @Test
     @Order(8)
     void t8_supportSaveList_type4() throws Exception {
-        // 课程目标/训练目的
-        mockMvc.perform(post("/teachingPlan/supportObjective/save")
+        mockMvc.perform(post("/teachingPlan/practiceProject/background/save")
                         .contentType("application/json")
-                        .content("{\"planId\":6004,\"objectiveIds\":[60011],\"purposeIds\":[62111]}"))
+                        .content("{\"planId\":6004,"
+                                + "\"complexProblem\":\"<p>统一保存复杂问题</p>\","
+                                + "\"mainTask\":\"<p>统一保存主要任务</p>\","
+                                + "\"objectiveIds\":[60011],\"purposeIds\":[62111],"
+                                + "\"contentIds\":[65011,62211]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
+
+        mockMvc.perform(get("/teachingPlan/practiceProject/background/detail").param("planId", "6004"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.complexProblem").value("<p>统一保存复杂问题</p>"))
+                .andExpect(jsonPath("$.data.mainTask").value("<p>统一保存主要任务</p>"))
+                .andExpect(jsonPath("$.data.objectiveIds[0]").value(60011))
+                .andExpect(jsonPath("$.data.purposeIds[0]").value(62111))
+                .andExpect(jsonPath("$.data.contentIds.length()").value(2))
+                .andExpect(jsonPath("$.data.supportObjectives.length()").value(2))
+                .andExpect(jsonPath("$.data.supportObjectives[0].itemName")
+                        .value("掌握结构化程序设计的基本方法与三种基本结构"))
+                .andExpect(jsonPath("$.data.supportContents.length()").value(2))
+                .andExpect(jsonPath("$.data.supportContents[1].itemTitle").value("战斗体技能提升模块"));
+
+        mockMvc.perform(get("/teachingPlan/support/candidates").param("courseId", "8004"))
+                .andExpect(status().isNotFound());
         mockMvc.perform(get("/teachingPlan/supportObjective/list").param("planId", "6004"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].itemName").value("掌握结构化程序设计的基本方法与三种基本结构"))
-                .andExpect(jsonPath("$.data[0].refType").value(1))
-                .andExpect(jsonPath("$.data[1].itemName").value("掌握单个军人队列动作、班队列组织等基本军事素养"))
-                .andExpect(jsonPath("$.data[1].refType").value(2));
-        // 知识体系/训练内容：实践训练课目内容快照存模块名称
-        mockMvc.perform(post("/teachingPlan/supportContent/save")
-                        .contentType("application/json")
-                        .content("{\"planId\":6004,\"contentIds\":[65011,62211]}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/teachingPlan/supportObjective/save").contentType("application/json").content("{}"))
+                .andExpect(status().isNotFound());
         mockMvc.perform(get("/teachingPlan/supportContent/list").param("planId", "6004"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].itemTitle").value("第一章 程序设计基础"))
-                .andExpect(jsonPath("$.data[0].refType").value(1))
-                .andExpect(jsonPath("$.data[1].itemTitle").value("战斗体技能提升模块"))
-                .andExpect(jsonPath("$.data[1].refType").value(2));
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/teachingPlan/supportContent/save").contentType("application/json").content("{}"))
+                .andExpect(status().isNotFound());
     }
 
     /** t9 实践训练课目模块字段导入反向映射：导出 docx(名称) → 解析器反查 label→编码(1/2/3)。 */

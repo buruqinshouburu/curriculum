@@ -32,6 +32,8 @@ import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
@@ -204,20 +206,26 @@ public interface TeachingPlanModuleService {
 
     List<TeachingPlanSupportCandidateGroupVo> listSupportCandidateGroups(Long courseId, Long projectPlanId);
 
-    /** 实践项目计划(type4)已绑定的课程目标/训练目的列表（按 sort）。 */
+    /** 实践项目第二部分整页详情：正文与两类绑定统一返回。 */
+    TeachingPlanPracticeProjectBackgroundVo getPracticeProjectBackground(Long planId);
+
+    /** 实践项目第二部分整页大保存；任一部分失败时全部回滚。 */
+    void savePracticeProjectBackground(TeachingPlanPracticeProjectBackgroundSaveVo saveVo);
+
+    /** 内部读取：实践项目计划(type4)已绑定的课程目标/训练目的列表（Word 生成使用）。 */
     List<TeachingPlanSupportObjective> listSupportObjective(Long planId);
 
     /**
-     * 整表重建实践项目计划(type4)的课程目标/训练目的绑定。
+     * 内部保存：整表重建实践项目计划(type4)的课程目标/训练目的绑定（整页保存与 Word 导入使用）。
      * 先逻辑删除该 plan 下旧绑定，再按 objectiveIds/purposeIds 重建快照；空列表或 null=清空。
      */
     void saveSupportObjectives(TeachingPlanSupportObjectiveSaveVo saveVo);
 
-    /** 实践项目计划(type4)已绑定的知识体系/训练内容列表（按 sort）。 */
+    /** 内部读取：实践项目计划(type4)已绑定的知识体系/训练内容列表（Word 生成使用）。 */
     List<TeachingPlanSupportContent> listSupportContent(Long planId);
 
     /**
-     * 整表重建实践项目计划(type4)的知识体系/训练内容绑定。
+     * 内部保存：整表重建实践项目计划(type4)的知识体系/训练内容绑定（整页保存与 Word 导入使用）。
      * 先逻辑删除该 plan 下旧绑定，再按 contentIds 重建快照；空列表或 null=清空。
      */
     void saveSupportContents(TeachingPlanSupportContentSaveVo saveVo);

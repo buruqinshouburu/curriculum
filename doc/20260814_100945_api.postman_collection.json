@@ -1,0 +1,112 @@
+{
+  "_postman_id": "a1b2c3d4-teac-hing-plan-20260814-whol",
+  "name": "教学计划-实践项目任务背景与目标整页(20260814)",
+  "description": "本次(2026-08-14)实践项目(type=4)「二、任务背景与目标」改为整页读取、整页保存，替代原拆分接口。仅供本次有变更的接口。\n\n基址变量：{{baseUrl}}，端口 9219，context-path /csys，统一前缀 @RequestMapping(\"/teachingPlan\")。\n\n变更摘要：\n- 新增 GET  /teachingPlan/practiceProject/background/detail —— 整页详情（正文 + 两类绑定）。\n- 新增 POST /teachingPlan/practiceProject/background/save —— 整页覆盖保存（同一事务）。\n- 已下线（前端不得继续调用）：\n    GET  /teachingPlan/support/candidates\n    GET  /teachingPlan/supportObjective/list\n    POST /teachingPlan/supportObjective/save\n    GET  /teachingPlan/supportContent/list\n    POST /teachingPlan/supportContent/save\n  (supportObjective / supportContent 的读写在整页接口内完成，原方法仅作为内部实现保留。)\n- 整页保存为覆盖语义：complexProblem / mainTask 传 null 或空串表示清空；objectiveIds / purposeIds / contentIds 传 null 或空数组表示清空该类绑定。\n- 通用 /teachingPlan/section 接口仍供其他章节使用，本页正文不再单独调用它。\n\nplan_type 约定：1课程 2实验课程 3实践训练课目 4实践项目。",
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219",
+      "description": "基址（默认本机），端口 9219，context-path /csys，取 bootstrap.yml"
+    },
+    {
+      "key": "projectPlanId",
+      "value": "6004",
+      "description": "教学计划id（测试占位，实践项目示例）"
+    },
+    {
+      "key": "objectiveId",
+      "value": "60011",
+      "description": "支撑的课程目标id（候选树 objectives 节点）"
+    },
+    {
+      "key": "purposeId",
+      "value": "62111",
+      "description": "支撑训练课目的训练目的id（候选树 purposes 节点）"
+    },
+    {
+      "key": "contentId",
+      "value": "65011",
+      "description": "涉及的知识体系/训练内容id（候选树 knowledgePoints / trainingContents 节点）"
+    }
+  ],
+  "item": [
+    {
+      "name": "实践项目-任务背景与目标（整页）",
+      "description": "实践项目(type=4)第二部分「任务背景与目标」：拟解决的复杂问题、主要任务、支撑的课程目标或训练目的、涉及的知识体系或训练内容。整页读取/整页保存。",
+      "item": [
+        {
+          "name": "整页详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceProject/background/detail?planId={{projectPlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "practiceProject",
+                "background",
+                "detail"
+              ],
+              "query": [
+                {
+                  "key": "planId",
+                  "value": "{{projectPlanId}}",
+                  "description": "教学计划id（必填，仅 type=4 实践项目）"
+                }
+              ]
+            },
+            "description": "GET /teachingPlan/practiceProject/background/detail?planId=\n返回 DataSet<TeachingPlanPracticeProjectBackgroundVo>。\n\n{\n  \"code\": 200,\n  \"data\": {\n    \"planId\": 6004,\n    \"complexProblem\": \"<p>设计并实现综合管理系统</p>\",   // 拟解决的复杂问题（富文本）\n    \"mainTask\": \"<p>完成需求分析、设计、编码和测试</p>\",   // 主要任务（富文本）\n    \"objectiveIds\": [60011],   // 支撑的课程目标id（候选树勾选用）\n    \"purposeIds\": [62111],     // 支撑训练课目的训练目的id（候选树勾选用）\n    \"contentIds\": [65011, 62211],  // 涉及的知识体系/训练内容id（候选树勾选用）\n    \"supportObjectives\": [     // 已绑定目标/目的完整信息，供页面直接显示名称\n      {\n        \"id\": 60041, \"planId\": 6004, \"refType\": 1,\n        \"refPlanId\": 6001, \"refCourseId\": 7001,\n        \"objectiveId\": 60011, \"purposeId\": null,\n        \"itemName\": \"掌握结构化程序设计的基本方法与三种基本结构\",\n        \"itemTypeName\": \"知识目标\", \"majorId\": 1001, \"sort\": 1\n      }\n    ],\n    \"supportContents\": [        // 已绑定知识体系/训练内容完整信息\n      {\n        \"id\": 60051, \"planId\": 6004, \"refType\": 1,\n        \"refPlanId\": 6001, \"refCourseId\": 7001,\n        \"contentId\": 65011, \"itemTitle\": \"第一章 程序设计基础\", \"sort\": 1\n      }\n    ]\n  }\n}\n\n字段说明：\n- supportObjectives：refType=1 课程目标、refType=2 训练目的；itemName 为内容快照。\n- supportContents：refType=1 知识体系（课程教学内容）、refType=2 训练内容（课目训练内容）；itemTitle 为名称快照。\n- 培养方案名称在候选树对应节点显示，本接口不返回。"
+          },
+          "response": []
+        },
+        {
+          "name": "整页保存",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": {{projectPlanId}},\n  \"complexProblem\": \"<p>设计并实现综合管理系统</p>\",\n  \"mainTask\": \"<p>完成需求分析、设计、编码和测试</p>\",\n  \"objectiveIds\": [{{objectiveId}}],\n  \"purposeIds\": [{{purposeId}}],\n  \"contentIds\": [{{contentId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/csys/teachingPlan/practiceProject/background/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "csys",
+                "teachingPlan",
+                "practiceProject",
+                "background",
+                "save"
+              ]
+            },
+            "description": "POST /teachingPlan/practiceProject/background/save\n整页覆盖保存，四块数据在同一事务内提交：\n  - complexProblem / mainTask：null 或空串表示清空正文（不会遗留上一次提交的数据）。\n  - objectiveIds / purposeIds / contentIds：null 或空数组表示清空该类绑定（整表重建）。\n  - 任一 id 无法对应时整单回滚。\n\n入参示例：\n{\n  \"planId\": 6004,\n  \"complexProblem\": \"<p>设计并实现综合管理系统</p>\",\n  \"mainTask\": \"<p>完成需求分析、设计、编码和测试</p>\",\n  \"objectiveIds\": [60011],\n  \"purposeIds\": [62111],\n  \"contentIds\": [65011, 62211]\n}\n\n返回：{\"code\":200,\"msg\":\"操作成功\"}。\n校验：planId 必填且对应教学计划须为 type=4（否则 400：仅实践项目教学计划可保存任务背景与目标）。"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

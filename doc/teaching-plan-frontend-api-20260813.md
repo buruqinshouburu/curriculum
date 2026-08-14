@@ -1,4 +1,4 @@
-# 教学计划前端 API 调整说明（2026-08-13）
+# 教学计划前端 API 调整说明（更新至 2026-08-14）
 
 本文仅描述本次教学计划改动中需要前端同步的部分。统一前缀沿用现有 `/teachingPlan`。
 
@@ -133,7 +133,61 @@
 | 团队成果 | 2 |
 | 过程成果 | 3 |
 
-## 6. 实践项目支撑绑定候选树
+## 6. 实践项目第二部分：任务背景与目标
+
+页面四块内容统一读取、统一保存，不再分别调用章节和支撑绑定保存接口：
+
+- 拟解决的复杂问题；
+- 主要任务；
+- 支撑的课程目标或训练目的；
+- 涉及的知识体系或训练内容。
+
+### 整页详情
+
+`GET /teachingPlan/practiceProject/background/detail?planId={planId}`
+
+返回正文、选中 id 和已绑定完整对象。`supportObjectives`、`supportContents` 可直接用于名称回显；三个 id 数组用于候选树勾选。
+
+```json
+{
+  "planId": 6004,
+  "complexProblem": "<p>设计并实现综合管理系统</p>",
+  "mainTask": "<p>完成需求分析、设计、编码和测试</p>",
+  "objectiveIds": [60011],
+  "purposeIds": [62111],
+  "contentIds": [65011, 62211],
+  "supportObjectives": [],
+  "supportContents": []
+}
+```
+
+### 整页保存
+
+`POST /teachingPlan/practiceProject/background/save`
+
+```json
+{
+  "planId": 6004,
+  "complexProblem": "<p>设计并实现综合管理系统</p>",
+  "mainTask": "<p>完成需求分析、设计、编码和测试</p>",
+  "objectiveIds": [60011],
+  "purposeIds": [62111],
+  "contentIds": [65011, 62211]
+}
+```
+
+这是整页覆盖保存：正文传 `null` 或空串均表示清空；任一 id 列表为 `null` 或空数组均表示清空该类绑定。四块数据在同一事务内提交，任一 id 无法对应时全部回滚。
+
+以下旧接口已删除，前端不得继续调用：
+
+- `GET /teachingPlan/support/candidates`
+- `GET /teachingPlan/supportObjective/list`
+- `POST /teachingPlan/supportObjective/save`
+- `GET /teachingPlan/supportContent/list`
+- `POST /teachingPlan/supportContent/save`
+- 通用 `/section` 接口仍供其他教学计划章节使用，但本页面的“拟解决的复杂问题、主要任务”不再单独调用它。
+
+### 支撑绑定候选树
 
 `GET /teachingPlan/support/candidateTree?courseId={courseId}&projectPlanId={planId}`
 
