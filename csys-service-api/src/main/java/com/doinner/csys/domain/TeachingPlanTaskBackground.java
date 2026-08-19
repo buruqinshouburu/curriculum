@@ -9,7 +9,7 @@ import java.util.List;
  * 教学计划任务背景实体（实验课程第三节「任务背景与目标」）。
  * <p>
  * 按 plan_id + scheme_id 保存，对标 {@link TeachingPlanObjective}：
- * 可多条任务背景，每条含任务背景描述/技术目标/能力目标，并可经
+ * 可多条任务背景，每条含任务背景描述/目标类型/目标内容，并可经
  * {@link TeachingPlanTaskBackgroundRef} 绑定多条毕业要求。
  * <p>
  * {@link #refs} 为非持久化辅助字段，仅用于 Word 导入解析时承载该条任务背景绑定的毕业要求，
@@ -32,11 +32,11 @@ public class TeachingPlanTaskBackground extends AbstractDoinnerLogicalDelBaseEnt
     /** 任务背景描述 */
     private String backgroundDesc;
 
-    /** 技术目标 */
-    private String technicalGoal;
+    /** 目标类型：1技术目标，2能力目标 */
+    private Integer goalType;
 
-    /** 能力目标 */
-    private String abilityGoal;
+    /** 目标内容 */
+    private String goalContent;
 
     /** 排序 */
     private Integer sort;
@@ -88,20 +88,20 @@ public class TeachingPlanTaskBackground extends AbstractDoinnerLogicalDelBaseEnt
         this.backgroundDesc = backgroundDesc;
     }
 
-    public String getTechnicalGoal() {
-        return technicalGoal;
+    public Integer getGoalType() {
+        return goalType;
     }
 
-    public void setTechnicalGoal(String technicalGoal) {
-        this.technicalGoal = technicalGoal;
+    public void setGoalType(Integer goalType) {
+        this.goalType = goalType;
     }
 
-    public String getAbilityGoal() {
-        return abilityGoal;
+    public String getGoalContent() {
+        return goalContent;
     }
 
-    public void setAbilityGoal(String abilityGoal) {
-        this.abilityGoal = abilityGoal;
+    public void setGoalContent(String goalContent) {
+        this.goalContent = goalContent;
     }
 
     public Integer getSort() {

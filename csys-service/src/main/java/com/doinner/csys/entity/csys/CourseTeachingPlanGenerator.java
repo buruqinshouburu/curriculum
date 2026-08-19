@@ -1538,9 +1538,7 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 1, 3, joinGraduations(m.getCourseGraduations()), false);
     }
 
-    /**
-     * 写一张「任务背景描述 | 技术目标 | 能力目标 | 支撑毕业要求」表，每条任务背景一行。
-     */
+    /** 写一张「任务背景描述 | 目标类型 | 目标内容 | 支撑毕业要求」表，每条任务背景一行。 */
     private void writeTaskBackgroundTable(List<TeachingPlanTaskBackground> taskBackgrounds,
                                           Map<Long, List<TeachingPlanTaskBackgroundRef>> refMap,
                                           XWPFDocument doc, int cols) {
@@ -1548,8 +1546,8 @@ public class CourseTeachingPlanGenerator {
         int rows = 1 + Math.max(dataRows, 1);
         XWPFTable t = createTable(doc, rows, cols);
         setCell(t, 0, 0, "任务背景描述", true);
-        setCell(t, 0, 1, "技术目标", true);
-        setCell(t, 0, 2, "能力目标", true);
+        setCell(t, 0, 1, "目标类型", true);
+        setCell(t, 0, 2, "目标内容", true);
         setCell(t, 0, 3, "支撑的毕业要求", true);
         if (ObjectUtils.isEmpty(taskBackgrounds)) {
             for (int c = 0; c < cols; c++) {
@@ -1563,11 +1561,21 @@ public class CourseTeachingPlanGenerator {
                 continue;
             }
             setCell(t, r, 0, tb.getBackgroundDesc(), false);
-            setCell(t, r, 1, tb.getTechnicalGoal(), false);
-            setCell(t, r, 2, tb.getAbilityGoal(), false);
+            setCell(t, r, 1, taskBackgroundGoalTypeText(tb.getGoalType()), false);
+            setCell(t, r, 2, tb.getGoalContent(), false);
             setCell(t, r, 3, joinTaskBackgroundRefs(refMap, tb.getId()), false);
             r++;
         }
+    }
+
+    private String taskBackgroundGoalTypeText(Integer goalType) {
+        if (Objects.equals(goalType, 1)) {
+            return "技术目标";
+        }
+        if (Objects.equals(goalType, 2)) {
+            return "能力目标";
+        }
+        return "";
     }
 
     /** 实践项目任务背景表（type4 二）：标签 | 内容 */

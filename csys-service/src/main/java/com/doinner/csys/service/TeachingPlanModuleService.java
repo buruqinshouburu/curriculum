@@ -26,9 +26,7 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
-import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundRefSaveVo;
-import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
@@ -127,15 +125,9 @@ public interface TeachingPlanModuleService {
     /**
      * 任务背景列表。
      * 公共基础课程：始终只取 scheme_id IS NULL 单组；
-     * 非公共基础：按 schemeId 过滤；schemeId 为空返回 plan 下全量（按 scheme 分组渲染用）。
+     * 非公共基础：schemeId 必填并按 schemeId 过滤。
      */
     List<TeachingPlanTaskBackground> listTaskBackground(Long planId, Long schemeId);
-
-    /**
-     * 任务背景 + 支撑毕业要求整表保存（对标 saveObjectivesBatch，无权重校验）。
-     * 先按 planId 逻辑删除旧任务背景及绑定，再按 taskBackgrounds 重建。
-     */
-    void saveTaskBackgroundsBatch(TeachingPlanTaskBackgroundBatchSaveVo saveVo);
 
     Long addTaskBackground(TeachingPlanTaskBackground taskBackground);
 
@@ -149,7 +141,7 @@ public interface TeachingPlanModuleService {
 
     /**
      * 仅重建任务背景的毕业要求绑定（与任务背景新增解耦）。
-     * 先逻辑删除 taskBackgroundId 下旧 ref，再按 saveVo.refs 重建；refs 空=清空绑定。
+     * 先逻辑删除 taskBackgroundId 下旧绑定，再按 saveVo.graduationIds 重建；空列表=清空绑定。
      */
     void saveTaskBackgroundRefs(TeachingPlanTaskBackgroundRefSaveVo saveVo);
 
@@ -163,7 +155,7 @@ public interface TeachingPlanModuleService {
     List<TeachingPlanTrainingPurpose> listTrainingPurpose(Long planId, Long schemeId);
 
     /**
-     * 训练目的 + 支撑毕业要求整表保存（对标 saveTaskBackgroundsBatch）。
+     * 训练目的 + 支撑毕业要求整表保存。
      * 先按 planId 逻辑删除旧训练目的及绑定，再按 purposes 重建。
      */
     void saveTrainingPurposesBatch(TeachingPlanTrainingPurposeBatchSaveVo saveVo);

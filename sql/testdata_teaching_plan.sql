@@ -509,15 +509,16 @@ INSERT INTO t_csys_teaching_plan_teacher
 VALUES
 (6003, 't003', '王老师', '副教授', '实验主讲', 1);
 
--- 任务背景（第三部分，显式 id 63011 供 task_background_ref 引用）
+-- 任务背景（第三部分，每行一个目标类型；显式 id 供 task_background_ref 引用）
 INSERT INTO t_csys_teaching_plan_task_background
-(id, plan_id, scheme_id, major_id, background_desc, technical_goal, ability_goal, sort)
+(id, plan_id, scheme_id, major_id, background_desc, goal_type, goal_content, sort)
 VALUES
 (63011, 6003, 7601, 9001,
  '围绕力学、电磁学核心原理开展实验验证，强化理论与实验结合',
- '掌握常用实验仪器的操作与测量方法',
- '培养实验数据分析与科学表达能力',
- 1);
+ 1, '掌握常用实验仪器的操作与测量方法', 1),
+(63012, 6003, 7601, 9001,
+ '围绕力学、电磁学核心原理开展实验验证，强化理论与实验结合',
+ 2, '培养实验数据分析与科学表达能力', 2);
 
 -- 任务背景 -> 支撑毕业要求（对应第三部分表格「支撑的毕业要求」列）
 INSERT INTO t_csys_teaching_plan_task_background_ref
@@ -525,6 +526,8 @@ INSERT INTO t_csys_teaching_plan_task_background_ref
  graduation_id, source_graduation_id, graduation_code, graduation_name, graduation_bind_source, sort)
 VALUES
 (6003, 63011, 1002, 80031, 7601, 90102, 90102, 'GR2',
+ '具备计算机工程实践与系统开发能力', 'scheme_course', 1),
+(6003, 63012, 1002, 80031, 7601, 90102, 90102, 'GR2',
  '具备计算机工程实践与系统开发能力', 'scheme_course', 1);
 
 -- 课程目标 + 绑定（知识/能力/素质 3 条）

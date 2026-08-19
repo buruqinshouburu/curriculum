@@ -1019,7 +1019,7 @@ public class TeachingPlanWordImporter {
 
     /**
      * 解析 type3 实验课程任务背景表（对标 parseObjectives，数据驱动多条）。
-     * 表结构：任务背景描述 | 技术目标 | 能力目标 | 支撑的毕业要求，每条任务背景一行。
+     * 表结构：任务背景描述 | 目标类型 | 目标内容 | 支撑的毕业要求，每条任务背景一行。
      * 毕业要求单元格按顿号/逗号拆分为候选名称，落库时在 persistImportData 匹配绑定。
      */
     private void parseTaskBackgroundTable(List<List<String>> grid, String schemeTitle,
@@ -1058,25 +1058,54 @@ public class TeachingPlanWordImporter {
             if (StringUtils.isBlank(backgroundDesc) || isAllBlank(row)) {
                 continue;
             }
-            ParsedTaskBackground ptb = new ParsedTaskBackground();
-            ptb.schemeTitle = schemeTitle;
-            ptb.taskBackground.setSchemeId(schemeId);
-            ptb.taskBackground.setBackgroundDesc(backgroundDesc.trim());
-            ptb.taskBackground.setTechnicalGoal(cell(row, 1));
-            ptb.taskBackground.setAbilityGoal(cell(row, 2));
-            ptb.taskBackground.setSort(result.taskBackgrounds.size() + 1);
-            String refs = cell(row, 3);
-            if (StringUtils.isNotBlank(refs)) {
-                ptb.graduationRaw = refs.trim();
-                for (String part : refs.split("[、,，;；]")) {
-                    String name = part == null ? "" : part.trim();
-                    if (StringUtils.isNotBlank(name) && !ptb.graduationNames.contains(name)) {
-                        ptb.graduationNames.add(name);
-                    }
+            Integer goalType = parseTaskBackgroundGoalType(cell(row, 1));
+            String goalContent = cell(row, 2);
+            if (goalType == null) {
+                result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", backgroundDesc,
+                        "goalType", "目标类型只能是技术目标或能力目标，该行任务背景已跳过"));
+                continue;
+            }
+            if (StringUtils.isBlank(goalContent)) {
+                result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", backgroundDesc,
+                        "goalContent", "目标内容不能为空，该行任务背景已跳过"));
+                continue;
+            }
+            addParsedTaskBackground(result, schemeTitle, schemeId, backgroundDesc,
+                    goalType, goalContent, cell(row, 3));
+        }
+    }
+
+    private Integer parseTaskBackgroundGoalType(String raw) {
+        String value = StringUtils.trimToEmpty(raw);
+        if ("1".equals(value) || value.contains("技术")) {
+            return 1;
+        }
+        if ("2".equals(value) || value.contains("能力")) {
+            return 2;
+        }
+        return null;
+    }
+
+    private void addParsedTaskBackground(ParseResult result, String schemeTitle, Long schemeId,
+                                         String backgroundDesc, Integer goalType, String goalContent,
+                                         String refs) {
+        ParsedTaskBackground ptb = new ParsedTaskBackground();
+        ptb.schemeTitle = schemeTitle;
+        ptb.taskBackground.setSchemeId(schemeId);
+        ptb.taskBackground.setBackgroundDesc(backgroundDesc.trim());
+        ptb.taskBackground.setGoalType(goalType);
+        ptb.taskBackground.setGoalContent(goalContent.trim());
+        ptb.taskBackground.setSort(result.taskBackgrounds.size() + 1);
+        if (StringUtils.isNotBlank(refs)) {
+            ptb.graduationRaw = refs.trim();
+            for (String part : refs.split("[、,，;；]")) {
+                String name = part == null ? "" : part.trim();
+                if (StringUtils.isNotBlank(name) && !ptb.graduationNames.contains(name)) {
+                    ptb.graduationNames.add(name);
                 }
             }
-            result.taskBackgrounds.add(ptb);
         }
+        result.taskBackgrounds.add(ptb);
     }
 
     /**

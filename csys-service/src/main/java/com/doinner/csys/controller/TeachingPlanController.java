@@ -40,9 +40,7 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
-import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundRefSaveVo;
-import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
@@ -356,8 +354,7 @@ public class TeachingPlanController {
 
     /**
      * 任务背景列表。
-     * schemeId 可选：公共基础恒为 null 单组；有培养方案 tab 时传 schemeId 过滤；
-     * 不传则返回 plan 下全量（供按 scheme 分组渲染）。
+     * 公共基础课程可不传 schemeId；其他实验课程必须传当前培养方案 schemeId。
      */
     @ApiOperation("任务背景列表（实验课程第三节）")
     @GetMapping("/taskBackground/list")
@@ -367,16 +364,8 @@ public class TeachingPlanController {
         return DataSet.success(teachingPlanModuleService.listTaskBackground(planId, schemeId));
     }
 
-    /** 任务背景 + 支撑毕业要求大保存；按当前 planId + schemeId 重建。 */
-    @ApiOperation("任务背景与支撑毕业要求大保存")
-    @PostMapping("/taskBackground/batchSave")
-    public Message saveTaskBackgroundsBatch(@RequestBody TeachingPlanTaskBackgroundBatchSaveVo saveVo) {
-        teachingPlanModuleService.saveTaskBackgroundsBatch(saveVo);
-        return Message.success();
-    }
-
-    /** 仅新增任务背景（描述/技术目标/能力目标），绑定请走 POST /taskBackgroundRef/save。 */
-    @ApiOperation("新增任务背景（仅描述/技术目标/能力目标）")
+    /** 仅新增任务背景列表数据，绑定请走 POST /taskBackgroundRef/save。 */
+    @ApiOperation("新增任务背景（任务背景描述/目标类型/目标内容）")
     @PostMapping("/taskBackground")
     public DataSet<Long> addTaskBackground(@RequestBody TeachingPlanTaskBackground taskBackground) {
         return DataSet.success(teachingPlanModuleService.addTaskBackground(taskBackground));
@@ -409,9 +398,9 @@ public class TeachingPlanController {
 
     /**
      * 整表重建任务背景的毕业要求绑定（与任务背景新增解耦）。
-     * refs 空列表或 null = 清空该任务背景全部绑定。
+     * graduationIds 空列表或 null = 清空该任务背景全部绑定。
      */
-    @ApiOperation("保存任务背景与毕业要求绑定（整表重建）")
+    @ApiOperation("批量保存任务背景与毕业要求绑定")
     @PostMapping("/taskBackgroundRef/save")
     public Message saveTaskBackgroundRefs(@RequestBody TeachingPlanTaskBackgroundRefSaveVo saveVo) {
         teachingPlanModuleService.saveTaskBackgroundRefs(saveVo);
@@ -551,7 +540,6 @@ public class TeachingPlanController {
     }
 
     // ============ 10. 教学内容与学时安排 t_csys_teaching_plan_content ============
-
     @ApiOperation("教学内容与学时安排列表")
     @GetMapping("/content/list")
     public DataSet<List<TeachingPlanContent>> contentList(@RequestParam("planId") Long planId) {
