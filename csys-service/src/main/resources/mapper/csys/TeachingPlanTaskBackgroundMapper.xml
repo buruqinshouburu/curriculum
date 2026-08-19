@@ -8,8 +8,8 @@
         <result column="scheme_id" property="schemeId" jdbcType="BIGINT"/>
         <result column="major_id" property="majorId" jdbcType="BIGINT"/>
         <result column="background_desc" property="backgroundDesc" jdbcType="LONGVARCHAR"/>
-        <result column="goal_type" property="goalType" jdbcType="TINYINT"/>
-        <result column="goal_content" property="goalContent" jdbcType="LONGVARCHAR"/>
+        <result column="technical_goal" property="technicalGoal" jdbcType="LONGVARCHAR"/>
+        <result column="ability_goal" property="abilityGoal" jdbcType="LONGVARCHAR"/>
         <result column="sort" property="sort" jdbcType="INTEGER"/>
         <result column="creator" property="creator" jdbcType="VARCHAR"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
@@ -20,19 +20,19 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, plan_id, scheme_id, major_id, background_desc, goal_type, goal_content, sort,
+        id, plan_id, scheme_id, major_id, background_desc, technical_goal, ability_goal, sort,
         creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_task_background (
-            plan_id, scheme_id, major_id, background_desc, goal_type, goal_content, sort,
+            plan_id, scheme_id, major_id, background_desc, technical_goal, ability_goal, sort,
             creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
                 #{item.planId}, #{item.schemeId}, #{item.majorId}, #{item.backgroundDesc},
-                #{item.goalType}, #{item.goalContent}, #{item.sort}, #{item.creator}, #{item.createTime},
+                #{item.technicalGoal}, #{item.abilityGoal}, #{item.sort}, #{item.creator}, #{item.createTime},
                 #{item.lastModifier}, #{item.lastModifiedTime}, #{item.remark}, #{item.sysflag}
             )
         </foreach>
@@ -94,8 +94,8 @@
             <if test="schemeId != null">scheme_id,</if>
             <if test="majorId != null">major_id,</if>
             <if test="backgroundDesc != null">background_desc,</if>
-            <if test="goalType != null">goal_type,</if>
-            <if test="goalContent != null">goal_content,</if>
+            <if test="technicalGoal != null">technical_goal,</if>
+            <if test="abilityGoal != null">ability_goal,</if>
             <if test="sort != null">sort,</if>
             <if test="creator != null">creator,</if>
             <if test="createTime != null">create_time,</if>
@@ -109,8 +109,8 @@
             <if test="schemeId != null">#{schemeId},</if>
             <if test="majorId != null">#{majorId},</if>
             <if test="backgroundDesc != null">#{backgroundDesc},</if>
-            <if test="goalType != null">#{goalType},</if>
-            <if test="goalContent != null">#{goalContent},</if>
+            <if test="technicalGoal != null">#{technicalGoal},</if>
+            <if test="abilityGoal != null">#{abilityGoal},</if>
             <if test="sort != null">#{sort},</if>
             <if test="creator != null">#{creator},</if>
             <if test="createTime != null">#{createTime},</if>
@@ -128,8 +128,8 @@
             <if test="schemeId != null">scheme_id = #{schemeId},</if>
             <if test="majorId != null">major_id = #{majorId},</if>
             <if test="backgroundDesc != null">background_desc = #{backgroundDesc},</if>
-            <if test="goalType != null">goal_type = #{goalType},</if>
-            <if test="goalContent != null">goal_content = #{goalContent},</if>
+            <if test="technicalGoal != null">technical_goal = #{technicalGoal},</if>
+            <if test="abilityGoal != null">ability_goal = #{abilityGoal},</if>
             <if test="sort != null">sort = #{sort},</if>
             <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
             <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>

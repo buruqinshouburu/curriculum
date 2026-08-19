@@ -438,26 +438,26 @@ class TeachingPlanCreateWordTest {
     void t11_taskBackgroundCRUD() throws Exception {
         mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003").param("schemeId", "7601"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].backgroundDesc")
                         .value("围绕力学、电磁学核心原理开展实验验证，强化理论与实验结合"))
-                .andExpect(jsonPath("$.data[0].goalType").value(1))
-                .andExpect(jsonPath("$.data[0].goalContent").value("掌握常用实验仪器的操作与测量方法"));
+                .andExpect(jsonPath("$.data[0].technicalGoal").value("掌握常用实验仪器的操作与测量方法"))
+                .andExpect(jsonPath("$.data[0].abilityGoal").value("培养实验数据分析与科学表达能力"));
         long newId = idOf(postJson("/teachingPlan/taskBackground",
                 "{\"planId\":6003,\"schemeId\":7601,\"backgroundDesc\":\"新增任务背景\","
-                        + "\"goalType\":1,\"goalContent\":\"技术目标A\"}"));
+                        + "\"technicalGoal\":\"技术目标A\",\"abilityGoal\":\"能力目标A\"}"));
         mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003").param("schemeId", "7601"))
-                .andExpect(jsonPath("$.data.length()").value(3));
+                .andExpect(jsonPath("$.data.length()").value(2));
         putJson("/teachingPlan/taskBackground",
                 "{\"id\":" + newId + ",\"planId\":6003,\"schemeId\":7601,\"backgroundDesc\":\"修改后任务背景\","
-                        + "\"goalType\":2,\"goalContent\":\"能力目标B\"}");
+                        + "\"technicalGoal\":\"技术目标B\",\"abilityGoal\":\"能力目标B\"}");
         mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003").param("schemeId", "7601"))
                 .andExpect(jsonPath("$.data[?(@.id==" + newId + ")].backgroundDesc").value("修改后任务背景"));
         mockMvc.perform(delete("/teachingPlan/taskBackground/" + newId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
         mockMvc.perform(get("/teachingPlan/taskBackground/list").param("planId", "6003").param("schemeId", "7601"))
-                .andExpect(jsonPath("$.data.length()").value(2));
+                .andExpect(jsonPath("$.data.length()").value(1));
     }
 
     /** t12 任务背景-毕业要求 引用：list→save(整表重建)→清空。 */
@@ -813,19 +813,19 @@ class TeachingPlanCreateWordTest {
         otherBackground.setPlanId(6003L);
         otherBackground.setSchemeId(otherSchemeId);
         otherBackground.setBackgroundDesc("其他培养方案实验任务背景");
-        otherBackground.setGoalType(1);
-        otherBackground.setGoalContent("其他培养方案技术目标");
+        otherBackground.setTechnicalGoal("其他培养方案技术目标");
+        otherBackground.setAbilityGoal("其他培养方案能力目标");
         teachingPlanModuleService.addTaskBackground(otherBackground);
 
         TeachingPlanTaskBackground currentBackground = new TeachingPlanTaskBackground();
         currentBackground.setPlanId(6003L);
         currentBackground.setSchemeId(7601L);
         currentBackground.setBackgroundDesc("当前培养方案实验任务背景");
-        currentBackground.setGoalType(2);
-        currentBackground.setGoalContent("当前培养方案能力目标");
+        currentBackground.setTechnicalGoal("当前培养方案技术目标");
+        currentBackground.setAbilityGoal("当前培养方案能力目标");
         teachingPlanModuleService.addTaskBackground(currentBackground);
 
-        assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_task_background "
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_task_background "
                 + "WHERE plan_id=6003 AND scheme_id=7601 AND sysflag=0", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_task_background "
                 + "WHERE plan_id=6003 AND scheme_id=7699 AND sysflag=0", Integer.class));

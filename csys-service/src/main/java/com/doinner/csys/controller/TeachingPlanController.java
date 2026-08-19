@@ -365,7 +365,7 @@ public class TeachingPlanController {
     }
 
     /** 仅新增任务背景列表数据，绑定请走 POST /taskBackgroundRef/save。 */
-    @ApiOperation("新增任务背景（任务背景描述/目标类型/目标内容）")
+    @ApiOperation("新增任务背景（任务背景描述/技术目标/能力目标）")
     @PostMapping("/taskBackground")
     public DataSet<Long> addTaskBackground(@RequestBody TeachingPlanTaskBackground taskBackground) {
         return DataSet.success(teachingPlanModuleService.addTaskBackground(taskBackground));

@@ -1019,7 +1019,7 @@ public class TeachingPlanWordImporter {
 
     /**
      * 解析 type3 实验课程任务背景表（对标 parseObjectives，数据驱动多条）。
-     * 表结构：任务背景描述 | 目标类型 | 目标内容 | 支撑的毕业要求，每条任务背景一行。
+     * 表结构：任务背景描述 | 技术目标 | 能力目标 | 支撑的毕业要求，每条任务背景一行。
      * 毕业要求单元格按顿号/逗号拆分为候选名称，落库时在 persistImportData 匹配绑定。
      */
     private void parseTaskBackgroundTable(List<List<String>> grid, String schemeTitle,
@@ -1058,43 +1058,32 @@ public class TeachingPlanWordImporter {
             if (StringUtils.isBlank(backgroundDesc) || isAllBlank(row)) {
                 continue;
             }
-            Integer goalType = parseTaskBackgroundGoalType(cell(row, 1));
-            String goalContent = cell(row, 2);
-            if (goalType == null) {
+            String technicalGoal = cell(row, 1);
+            String abilityGoal = cell(row, 2);
+            if (StringUtils.isBlank(technicalGoal)) {
                 result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", backgroundDesc,
-                        "goalType", "目标类型只能是技术目标或能力目标，该行任务背景已跳过"));
+                        "technicalGoal", "技术目标不能为空，该行任务背景已跳过"));
                 continue;
             }
-            if (StringUtils.isBlank(goalContent)) {
+            if (StringUtils.isBlank(abilityGoal)) {
                 result.issues.add(TeachingPlanImportIssueVo.error("三、任务背景与目标", backgroundDesc,
-                        "goalContent", "目标内容不能为空，该行任务背景已跳过"));
+                        "abilityGoal", "能力目标不能为空，该行任务背景已跳过"));
                 continue;
             }
             addParsedTaskBackground(result, schemeTitle, schemeId, backgroundDesc,
-                    goalType, goalContent, cell(row, 3));
+                    technicalGoal, abilityGoal, cell(row, 3));
         }
-    }
-
-    private Integer parseTaskBackgroundGoalType(String raw) {
-        String value = StringUtils.trimToEmpty(raw);
-        if ("1".equals(value) || value.contains("技术")) {
-            return 1;
-        }
-        if ("2".equals(value) || value.contains("能力")) {
-            return 2;
-        }
-        return null;
     }
 
     private void addParsedTaskBackground(ParseResult result, String schemeTitle, Long schemeId,
-                                         String backgroundDesc, Integer goalType, String goalContent,
+                                         String backgroundDesc, String technicalGoal, String abilityGoal,
                                          String refs) {
         ParsedTaskBackground ptb = new ParsedTaskBackground();
         ptb.schemeTitle = schemeTitle;
         ptb.taskBackground.setSchemeId(schemeId);
         ptb.taskBackground.setBackgroundDesc(backgroundDesc.trim());
-        ptb.taskBackground.setGoalType(goalType);
-        ptb.taskBackground.setGoalContent(goalContent.trim());
+        ptb.taskBackground.setTechnicalGoal(technicalGoal.trim());
+        ptb.taskBackground.setAbilityGoal(abilityGoal.trim());
         ptb.taskBackground.setSort(result.taskBackgrounds.size() + 1);
         if (StringUtils.isNotBlank(refs)) {
             ptb.graduationRaw = refs.trim();
@@ -1399,7 +1388,7 @@ public class TeachingPlanWordImporter {
                 if (StringUtils.isBlank(text) && lastRow != null && c < lastRow.size() && isVMergeContinue(cell)) {
                     text = lastRow.get(c);
                 } else if (StringUtils.isBlank(text) && lastRow != null && c < lastRow.size()) {
-                    // POI 有时不暴露 vMerge，空单元格也继承（目标类型列常见）
+                    // POI 有时不暴露 vMerge，空单元格也继承（目标表的合并单元格常见）
                     // 仅当前列在表头不是「内容类」时由调用方逻辑处理；此处先原样空
                 }
                 cells.add(text);

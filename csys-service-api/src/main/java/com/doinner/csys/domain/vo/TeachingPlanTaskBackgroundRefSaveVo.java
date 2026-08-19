@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * 教学计划任务背景绑定毕业要求的保存入参（与任务背景新增解耦）。
  * <p>
- * 流程：先 POST /taskBackground 只填任务背景描述/目标类型/目标内容 ->
+ * 流程：先 POST /taskBackground 只填任务背景描述/技术目标/能力目标 ->
  * 再 GET /courseGraduation 取候选、GET /taskBackgroundRef/list 回显已绑 ->
  * 最后 POST /taskBackgroundRef/save 整表重建绑定。
  */

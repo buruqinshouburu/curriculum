@@ -1037,7 +1037,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     }
 
     /**
-     * 新增任务背景必填校验：planId/backgroundDesc/goalType/goalContent 必填；
+     * 新增任务背景必填校验：planId/backgroundDesc/technicalGoal/abilityGoal 必填；
      * 非公共基础需指定 schemeId。
      */
     private void validateTaskBackgroundForInsert(TeachingPlanTaskBackground taskBackground, boolean publicFoundation) {
@@ -1050,12 +1050,11 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (StringUtils.isBlank(taskBackground.getBackgroundDesc())) {
             throw new IllegalArgumentException("任务背景描述不能为空");
         }
-        if (!Objects.equals(taskBackground.getGoalType(), 1)
-                && !Objects.equals(taskBackground.getGoalType(), 2)) {
-            throw new IllegalArgumentException("目标类型只能为1（技术目标）或2（能力目标）");
+        if (StringUtils.isBlank(taskBackground.getTechnicalGoal())) {
+            throw new IllegalArgumentException("技术目标不能为空");
         }
-        if (StringUtils.isBlank(taskBackground.getGoalContent())) {
-            throw new IllegalArgumentException("目标内容不能为空");
+        if (StringUtils.isBlank(taskBackground.getAbilityGoal())) {
+            throw new IllegalArgumentException("能力目标不能为空");
         }
         if (!publicFoundation && taskBackground.getSchemeId() == null) {
             throw new IllegalArgumentException("非公共基础课程新增任务背景必须指定 schemeId");
@@ -1090,9 +1089,10 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         merged.setSchemeId(taskBackground.getSchemeId() == null ? existing.getSchemeId() : taskBackground.getSchemeId());
         merged.setBackgroundDesc(taskBackground.getBackgroundDesc() == null
                 ? existing.getBackgroundDesc() : taskBackground.getBackgroundDesc());
-        merged.setGoalType(taskBackground.getGoalType() == null ? existing.getGoalType() : taskBackground.getGoalType());
-        merged.setGoalContent(taskBackground.getGoalContent() == null
-                ? existing.getGoalContent() : taskBackground.getGoalContent());
+        merged.setTechnicalGoal(taskBackground.getTechnicalGoal() == null
+                ? existing.getTechnicalGoal() : taskBackground.getTechnicalGoal());
+        merged.setAbilityGoal(taskBackground.getAbilityGoal() == null
+                ? existing.getAbilityGoal() : taskBackground.getAbilityGoal());
         boolean publicFoundation = forceNullSchemeIfPublicFoundation(taskBackground);
         validateTaskBackgroundForInsert(merged, publicFoundation);
         UserUtils.reflash(taskBackground);
