@@ -6,6 +6,7 @@ import com.doinner.common.core.domain.Message;
 import com.doinner.common.security.utils.DictUtils;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
+import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanTaskBackground;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
@@ -264,6 +265,21 @@ class TeachingPlanCreateWordTest {
         assertTrue(text.contains("战斗体技能提升模块"), "模块字典值1应译为名称");
         assertTrue(text.contains("指挥素养培塑模块"), "模块字典值2应译为名称");
         assertTrue(text.contains("新质新域能力拓展模块"), "模块字典值3应译为名称");
+        try (XWPFDocument generated = new XWPFDocument(new ByteArrayInputStream(docx))) {
+            XWPFTable organization = findTable(generated, "组织方式", "实施步骤", "阶段划分", "有关要求");
+            assertEquals("组织方式", organization.getRow(0).getCell(0).getText().trim());
+            assertEquals("实施步骤", organization.getRow(1).getCell(0).getText().trim());
+            assertEquals("阶段划分", organization.getRow(1).getCell(1).getText().trim());
+            assertEquals("有关要求", organization.getRow(1).getCell(2).getText().trim());
+            assertEquals("战斗准备", organization.getRow(2).getCell(0).getText().trim());
+            assertEquals("战备等级转进", organization.getRow(2).getCell(1).getText().trim());
+            assertEquals(1114, Integer.parseInt(String.valueOf(
+                    organization.getCTTbl().getTblGrid().getGridColArray(0).getW())));
+            assertEquals(2003, Integer.parseInt(String.valueOf(
+                    organization.getCTTbl().getTblGrid().getGridColArray(1).getW())));
+            assertEquals(5405, Integer.parseInt(String.valueOf(
+                    organization.getCTTbl().getTblGrid().getGridColArray(2).getW())));
+        }
     }
 
     /** t4 实验课程(plan_type=2, 8003 大学物理实验) 教学计划 Word 生成。 */
@@ -370,21 +386,23 @@ class TeachingPlanCreateWordTest {
                 .andExpect(status().isNotFound());
     }
 
-    /** t9 实践训练课目模块字段导入反向映射：导出 docx(名称) → 解析器反查 label→编码(1/2/3)。 */
+    /** t9 实践训练课目字典字段导入反向映射，并保证组织实施固定表头不作为数据导入。 */
     @Test
     @Order(9)
     void t9_importReverseMap_practiceSubject() throws Exception {
         byte[] docx = generateDocx(8002L);
         TeachingPlanWordImporter importer = new TeachingPlanWordImporter();
         TeachingPlanWordImporter.ParseContext ctx = new TeachingPlanWordImporter.ParseContext();
-        // 与 Service.buildImportParseContext 同源预填：模块字典 label→value
-        List<SysDictData> modules = CurDictUtils.getDictData("sys_plan_training_module");
-        for (SysDictData d : modules) {
-            if (d == null || d.getDictLabel() == null || d.getDictValue() == null) {
-                continue;
+        // 与 Service.buildImportParseContext 同源预填：模块、实施步骤字典 label→value
+        for (String dictType : Arrays.asList("sys_plan_training_module", "sys_plan_implementation_step")) {
+            List<SysDictData> dictData = CurDictUtils.getDictData(dictType);
+            for (SysDictData d : dictData) {
+                if (d == null || d.getDictLabel() == null || d.getDictValue() == null) {
+                    continue;
+                }
+                TeachingPlanWordImporter.putDict(ctx.dictLabelToValue,
+                        dictType, d.getDictLabel(), d.getDictValue());
             }
-            TeachingPlanWordImporter.putDict(ctx.dictLabelToValue,
-                    "sys_plan_training_module", d.getDictLabel(), d.getDictValue());
         }
         TeachingPlanWordImporter.ParseResult result =
                 importer.parse(new ByteArrayInputStream(docx), ctx);
@@ -396,6 +414,13 @@ class TeachingPlanCreateWordTest {
         }
         assertTrue(titles.containsAll(java.util.Arrays.asList("1", "2", "3")),
                 "导出 docx 的模块名称应反查回编码 1/2/3，实际=" + titles);
+        assertEquals(11, result.processSteps.size(), "组织实施数据行应全部导入，固定表头不能算数据");
+        TeachingPlanProcessStep firstStep = result.processSteps.get(0);
+        assertEquals("1", firstStep.getStageName(), "stageName 应为实施步骤类别编码");
+        assertEquals("战备等级转进", firstStep.getStepName(), "stepName 应为阶段划分内容");
+        assertTrue(result.processSteps.stream().noneMatch(s -> "实施步骤".equals(s.getStageName())
+                        || "阶段划分".equals(s.getStepName())),
+                "固定表头不得作为业务数据导入");
     }
 
     /** t10 实践训练课目(plan_type=3)覆盖导入接口（导出的 docx 再导入，模块名称反查编码落库）。 */
@@ -556,6 +581,32 @@ class TeachingPlanCreateWordTest {
                 .andExpect(jsonPath("$.data.length()").value(2));
     }
 
+    /** t16 实践训练课目组织实施数据行 CRUD：stageName=实施步骤编码，stepName=阶段划分。 */
+    @Test
+    @Order(16)
+    void t16_practiceSubjectProcessStepCRUD() throws Exception {
+        mockMvc.perform(get("/teachingPlan/processStep/list").param("planId", "6002"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(11))
+                .andExpect(jsonPath("$.data[0].stageName").value("1"))
+                .andExpect(jsonPath("$.data[0].stepName").value("战备等级转进"));
+
+        long newId = idOf(postJson("/teachingPlan/processStep",
+                "{\"planId\":6002,\"stageName\":\"1\",\"stepName\":\"新增阶段划分\"," +
+                        "\"requirement\":\"新增有关要求\",\"sort\":99}"));
+        putJson("/teachingPlan/processStep",
+                "{\"id\":" + newId + ",\"stageName\":\"2\",\"stepName\":\"修改后的阶段划分\"," +
+                        "\"requirement\":\"修改后的有关要求\",\"sort\":99}");
+        mockMvc.perform(get("/teachingPlan/processStep/list").param("planId", "6002"))
+                .andExpect(jsonPath("$.data[?(@.id==" + newId + ")].stageName").value("2"))
+                .andExpect(jsonPath("$.data[?(@.id==" + newId + ")].stepName").value("修改后的阶段划分"));
+        mockMvc.perform(delete("/teachingPlan/processStep/" + newId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/teachingPlan/processStep/list").param("planId", "6002"))
+                .andExpect(jsonPath("$.data.length()").value(11));
+    }
+
     /** t17 训练目的 batchSave（整表重建：删旧 2 行 → 插新 2 行）。 */
     @Test
     @Order(17)
@@ -660,6 +711,17 @@ class TeachingPlanCreateWordTest {
                     assertEquals(4, countOf(resp, "trainingPurposeRef"), tag + " 训练目的-毕业要求应原样导入: " + warnMsgs);
                     assertEquals(3, countOf(resp, "content"), tag + " 训练内容应原样导入: " + warnMsgs);
                     assertEquals(2, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
+                    assertEquals(11, countOf(resp, "processStep"), tag + " 组织实施数据行应原样导入: " + warnMsgs);
+                    List<Map<String, Object>> processSteps = jdbc.queryForList(
+                            "SELECT stage_name, step_name, requirement FROM t_csys_teaching_plan_process_step "
+                                    + "WHERE plan_id=6002 AND sysflag=0 ORDER BY sort");
+                    assertEquals("1", processSteps.get(0).get("stage_name"),
+                            tag + " stage_name 应保存实施步骤类别编码");
+                    assertEquals("战备等级转进", processSteps.get(0).get("step_name"),
+                            tag + " step_name 应保存阶段划分");
+                    assertTrue(processSteps.stream().noneMatch(s -> "实施步骤".equals(s.get("stage_name"))
+                                    || "阶段划分".equals(s.get("step_name"))),
+                            tag + " 固定表头不得入库");
                     List<String> items = jdbc.queryForList(
                             "SELECT assessment_item FROM t_csys_teaching_plan_assessment WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
                             String.class);
@@ -871,6 +933,28 @@ class TeachingPlanCreateWordTest {
             }
         }
         return sb.toString();
+    }
+
+    private XWPFTable findTable(XWPFDocument doc, String... requiredTexts) {
+        for (XWPFTable table : doc.getTables()) {
+            StringBuilder text = new StringBuilder();
+            for (XWPFTableRow row : table.getRows()) {
+                for (XWPFTableCell cell : row.getTableCells()) {
+                    text.append(cell.getText()).append('\n');
+                }
+            }
+            boolean matched = true;
+            for (String requiredText : requiredTexts) {
+                if (!text.toString().contains(requiredText)) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) {
+                return table;
+            }
+        }
+        throw new AssertionError("未找到包含字段 " + Arrays.toString(requiredTexts) + " 的表格");
     }
 
     private void assertTemplateFields(String templateText, String generatedText, String... fields) {

@@ -141,7 +141,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_PLAN_TARGET_TYPE = "sys_plan_target_type";
     /** 训练内容与时间安排模块字典 type（type2 第四部分「模块」列，dict_value 落 content.title） */
     private static final String DICT_PLAN_TRAINING_MODULE = "sys_plan_training_module";
-    /** 组织实施实施步骤字典 type（实践训练课目 plan_type=3 第五部分「实施步骤」列，dict_value 落 process_step.stage_name） */
+    /** 组织实施“实施步骤”列字典 type（实践训练课目 plan_type=3；历史字段 stage_name 存该列的 dict_value） */
     private static final String DICT_PLAN_IMPLEMENTATION_STEP = "sys_plan_implementation_step";
     /** 适用对象/培养层次字典 type */
     private static final String DICT_EDUCATION_LEVEL = "sys_education_level";
@@ -1069,7 +1069,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             m.setSections(listSection(planId));
             // 实施步骤/项目步骤（实践训练课目第五部分「实施步骤|阶段划分|有关要求」；type4 项目步骤数据行）
             m.setProcessSteps(teachingPlanModuleService.listProcessStep(planId));
-            // 实践训练课目(plan_type=3)第五部分「实施步骤」列：process_step.stage_name 存字典 value(编码)，生成 Word 前译为 label
+            // 实践训练课目(plan_type=3)：stageName=实施步骤类别编码，stepName=阶段划分；生成 Word 前只翻译 stageName
             if (plan != null && plan.getPlanType() != null && plan.getPlanType() == 3) {
                 Map<String, String> stepMap = dictValueToLabelMap(DICT_PLAN_IMPLEMENTATION_STEP);
                 List<TeachingPlanProcessStep> steps = m.getProcessSteps();

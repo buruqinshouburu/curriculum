@@ -1197,8 +1197,8 @@ public class TeachingPlanWordImporter {
     /**
      * 解析组织实施表，按表头区分两种布局：
      * type2「五、组织实施」：组织方式行 + 实施步骤|阶段划分|有关要求 表头 + 步骤行。
-     *   步骤行 C0=实施步骤(字典 label，竖向合并空则继承上行)、C1=阶段划分(stepName)、C2=有关要求(requirement)；
-     *   实施步骤 label 经 reverseDict 反查编码存 stage_name；组织方式行存为 section(organize_way)。
+     *   步骤行 C0=实施步骤(字典 label，竖向合并空则继承上行)、C1=阶段划分、C2=有关要求；
+     *   历史字段映射：C0 反查编码存 stage_name，C1 存 step_name；组织方式行存为 section(organize_way)。
      * type4「三、组织与实施」：团队组织与管理 + 项目实施|项目步骤|有关要求 表头 + 步骤行。
      *   步骤行 C1=stepName、C2=requirement；C0 非空且非项目实施视为下一分组，结束步骤区。
      */
@@ -1230,7 +1230,7 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    /** type2 组织实施表解析：实施步骤(字典)|阶段划分|有关要求。 */
+    /** type2 组织实施表解析：第二行为固定表头，其后按“实施步骤(字典)|阶段划分|有关要求”读取数据。 */
     private void parseOrganizationStepsType2(List<List<String>> grid, int headerRow,
                                              ParseResult result, ParseContext ctx) {
         // 组织方式行（表头行之前）：C0=组织方式，C1=说明文本 -> section(organize_way)
@@ -1247,24 +1247,24 @@ public class TeachingPlanWordImporter {
                 }
             }
         }
-        // 步骤行：C0=实施步骤(label，合并空则继承上行)、C1=阶段划分(stepName)、C2=有关要求(requirement)
-        String carryStage = null;
+        // 数据行：C0=实施步骤(label，合并空则继承上行)、C1=阶段划分、C2=有关要求
+        String carryImplementationStep = null;
         int idx = 0;
         for (int r = headerRow + 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
             String c0 = cell(row, 0);
-            String stepName = cell(row, 1);
+            String stageDivision = cell(row, 1);
             String req = row.size() > 2 ? cell(row, 2) : "";
             if (StringUtils.isNotBlank(c0) && !"实施步骤".equals(c0)) {
-                carryStage = c0;
+                carryImplementationStep = c0;
             }
-            if (StringUtils.isBlank(stepName) && StringUtils.isBlank(req)) {
+            if (StringUtils.isBlank(stageDivision) && StringUtils.isBlank(req)) {
                 continue;
             }
             TeachingPlanProcessStep step = new TeachingPlanProcessStep();
-            // 实施步骤 label 反查编码存 stage_name（未匹配保留原文）
-            step.setStageName(reverseDict(carryStage, "sys_plan_implementation_step", ctx));
-            step.setStepName(stepName);
+            // 历史字段映射：实施步骤 label 反查编码存 stage_name，阶段划分存 step_name
+            step.setStageName(reverseDict(carryImplementationStep, "sys_plan_implementation_step", ctx));
+            step.setStepName(stageDivision);
             step.setRequirement(req);
             step.setSort(++idx);
             result.processSteps.add(step);

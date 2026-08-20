@@ -794,28 +794,28 @@ public class TeachingPlanController {
         return Message.success();
     }
 
-    // ============ 18. 实施步骤 t_csys_teaching_plan_process_step ============
+    // ============ 18. 组织实施数据行 t_csys_teaching_plan_process_step ============
 
-    @ApiOperation("实施步骤列表")
+    @ApiOperation("组织实施数据行列表（实践训练课目：实施步骤/阶段划分/有关要求）")
     @GetMapping("/processStep/list")
     public DataSet<List<TeachingPlanProcessStep>> processStepList(@RequestParam("planId") Long planId) {
         return DataSet.success(teachingPlanModuleService.listProcessStep(planId));
     }
 
-    @ApiOperation("新增实施步骤")
+    @ApiOperation("新增组织实施数据行")
     @PostMapping("/processStep")
     public DataSet<Long> addProcessStep(@RequestBody TeachingPlanProcessStep step) {
         return DataSet.success(teachingPlanModuleService.addProcessStep(step));
     }
 
-    @ApiOperation("修改实施步骤")
+    @ApiOperation("修改组织实施数据行")
     @PutMapping("/processStep")
     public Message updateProcessStep(@RequestBody TeachingPlanProcessStep step) {
         teachingPlanModuleService.updateProcessStep(step);
         return Message.success();
     }
 
-    @ApiOperation("删除实施步骤")
+    @ApiOperation("删除组织实施数据行")
     @DeleteMapping("/processStep/{id}")
     public Message deleteProcessStep(@PathVariable("id") Long id) {
         teachingPlanModuleService.deleteProcessStep(id);

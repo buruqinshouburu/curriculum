@@ -66,6 +66,9 @@ public class CourseTeachingPlanGenerator {
     /** 单列宽度(dxa)，合并列时按 span 倍数设置 */
     private static final int COL_W = 1000;
 
+    /** 实践训练课目第五部分组织实施表列宽：实施步骤 | 阶段划分 | 有关要求（与2026模板一致） */
+    private static final int[] PRACTICE_SUBJECT_ORGANIZATION_COL_WIDTHS = {1114, 2003, 5405};
+
     /** 五号字 ≈ 10.5 磅 */
     private static final double FONT_SIZE_WUHAO = 10.5;
     /** 章节标题：黑体五号 */
@@ -1444,6 +1447,7 @@ public class CourseTeachingPlanGenerator {
      * R0 组织方式(C0) | 组织方式说明(C1-C2 合并，取 section「organize_way」)
      * R1 实施步骤(C0) | 阶段划分(C1) | 有关要求(C2)   ← 表头
      * R2.. stageName  | stepName    | requirement      ← 取 processSteps
+     * 历史字段语义：stageName=实施步骤类别，stepName=阶段划分；
      * 「实施步骤」列存字典编码(sys_plan_implementation_step)，buildModel 已译为 label；
      * 相同实施步骤连续行竖向合并（战斗准备/战斗实施/撤出战斗各合并一段）。
      * 无 processSteps 时仅留表头两行（组织方式 + 表头）。
@@ -1454,7 +1458,8 @@ public class CourseTeachingPlanGenerator {
         List<TeachingPlanProcessStep> steps = m.getProcessSteps();
         int stepRows = Math.max(size(steps), 1);
         int rows = 2 + stepRows; // R0 组织方式 + R1 表头 + 步骤行(至少1行占位)
-        XWPFTable t = createTable(doc, Math.max(rows, 3), cols);
+        XWPFTable t = createTable(doc, Math.max(rows, 3), cols,
+                PRACTICE_SUBJECT_ORGANIZATION_COL_WIDTHS);
         // R0 组织方式：col0 标签，col1-2 合并填组织方式说明
         setCell(t, 0, 0, "组织方式", true);
         String orgWay = sec.getOrDefault("organize_way", sec.getOrDefault("组织方式", ""));
@@ -1464,13 +1469,15 @@ public class CourseTeachingPlanGenerator {
         setCell(t, 1, 0, "实施步骤", true);
         setCell(t, 1, 1, "阶段划分", true);
         setCell(t, 1, 2, "有关要求", true);
-        // R2+ 步骤行：stageName(已译名)->实施步骤列、stepName->阶段划分、requirement->有关要求
+        // R2+ 数据行：stageName(已译名)->实施步骤、stepName->阶段划分、requirement->有关要求
         if (ObjectUtils.isNotEmpty(steps)) {
             for (int i = 0; i < steps.size(); i++) {
                 TeachingPlanProcessStep s = steps.get(i);
                 int r = i + 2;
-                setCell(t, r, 0, str(s.getStageName()), false);
-                setCell(t, r, 1, str(s.getStepName()), false);
+                String implementationStep = s.getStageName();
+                String stageDivision = s.getStepName();
+                setCell(t, r, 0, str(implementationStep), false);
+                setCell(t, r, 1, str(stageDivision), false);
                 setCell(t, r, 2, stripHtml(s.getRequirement()), false);
             }
             // 实施步骤列：相同 stageName 连续行竖向合并（战斗准备/战斗实施/撤出战斗各一段）

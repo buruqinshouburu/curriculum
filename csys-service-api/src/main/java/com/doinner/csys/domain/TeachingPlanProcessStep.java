@@ -3,8 +3,13 @@ package com.doinner.csys.domain;
 import com.doinner.common.core.domain.db.AbstractDoinnerLogicalDelBaseEntity;
 
 /**
- * 教学计划实施步骤实体
- * 实施步骤、阶段划分、项目步骤及要求
+ * 教学计划组织实施步骤实体。
+ * <p>
+ * 字段为历史通用命名，实践训练课目第五部分中的明确语义为：
+ * {@code stageName}=“实施步骤”列的数据（字典编码），
+ * {@code stepName}=“阶段划分”列的数据，
+ * {@code requirement}=“有关要求”列的数据。
+ * “实施步骤 / 阶段划分 / 有关要求”三个固定表头本身不入库。
  */
 public class TeachingPlanProcessStep extends AbstractDoinnerLogicalDelBaseEntity {
 
@@ -24,12 +29,16 @@ public class TeachingPlanProcessStep extends AbstractDoinnerLogicalDelBaseEntity
     private Long itemId;
 
     /**
-     * 阶段划分
+     * 步骤分组。
+     * 实践训练课目：实施步骤类别编码（sys_plan_implementation_step，例如1=战斗准备）；
+     * 实践项目：可作为项目阶段名称。
      */
     private String stageName;
 
     /**
-     * 实施步骤或项目步骤
+     * 步骤明细。
+     * 实践训练课目：阶段划分（例如“战备等级转进”）；
+     * 实践项目：项目步骤。
      */
     private String stepName;
 
