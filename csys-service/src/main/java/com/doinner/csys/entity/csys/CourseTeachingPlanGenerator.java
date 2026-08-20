@@ -232,7 +232,7 @@ public class CourseTeachingPlanGenerator {
         experimentArrangementTable(m.getPracticeItems(), doc);
 
         h1(doc, "六、考核与评价");
-        assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+        experimentAssessmentTable(m.getAssessments(), m.getScoreRule(), doc);
 
         h1(doc, "七、实验教材或指导书");
         textbookTable(m.getTextbooks(), doc);
@@ -259,7 +259,7 @@ public class CourseTeachingPlanGenerator {
         organizationTable(m, doc);
 
         h1(doc, "六、考核与评价");
-        assessmentTable(m.getAssessments(), m.getScoreRule(), doc);
+        practiceSubjectAssessmentTable(m.getAssessments(), m.getScoreRule(), doc);
 
         h1(doc, "七、训练条件及资源");
         conditionTable(m.getConditions(), doc);
@@ -1034,6 +1034,67 @@ public class CourseTeachingPlanGenerator {
         WordUtil.mergeCellsHorizontal(t, r, 0, 1);
         // 横合 0-1 后索引塌缩：原 col2 变为 col1
         WordUtil.mergeCellsHorizontal(t, r, 1, 4);
+    }
+
+    /**
+     * 实践训练课目考核评价表（type2 六）：
+     * 考核项目 | 考核方式 | 评定机制 | 权重 | 评价标准。
+     * 训练课目没有终结性/过程性分类，因此不保留课程考核表的分类列，也不拆分考核项目列。
+     */
+    private void practiceSubjectAssessmentTable(List<TeachingPlanAssessment> assessments,
+                                                String scoreRule, XWPFDocument doc) {
+        uncategorizedAssessmentTable(assessments, scoreRule, "考核项目", doc);
+    }
+
+    /** 实验课程没有终结性/过程性分类，首列展示实验项目名称。 */
+    private void experimentAssessmentTable(List<TeachingPlanAssessment> assessments,
+                                           String scoreRule, XWPFDocument doc) {
+        uncategorizedAssessmentTable(assessments, scoreRule, "实验项目名称", doc);
+    }
+
+    /** 无终结性/过程性分类的五列表格，供实验课程、实践训练课目复用。 */
+    private void uncategorizedAssessmentTable(List<TeachingPlanAssessment> assessments,
+                                              String scoreRule, String itemHeader, XWPFDocument doc) {
+        int cols = 5;
+        List<TeachingPlanAssessment> rows = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(assessments)) {
+            for (TeachingPlanAssessment assessment : assessments) {
+                if (assessment != null) {
+                    rows.add(assessment);
+                }
+            }
+        }
+        int dataRows = Math.max(rows.size(), 1);
+        XWPFTable t = createTable(doc, 1 + dataRows + 1, cols);
+        setCell(t, 0, 0, itemHeader, true);
+        setCell(t, 0, 1, "考核方式", true);
+        setCell(t, 0, 2, "评定机制", true);
+        setCell(t, 0, 3, "权重", true);
+        setCell(t, 0, 4, "评价标准", true);
+
+        int r = 1;
+        if (ObjectUtils.isNotEmpty(rows)) {
+            for (TeachingPlanAssessment assessment : rows) {
+                setCell(t, r, 0, assessment.getAssessmentItem(), false);
+                setCell(t, r, 1, assessment.getMethod(), false);
+                setCell(t, r, 2, firstNonBlank(assessment.getMechanism(), assessment.getScoreSystem()), false);
+                setCell(t, r, 3, formatHours(assessment.getWeight()), false);
+                setCell(t, r, 4, assessment.getStandard(), false);
+                r++;
+            }
+        }
+        if (r == 1) {
+            for (int c = 0; c < cols; c++) {
+                setCell(t, r, c, "", false);
+            }
+            r++;
+        }
+        setCell(t, r, 0, "计分规则", true);
+        setCell(t, r, 1, StringUtils.defaultString(scoreRule), false);
+        setCell(t, r, 2, "", false);
+        setCell(t, r, 3, "", false);
+        setCell(t, r, 4, "", false);
+        WordUtil.mergeCellsHorizontal(t, r, 1, cols - 1);
     }
 
     /** 写入同一考核类别的多行，并纵向合并类别列 */

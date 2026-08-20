@@ -244,87 +244,13 @@ Content-Type: application/json
 
 ## 3. 考核与评价整页保存
 
-考核与评价页（包括实践项目的“成果与评价”和“项目计分规则”）改为一次整页提交。
+请使用独立的当前说明：[教学计划考核与评价整页保存接口](teaching-plan-assessment-save-api.md)。
 
-### 请求
+该文档按课程、实验教学、实践训练课目、实践项目分别说明字段、字典编码和请求示例；新页面统一使用：
 
 ```http
 POST /csys/teachingPlan/assessment/save
-Content-Type: application/json
 ```
-
-```json
-{
-  "planId": 6004,
-  "scoreRule": "项目总成绩=个人成果×60%+团队成果×40%",
-  "assessments": [
-    {
-      "assessmentCategory": 5,
-      "outcomeType": 1,
-      "assessmentItem": "个人答辩",
-      "assessedContent": "个人完成质量",
-      "weight": 0.6,
-      "standard": "能独立说明本人承担工作及实现过程"
-    },
-    {
-      "assessmentCategory": 5,
-      "outcomeType": 2,
-      "assessmentItem": "团队演示",
-      "assessedContent": "团队协作质量",
-      "weight": 0.4,
-      "standard": "完整展示项目成果并回答问题"
-    }
-  ]
-}
-```
-
-顶层字段：
-
-| 字段 | 必填 | 类型 | 说明 |
-| --- | --- | --- | --- |
-| `planId` | 是 | Long | 教学计划 ID。明细中的 `planId` 即使传入也会被此值覆盖。 |
-| `scoreRule` | 否 | String | 项目计分规则，直接覆盖教学计划主表字段；传 `null`、空串或不传均会清空。不要放到明细行内。 |
-| `assessments` | 否 | Array | 本页全部考核与评价明细；传 `[]`、`null` 或不传均表示清空该计划全部明细。 |
-
-明细通用字段：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `assessmentCategory` | Integer | `1` 终结性、`2` 形成性、`3` 实验项目、`4` 训练课目、`5` 成果评价。 |
-| `assessmentItem` | String | 考核项目；成果评价时为成果形式。 |
-| `method` / `mechanism` / `scoreSystem` | String | 普通考核字段；成果评价（`assessmentCategory=5`）不要传，后端会置空。 |
-| `outcomeType` | Integer | 仅成果评价使用，取字典 `sys_plan_outcome_type` 的 value；成果评价必填。 |
-| `assessedContent` | String | 评价的知识和能力。 |
-| `weight` | Decimal | 权重，取值范围 `0`～`1`。 |
-| `standard` | String | 评价标准/评价准则。 |
-| `sort` | Integer | 显示排序；不传时后端按数组顺序从 `1` 开始补齐。 |
-
-保存语义：
-
-1. 后端会先校验整页所有明细，任一明细不合法时不会删除旧数据。
-2. 校验通过后，按 `planId` 逻辑删除旧明细，再批量插入本次的全部明细；明细 `id` 不参与更新，前端无需删除旧 `id` 也无需区分新增/修改。
-3. 明细与 `scoreRule` 在同一事务中保存，任一步失败都会回滚。
-
-成功返回：
-
-```json
-{
-  "code": 200,
-  "msg": "操作成功"
-}
-```
-
-### 回显
-
-明细继续查询：
-
-```http
-GET /csys/teachingPlan/assessment/list?planId={planId}
-```
-
-成果评价行会返回 `outcomeTypeName`。当列表有明细时，每一行还会返回相同的 `scoreRule`；若列表为空，请从已存在的教学计划详情接口 `GET /csys/teachingPlan/detail?courseId={courseId}&teachingPlanId={planId}` 读取 `data.scoreRule`，不要依赖空数组回传计分规则。
-
-旧的 `POST /assessment`、`PUT /assessment`、`DELETE /assessment/{id}` 仍保留给已接入页面兼容；新页面请只调用本节的 `/assessment/save`。
 
 ## 4. 兼容性说明
 

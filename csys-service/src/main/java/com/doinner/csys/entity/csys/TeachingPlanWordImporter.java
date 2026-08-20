@@ -326,8 +326,10 @@ public class TeachingPlanWordImporter {
             parsePracticeItems(grid, result);
             return;
         }
-        // 实施安排 type3
-        if (header.contains("实验项目名称") || (header.contains("分组情况") && header.contains("实验性质"))) {
+        // 实施安排：序号 | 实验项目名称 | 学时 | 分组情况 | 实验性质 | 修读性质 | 备注。
+        // “实验项目名称 | 考核方式 | … | 评价标准”是实验课程的考核表，不能误判为实施安排。
+        if ((header.contains("实验项目名称") && header.contains("学时"))
+                || (header.contains("分组情况") && header.contains("实验性质"))) {
             parseExperimentArrangement(grid, result);
             return;
         }
@@ -926,6 +928,9 @@ public class TeachingPlanWordImporter {
                 a.setWeight(parseDecimal(cell(row, 4)));
                 a.setStandard(cell(row, 5));
             } else {
+                // 实验课程、实践训练课目的表格没有终结性/过程性分类列，
+                // 根据已识别的 Word 文档类型补齐对应的考核类别。
+                a.setAssessmentCategory(defaultAssessmentCategory(result.docType));
                 a.setAssessmentItem(c0);
                 a.setMethod(cell(row, 1));
                 splitMechanism(cell(row, 2), a);
@@ -944,6 +949,16 @@ public class TeachingPlanWordImporter {
             a.setSort(result.assessments.size() + 1);
             result.assessments.add(a);
         }
+    }
+
+    private Integer defaultAssessmentCategory(int docType) {
+        if (docType == DOC_TYPE_EXPERIMENT_COURSE) {
+            return 3;
+        }
+        if (docType == DOC_TYPE_PRACTICE_SUBJECT) {
+            return 4;
+        }
+        return null;
     }
 
     private Integer parseOutcomeType(String value, ParseContext ctx) {

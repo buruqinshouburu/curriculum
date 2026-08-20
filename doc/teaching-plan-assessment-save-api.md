@@ -37,15 +37,15 @@ Content-Type: application/json
 | 教学计划 | `assessmentCategory` | 手动录入字段 | 字典字段（提交 value） | 不使用字段 |
 | --- | ---: | --- | --- | --- |
 | 课程教学计划 | `1` 终结性、`2` 过程性 | `weight` | `assessmentItem`、`method`、`mechanism`、`standard` | `outcomeType`、`assessedContent`、`scoreSystem` |
-| 实验教学计划 | `3` 实验项目 | `assessmentItem`（实验项目名称）、`weight` | `method`、`mechanism`、`standard` | `outcomeType`、`assessedContent`、`scoreSystem` |
-| 实践训练课目 | `4` 训练课目 | `assessmentItem`（考核项目）、`weight` | `method`、`mechanism`、`standard` | `outcomeType`、`assessedContent`、`scoreSystem` |
+| 实验教学计划 | `3` 实验项目 | `weight` | `assessmentItem`（实验项目名称）、`method`、`mechanism`、`standard` | `outcomeType`、`assessedContent`、`scoreSystem` |
+| 实践训练课目 | `4` 训练课目 | `weight` | `assessmentItem`（考核项目）、`method`、`mechanism`、`standard` | `outcomeType`、`assessedContent`、`scoreSystem` |
 | 实践项目 | `5` 成果评价 | `assessmentItem`（成果形式）、`assessedContent`、`weight`、`standard` | `outcomeType` | `method`、`mechanism`、`scoreSystem` |
 
 字典字段对应关系：
 
 | API 字段 | 页面含义 | 字典 type |
 | --- | --- | --- |
-| `assessmentItem` | 仅课程教学计划：考核项目 | `sys_assessment_item` |
+| `assessmentItem` | 课程、实验教学、实践训练课目的考核项目/实验项目名称 | `sys_assessment_item` |
 | `method` | 考试/考核方式 | `sys_assessment_method` |
 | `mechanism` | 评定机制 | `sys_assessment_mechanism` |
 | `standard` | 评定标准/评价标准 | `sys_evaluation_standard` |
@@ -89,7 +89,9 @@ Content-Type: application/json
 
 ### 3.2 实验教学计划：实验项目考核
 
-`assessmentItem` 是手工录入的实验项目名称，不能使用 `sys_assessment_item` 字典。
+`assessmentItem` 是实验项目名称，提交 `sys_assessment_item` 的字典 value。
+
+对应 Word 的“六、考核与评价”固定为五列：`实验项目名称｜考核方式｜评定机制｜权重｜评价标准`，没有终结性/过程性分类列。
 
 ```json
 {
@@ -97,7 +99,7 @@ Content-Type: application/json
   "assessments": [
     {
       "assessmentCategory": 3,
-      "assessmentItem": "链表综合实验",
+      "assessmentItem": "6",
       "method": "2",
       "mechanism": "1",
       "standard": "1,2,3,4,5",
@@ -109,7 +111,9 @@ Content-Type: application/json
 
 ### 3.3 实践训练课目：训练课目考核
 
-`assessmentItem` 是手工录入的考核项目，不能使用 `sys_assessment_item` 字典。
+`assessmentItem` 是考核项目，提交 `sys_assessment_item` 的字典 value。
+
+对应 Word 的“六、考核与评价”固定为五列：`考核项目｜考核方式｜评定机制｜权重｜评价标准`，没有终结性/过程性分类列。
 
 ```json
 {
@@ -117,7 +121,7 @@ Content-Type: application/json
   "assessments": [
     {
       "assessmentCategory": 4,
-      "assessmentItem": "单个军人队列动作考核",
+      "assessmentItem": "5",
       "method": "2",
       "mechanism": "1",
       "standard": "6,7",
@@ -171,5 +175,4 @@ GET /csys/teachingPlan/assessment/list?planId={planId}
 1. 后端已校验所有类型的 `weight` 必须在 `0`～`1` 之间。
 2. 实践项目成果评价已校验 `outcomeType` 必填且存在于 `sys_plan_outcome_type`，`assessmentItem` 必填；同时会清空不适用的 `method`、`mechanism`、`scoreSystem`。
 3. 当前后端尚未按教学计划类型强制校验 `assessmentCategory`，也未校验课程/实验/训练课目的其他字典字段是否为合法 value；前端必须严格按第 2 节传参。
-4. 现有 Word 生成、导入对非成果评价统一按 `sys_assessment_item` 转换 `assessmentItem`，会与“实验项目名称、实践训练课目考核项目手工录入”的新口径冲突；该问题需要在 Word 转换逻辑中按类别 `3`、`4` 跳过 `assessmentItem` 字典转换后再处理。
-
+4. 非成果评价的 `assessmentItem` 均按 `sys_assessment_item` 字典转换，现有 Word 生成、导入逻辑与本口径一致。

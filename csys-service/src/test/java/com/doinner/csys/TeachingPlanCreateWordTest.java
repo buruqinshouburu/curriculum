@@ -279,6 +279,14 @@ class TeachingPlanCreateWordTest {
                     organization.getCTTbl().getTblGrid().getGridColArray(1).getW())));
             assertEquals(5405, Integer.parseInt(String.valueOf(
                     organization.getCTTbl().getTblGrid().getGridColArray(2).getW())));
+            XWPFTable assessment = findTable(generated, "考核项目", "考核方式", "评定机制", "权重", "评价标准");
+            assertEquals(5, assessment.getRow(0).getTableCells().size(),
+                    "实践训练课目考核表不应保留终结性/过程性分类列");
+            assertEquals("考核项目", assessment.getRow(0).getCell(0).getText().trim());
+            assertEquals("考核方式", assessment.getRow(0).getCell(1).getText().trim());
+            assertEquals("评定机制", assessment.getRow(0).getCell(2).getText().trim());
+            assertEquals("权重", assessment.getRow(0).getCell(3).getText().trim());
+            assertEquals("评价标准", assessment.getRow(0).getCell(4).getText().trim());
         }
     }
 
@@ -291,6 +299,16 @@ class TeachingPlanCreateWordTest {
         assertTrue(text.contains("大学物理实验"), "docx 应含课程名");
         assertTrue(text.contains("围绕力学、电磁学核心原理开展实验验证，强化理论与实验结合"), "docx 应含任务背景");
         assertTrue(text.contains("牛顿第二定律验证实验"), "docx 应含实验项目");
+        try (XWPFDocument generated = new XWPFDocument(new ByteArrayInputStream(docx))) {
+            XWPFTable assessment = findTable(generated, "实验项目名称", "考核方式", "评定机制", "权重", "评价标准");
+            assertEquals(5, assessment.getRow(0).getTableCells().size(),
+                    "实验课程考核表不应保留终结性/过程性分类列");
+            assertEquals("实验项目名称", assessment.getRow(0).getCell(0).getText().trim());
+            assertEquals("考核方式", assessment.getRow(0).getCell(1).getText().trim());
+            assertEquals("评定机制", assessment.getRow(0).getCell(2).getText().trim());
+            assertEquals("权重", assessment.getRow(0).getCell(3).getText().trim());
+            assertEquals("评价标准", assessment.getRow(0).getCell(4).getText().trim());
+        }
     }
 
     /** t5 type4 实践项目(8004 综合课程设计实践)：支撑课程目标/训练目的/知识体系/训练内容快照进 Word。 */
@@ -705,6 +723,11 @@ class TeachingPlanCreateWordTest {
                 case 2:
                     assertEquals(3, countOf(resp, "assessment"), tag + " 考核项应原样导入: " + warnMsgs);
                     assertEquals(2, countOf(resp, "textbook"), tag + " 实验教材应原样导入: " + warnMsgs);
+                    List<Integer> experimentCategories = jdbc.queryForList(
+                            "SELECT assessment_category FROM t_csys_teaching_plan_assessment WHERE plan_id=6003 AND sysflag = 0 ORDER BY sort",
+                            Integer.class);
+                    assertEquals(Arrays.asList(3, 3, 3), experimentCategories,
+                            tag + " 无分类列的实验课程考核表导入后应补回类别3: " + experimentCategories);
                     break;
                 case 3:
                     assertEquals(4, countOf(resp, "trainingPurpose"), tag + " 训练目的应原样导入: " + warnMsgs);
@@ -726,6 +749,11 @@ class TeachingPlanCreateWordTest {
                             "SELECT assessment_item FROM t_csys_teaching_plan_assessment WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
                             String.class);
                     assertEquals(Arrays.asList("5", "7"), items, tag + " 考核项目应为字典编码 5/7: " + items);
+                    List<Integer> categories = jdbc.queryForList(
+                            "SELECT assessment_category FROM t_csys_teaching_plan_assessment WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
+                            Integer.class);
+                    assertEquals(Arrays.asList(4, 4), categories,
+                            tag + " 无分类列的训练课目考核表导入后应补回类别4: " + categories);
                     List<String> purposes = jdbc.queryForList(
                             "SELECT purpose FROM t_csys_teaching_plan_content WHERE plan_id=6002 AND sysflag = 0 ORDER BY sort",
                             String.class);
