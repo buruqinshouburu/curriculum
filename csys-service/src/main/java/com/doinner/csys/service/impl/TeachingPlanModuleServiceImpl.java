@@ -59,6 +59,7 @@ import com.doinner.csys.domain.vo.CourseIdAndName;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateTreeNodeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
@@ -1244,8 +1245,54 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     public List<TeachingPlanTrainingPurpose> listTrainingPurpose(Long planId, Long schemeId) {
         boolean onlyNull = isGeneralSubjectPlan(planId);
         // 通识通用：忽略入参 schemeId，只取 scheme_id IS NULL 单组
-        return teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(
+        List<TeachingPlanTrainingPurpose> purposes = teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(
                 planId, onlyNull ? null : schemeId, onlyNull);
+        if (ObjectUtils.isEmpty(purposes)) {
+            return purposes;
+        }
+
+        // 先按 plan + scheme 锁定本次返回的训练目的，再按 purposeId 归并该 plan 下绑定。
+        // purposeId 是绑定的直接外键；这样既不会跨目的/方案串数据，也兼容通识通用历史绑定仍带 scheme_id 的数据。
+        Set<Long> visiblePurposeIds = purposes.stream()
+                .filter(Objects::nonNull)
+                .map(TeachingPlanTrainingPurpose::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        List<TeachingPlanTrainingPurposeRef> refs =
+                teachingPlanTrainingPurposeRefMapper.selectByPlanAndScheme(planId, null, false);
+        Map<Long, LinkedHashSet<String>> namesByPurposeId = new LinkedHashMap<>();
+        if (ObjectUtils.isNotEmpty(refs)) {
+            List<Long> missingNameGraduationIds = refs.stream()
+                    .filter(Objects::nonNull)
+                    .filter(ref -> StringUtils.isBlank(ref.getGraduationName()))
+                    .map(TeachingPlanTrainingPurposeRef::getGraduationId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+            Map<Long, StandardGraduation> graduationMap = loadGraduationMap(missingNameGraduationIds);
+            for (TeachingPlanTrainingPurposeRef ref : refs) {
+                if (ref == null || ref.getPurposeId() == null || !visiblePurposeIds.contains(ref.getPurposeId())) {
+                    continue;
+                }
+                String name = ref.getGraduationName();
+                if (StringUtils.isBlank(name) && ref.getGraduationId() != null) {
+                    StandardGraduation graduation = graduationMap.get(ref.getGraduationId());
+                    name = graduation == null ? null : graduation.getName();
+                }
+                if (StringUtils.isNotBlank(name)) {
+                    namesByPurposeId.computeIfAbsent(ref.getPurposeId(), key -> new LinkedHashSet<>())
+                            .add(name.trim());
+                }
+            }
+        }
+        for (TeachingPlanTrainingPurpose purpose : purposes) {
+            LinkedHashSet<String> names = purpose == null ? null : namesByPurposeId.get(purpose.getId());
+            if (purpose != null) {
+                purpose.setGraduationRequirements(
+                        names == null || names.isEmpty() ? "" : String.join("、", names));
+            }
+        }
+        return purposes;
     }
 
     @Override
@@ -1734,6 +1781,274 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         result.addAll(groups.values());
         result.sort(Comparator.comparing(g -> !Boolean.TRUE.equals(g.getSameScheme())));
         return result;
+    }
+
+    @Override
+    public List<TeachingPlanSupportCandidateTreeNodeVo> listSupportCandidateTree(Long courseId, Integer type) {
+        if (courseId == null) {
+            throw new IllegalArgumentException("courseId 不能为空");
+        }
+        if (!Objects.equals(type, 1) && !Objects.equals(type, 2)) {
+            throw new IllegalArgumentException("type 只能为1（目标/目的）或2（知识体系/训练内容）");
+        }
+
+        CourseVo projectCourse = courseMapper.selectCourseById(courseId);
+        if (projectCourse == null) {
+            throw new IllegalArgumentException("实践项目课程不存在: " + courseId);
+        }
+        if (!Objects.equals(parseInt(projectCourse.getType()), 4)) {
+            throw new IllegalArgumentException("仅实践项目课程可查询支撑候选树");
+        }
+
+        List<TeachingPlanSupportCandidateTreeNodeVo> result = new ArrayList<>();
+        appendSupportCandidateRoots(result, parseCourseIdCsv(projectCourse.getBeforeCourseId()),
+                1, type);
+        appendSupportCandidateRoots(result, parseCourseIdCsv(projectCourse.getAfterCourseId()),
+                2, type);
+        return result;
+    }
+
+    private void appendSupportCandidateRoots(List<TeachingPlanSupportCandidateTreeNodeVo> result,
+                                             List<Long> sourceCourseIds,
+                                             Integer refType,
+                                             Integer candidateType) {
+        if (ObjectUtils.isEmpty(sourceCourseIds)) {
+            return;
+        }
+        for (Long sourceCourseId : new LinkedHashSet<>(sourceCourseIds)) {
+            TeachingPlanSupportCandidateTreeNodeVo root = buildSupportCandidateRoot(
+                    sourceCourseId, refType, candidateType);
+            if (root != null) {
+                result.add(root);
+            }
+        }
+    }
+
+    private TeachingPlanSupportCandidateTreeNodeVo buildSupportCandidateRoot(
+            Long sourceCourseId, Integer refType, Integer candidateType) {
+        Course sourceCourse = courseMapper.selectCourseById(sourceCourseId);
+        if (sourceCourse == null) {
+            return null;
+        }
+        Integer planType = toTeachingPlanType(parseInt(sourceCourse.getType()));
+        if (planType == null) {
+            return null;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectBySourceCourseIdAndPlanType(sourceCourseId, planType);
+        if (plan == null || plan.getId() == null) {
+            return null;
+        }
+
+        boolean general = Objects.equals(refType, 2)
+                ? isGeneralSubjectModuleCourse(sourceCourseId)
+                : isPublicFoundationCourse(sourceCourseId);
+        String rootNodeType = Objects.equals(refType, 1) ? "course" : "trainingSubject";
+        List<TeachingPlanSupportCandidateTreeNodeVo> schemeNodes = Objects.equals(candidateType, 1)
+                ? buildGoalOrPurposeSchemeNodes(plan.getId(), sourceCourseId, refType, rootNodeType, general)
+                : buildKnowledgeOrTrainingContentSchemeNodes(
+                        plan.getId(), sourceCourseId, refType, rootNodeType, general);
+        if (schemeNodes.isEmpty()) {
+            return null;
+        }
+
+        TeachingPlanSupportCandidateTreeNodeVo root = newSupportCandidateNode(
+                rootNodeType + ":" + sourceCourseId,
+                sourceCourseId,
+                StringUtils.defaultIfBlank(sourceCourse.getName(), plan.getSourceCourseName()),
+                rootNodeType,
+                refType,
+                sourceCourseId,
+                null,
+                null,
+                null,
+                false);
+        root.setChildren(schemeNodes);
+        return root;
+    }
+
+    private List<TeachingPlanSupportCandidateTreeNodeVo> buildGoalOrPurposeSchemeNodes(
+            Long planId, Long sourceCourseId, Integer refType, String rootNodeType, boolean general) {
+        Map<Long, List<TeachingPlanSupportCandidateTreeNodeVo>> leavesByScheme = new LinkedHashMap<>();
+        if (Objects.equals(refType, 2)) {
+            List<TeachingPlanTrainingPurpose> purposes =
+                    teachingPlanTrainingPurposeMapper.selectByPlanAndScheme(planId, null, general);
+            if (ObjectUtils.isNotEmpty(purposes)) {
+                for (TeachingPlanTrainingPurpose purpose : purposes) {
+                    if (purpose == null || purpose.getId() == null || StringUtils.isBlank(purpose.getPurpose())) {
+                        continue;
+                    }
+                    Long itemSchemeId = general ? null : purpose.getSchemeId();
+                    leavesByScheme.computeIfAbsent(itemSchemeId, key -> new ArrayList<>()).add(
+                            newSupportCandidateNode(
+                            "purpose:" + purpose.getId(), purpose.getId(), purpose.getPurpose(), "purpose",
+                            refType, sourceCourseId, itemSchemeId, null, null, true));
+                }
+            }
+        } else {
+            List<TeachingPlanObjective> objectives =
+                    teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, null, general);
+            if (ObjectUtils.isNotEmpty(objectives)) {
+                for (TeachingPlanObjective objective : objectives) {
+                    if (objective == null || objective.getId() == null || StringUtils.isBlank(objective.getContent())) {
+                        continue;
+                    }
+                    Long itemSchemeId = general ? null : objective.getSchemeId();
+                    leavesByScheme.computeIfAbsent(itemSchemeId, key -> new ArrayList<>()).add(
+                            newSupportCandidateNode(
+                            "objective:" + objective.getId(), objective.getId(), objective.getContent(), "objective",
+                            refType, sourceCourseId, itemSchemeId, null,
+                            objective.getObjectiveTypeName(), true));
+                }
+            }
+        }
+        return buildSupportSchemeNodes(sourceCourseId, refType, rootNodeType, leavesByScheme);
+    }
+
+    private List<TeachingPlanSupportCandidateTreeNodeVo> buildKnowledgeOrTrainingContentSchemeNodes(
+            Long planId, Long sourceCourseId, Integer refType, String rootNodeType, boolean general) {
+        List<TeachingPlanContent> contents = teachingPlanContentMapper.selectByPlanId(planId);
+        if (ObjectUtils.isEmpty(contents)) {
+            return new ArrayList<>();
+        }
+
+        Map<Long, TeachingPlanSchemeVo> schemeMap = loadSupportSchemeMap(sourceCourseId);
+        List<Long> schemeIds = general
+                ? new ArrayList<>(Collections.singletonList(null))
+                : new ArrayList<>(schemeMap.keySet());
+        if (schemeIds.isEmpty()) {
+            schemeIds.add(null);
+        }
+
+        Map<Long, List<TeachingPlanSupportCandidateTreeNodeVo>> leavesByScheme = new LinkedHashMap<>();
+        String nodeType = Objects.equals(refType, 1) ? "knowledgeSystem" : "trainingContent";
+        for (Long schemeId : schemeIds) {
+            List<TeachingPlanSupportCandidateTreeNodeVo> leaves = new ArrayList<>();
+            for (TeachingPlanContent content : contents) {
+                if (content == null || content.getId() == null || StringUtils.isBlank(content.getTitle())) {
+                    continue;
+                }
+                String name = Objects.equals(refType, 2)
+                        ? translateTrainingModuleName(content.getTitle())
+                        : content.getTitle();
+                leaves.add(newSupportCandidateNode(
+                        nodeType + ":" + content.getId() + ":scheme:"
+                                + (schemeId == null ? "general" : schemeId),
+                        content.getId(), name, nodeType,
+                        refType, sourceCourseId, schemeId, null, null, true));
+            }
+            if (!leaves.isEmpty()) {
+                leavesByScheme.put(schemeId, leaves);
+            }
+        }
+        return buildSupportSchemeNodes(sourceCourseId, refType, rootNodeType, leavesByScheme, schemeMap);
+    }
+
+    private List<TeachingPlanSupportCandidateTreeNodeVo> buildSupportSchemeNodes(
+            Long sourceCourseId,
+            Integer refType,
+            String rootNodeType,
+            Map<Long, List<TeachingPlanSupportCandidateTreeNodeVo>> leavesByScheme) {
+        return buildSupportSchemeNodes(
+                sourceCourseId, refType, rootNodeType, leavesByScheme, loadSupportSchemeMap(sourceCourseId));
+    }
+
+    private List<TeachingPlanSupportCandidateTreeNodeVo> buildSupportSchemeNodes(
+            Long sourceCourseId,
+            Integer refType,
+            String rootNodeType,
+            Map<Long, List<TeachingPlanSupportCandidateTreeNodeVo>> leavesByScheme,
+            Map<Long, TeachingPlanSchemeVo> schemeMap) {
+        List<TeachingPlanSupportCandidateTreeNodeVo> result = new ArrayList<>();
+        if (leavesByScheme.isEmpty()) {
+            return result;
+        }
+
+        List<Long> orderedSchemeIds = new ArrayList<>();
+        if (leavesByScheme.containsKey(null)) {
+            orderedSchemeIds.add(null);
+        }
+        for (Long schemeId : schemeMap.keySet()) {
+            if (leavesByScheme.containsKey(schemeId) && !orderedSchemeIds.contains(schemeId)) {
+                orderedSchemeIds.add(schemeId);
+            }
+        }
+        for (Long schemeId : leavesByScheme.keySet()) {
+            if (!orderedSchemeIds.contains(schemeId)) {
+                orderedSchemeIds.add(schemeId);
+            }
+        }
+
+        for (Long schemeId : orderedSchemeIds) {
+            TeachingPlanSchemeVo scheme = schemeMap.get(schemeId);
+            String schemeName = schemeId == null
+                    ? "通识通用"
+                    : scheme == null
+                            ? "培养方案" + schemeId
+                            : StringUtils.defaultIfBlank(scheme.getSchemeName(), "培养方案" + schemeId);
+            String schemeVersion = scheme == null ? null : scheme.getSchemeVersion();
+            TeachingPlanSupportCandidateTreeNodeVo schemeNode = newSupportCandidateNode(
+                    rootNodeType + ":" + sourceCourseId + ":scheme:"
+                            + (schemeId == null ? "general" : schemeId),
+                    schemeId,
+                    schemeName,
+                    "scheme",
+                    refType,
+                    sourceCourseId,
+                    schemeId,
+                    schemeVersion,
+                    null,
+                    false);
+            schemeNode.setChildren(leavesByScheme.get(schemeId));
+            result.add(schemeNode);
+        }
+        return result;
+    }
+
+    private Map<Long, TeachingPlanSchemeVo> loadSupportSchemeMap(Long sourceCourseId) {
+        Map<Long, TeachingPlanSchemeVo> result = new LinkedHashMap<>();
+        List<TeachingPlanSchemeVo> schemes = listSchemes(sourceCourseId);
+        if (ObjectUtils.isNotEmpty(schemes)) {
+            for (TeachingPlanSchemeVo scheme : schemes) {
+                if (scheme != null && scheme.getSchemeId() != null) {
+                    result.putIfAbsent(scheme.getSchemeId(), scheme);
+                }
+            }
+        }
+        return result;
+    }
+
+    private TeachingPlanSupportCandidateTreeNodeVo newSupportCandidateNode(
+            String key, Long id, String name, String nodeType, Integer refType,
+            Long courseId, Long schemeId, String schemeVersion, String typeName, boolean selectable) {
+        TeachingPlanSupportCandidateTreeNodeVo node = new TeachingPlanSupportCandidateTreeNodeVo();
+        node.setKey(key);
+        node.setId(id);
+        node.setName(name);
+        node.setNodeType(nodeType);
+        node.setRefType(refType);
+        node.setCourseId(courseId);
+        node.setSchemeId(schemeId);
+        node.setSchemeVersion(schemeVersion);
+        node.setTypeName(typeName);
+        node.setSelectable(selectable);
+        return node;
+    }
+
+    /** t_csys_course.type -> t_csys_teaching_plan.plan_type。 */
+    private Integer toTeachingPlanType(Integer courseType) {
+        if (Objects.equals(courseType, 1)) {
+            return 1;
+        }
+        if (Objects.equals(courseType, 2)) {
+            return 3;
+        }
+        if (Objects.equals(courseType, 3)) {
+            return 2;
+        }
+        if (Objects.equals(courseType, 4)) {
+            return 4;
+        }
+        return null;
     }
 
     private void appendContentCandidatesForScheme(Long planId, Long courseId, String courseName, Long schemeId,

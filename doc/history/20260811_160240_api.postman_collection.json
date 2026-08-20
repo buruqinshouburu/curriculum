@@ -48,18 +48,7 @@
               "path": ["csys", "teachingPlan", "taskBackground", "list"],
               "query": [{"key": "planId", "value": "{{experimentPlanId}}", "description": "教学计划id"}]
             },
-            "description": "GET /teachingPlan/taskBackground/list?planId=\n返回 DataSet<List<TeachingPlanTaskBackground>>。\n\nTeachingPlanTaskBackground 字段:\n  - id (Long)\n  - planId (Long): 教学计划id\n  - schemeId (Long): 培养方案id(按方案分组)\n  - majorId (Long)\n  - backgroundDesc (String): 任务背景描述\n  - technicalGoal (String): 技术目标\n  - abilityGoal (String): 能力目标\n  - sort (Integer)\n  - refs (List): 关联的支撑毕业要求(回显用)"
-          },
-          "response": []
-        },
-        {
-          "name": "任务背景批量保存",
-          "request": {
-            "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
-            "url": {"raw": "{{baseUrl}}/csys/teachingPlan/taskBackground/batchSave", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "taskBackground", "batchSave"]},
-            "body": {"mode": "raw", "raw": "{\n  \"planId\": {{experimentPlanId}},\n  \"taskBackgrounds\": [\n    {\n      \"schemeId\": 7601,\n      \"majorId\": 9001,\n      \"backgroundDesc\": \"围绕力学、电磁学核心原理开展实验验证\",\n      \"technicalGoal\": \"掌握常用实验仪器的操作与测量方法\",\n      \"abilityGoal\": \"培养实验数据分析与科学表达能力\",\n      \"sort\": 1\n    }\n  ]\n}", "options": {"raw": {"language": "json"}}},
-            "description": "POST /teachingPlan/taskBackground/batchSave\n整表重建任务背景；taskBackgrounds 空或 null=清空。\nTeachingPlanTaskBackgroundBatchSaveVo 字段: planId, taskBackgrounds(List<TeachingPlanTaskBackground>)。"
+            "description": "GET /teachingPlan/taskBackground/list?planId=\n返回 DataSet<List<TeachingPlanTaskBackground>>，按 schemeId 过滤/分组。\n\nTeachingPlanTaskBackground 字段:\n  - id (Long)\n  - planId (Long): 教学计划id\n  - schemeId (Long): 培养方案id(按方案分组)\n  - majorId (Long)\n  - backgroundDesc (String): 任务背景描述\n  - technicalGoal (String): 技术目标\n  - abilityGoal (String): 能力目标\n  - sort (Integer)\n支撑毕业要求回显请调用 GET /teachingPlan/taskBackgroundRef/list?taskBackgroundId=."
           },
           "response": []
         },
@@ -122,8 +111,8 @@
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
             "url": {"raw": "{{baseUrl}}/csys/teachingPlan/taskBackgroundRef/save", "host": ["{{baseUrl}}"], "path": ["csys", "teachingPlan", "taskBackgroundRef", "save"]},
-            "body": {"mode": "raw", "raw": "{\n  \"taskBackgroundId\": 1,\n  \"planId\": {{experimentPlanId}},\n  \"schemeCourseGraduationIds\": [1001, 1002]\n}", "options": {"raw": {"language": "json"}}},
-            "description": "POST /teachingPlan/taskBackgroundRef/save\n整表重建某任务背景的毕业要求绑定；schemeCourseGraduationIds 空=清空。"
+            "body": {"mode": "raw", "raw": "{\n  \"taskBackgroundId\": 1,\n  \"graduationIds\": [90101, 90102]\n}", "options": {"raw": {"language": "json"}}},
+            "description": "POST /teachingPlan/taskBackgroundRef/save\n整表重建某任务背景的毕业要求绑定；graduationIds 空或 null=清空。"
           },
           "response": []
         }

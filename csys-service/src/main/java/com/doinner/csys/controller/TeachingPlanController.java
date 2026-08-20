@@ -25,7 +25,7 @@ import com.doinner.csys.domain.TeachingPlanContentPurpose;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
-import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateTreeNodeVo;
 import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundVo;
 import com.doinner.csys.domain.vo.TeachingPlanDetailVo;
@@ -498,12 +498,12 @@ public class TeachingPlanController {
 
     // ============ 实践项目第二节支撑绑定（type4） ============
 
-    @ApiOperation("实践项目支撑绑定候选树（按培养方案分组，同方案优先）")
+    @ApiOperation("实践项目支撑绑定候选三层树")
     @GetMapping("/support/candidateTree")
-    public DataSet<List<TeachingPlanSupportCandidateGroupVo>> supportCandidateTree(
+    public DataSet<List<TeachingPlanSupportCandidateTreeNodeVo>> supportCandidateTree(
             @RequestParam("courseId") Long courseId,
-            @RequestParam(value = "projectPlanId", required = false) Long projectPlanId) {
-        return DataSet.success(teachingPlanModuleService.listSupportCandidateGroups(courseId, projectPlanId));
+            @RequestParam("type") Integer type) {
+        return DataSet.success(teachingPlanModuleService.listSupportCandidateTree(courseId, type));
     }
 
     @ApiOperation("实践项目任务背景与目标整页详情")

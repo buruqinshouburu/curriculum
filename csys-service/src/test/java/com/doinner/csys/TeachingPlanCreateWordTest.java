@@ -9,8 +9,7 @@ import com.doinner.csys.domain.TeachingPlanObjective;
 import com.doinner.csys.domain.TeachingPlanTaskBackground;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveSaveVo;
-import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
-import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateTreeNodeVo;
 import com.doinner.csys.entity.csys.TeachingPlanWordImporter;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
@@ -304,17 +303,32 @@ class TeachingPlanCreateWordTest {
                 .andExpect(jsonPath("$.data[2].title").value("3"));
     }
 
-    /** t7 type4 支撑绑定候选树：按培养方案分组返回页面四类候选。 */
+    /** t7 type4 支撑绑定候选树：type=1/2 分别返回页面两棵三层树。 */
     @Test
     @Order(7)
     void t7_supportCandidates_type4() throws Exception {
         mockMvc.perform(get("/teachingPlan/support/candidateTree")
                         .param("courseId", "8004")
-                        .param("projectPlanId", "6004"))
+                        .param("type", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data.length()").value(org.hamcrest.Matchers.greaterThan(0)));
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].nodeType").value("course"))
+                .andExpect(jsonPath("$.data[0].children[0].name").value("计算机科学与技术2026级培养方案"))
+                .andExpect(jsonPath("$.data[0].children[0].children[0].nodeType").value("objective"))
+                .andExpect(jsonPath("$.data[1].nodeType").value("trainingSubject"))
+                .andExpect(jsonPath("$.data[1].children[0].name").value("通识通用"))
+                .andExpect(jsonPath("$.data[1].children[0].children[0].nodeType").value("purpose"));
+
+        mockMvc.perform(get("/teachingPlan/support/candidateTree")
+                        .param("courseId", "8004")
+                        .param("type", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].children[0].children[0].nodeType").value("knowledgeSystem"))
+                .andExpect(jsonPath("$.data[1].children[0].children[0].nodeType").value("trainingContent"));
+
     }
 
     /** t8 type4 第二部分统一大保存+统一回显，旧拆分 HTTP 接口均已下线。 */
@@ -495,7 +509,9 @@ class TeachingPlanCreateWordTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(4))
                 .andExpect(jsonPath("$.data[0].purpose")
-                        .value("掌握单个军人队列动作、班队列组织等基本军事素养"));
+                        .value("掌握单个军人队列动作、班队列组织等基本军事素养"))
+                .andExpect(jsonPath("$.data[0].graduationRequirements")
+                        .value("掌握计算机科学与技术的基础理论与专业知识"));
         long newId = idOf(postJson("/teachingPlan/trainingPurpose",
                 "{\"planId\":6002,\"purpose\":\"新增训练目的：应急处突训练\"}"));
         mockMvc.perform(get("/teachingPlan/trainingPurpose/list").param("planId", "6002"))
@@ -831,25 +847,19 @@ class TeachingPlanCreateWordTest {
                 + "WHERE plan_id=6003 AND scheme_id=7699 AND sysflag=0", Integer.class));
     }
 
-    /** 实践项目绑定候选按培养方案分组，候选节点携带培养方案名称。 */
+    /** 实践项目候选树固定为课程/课目 -> 方案/通识通用 -> 候选条目。 */
     @Test
     @Order(25)
     void t25_supportCandidateTreeCarriesSchemeNames() {
-        List<TeachingPlanSupportCandidateGroupVo> groups =
-                teachingPlanModuleService.listSupportCandidateGroups(8004L, 6004L);
-        assertFalse(groups.isEmpty(), "实践项目应能读取支撑候选树");
-        assertTrue(Boolean.TRUE.equals(groups.get(0).getSameScheme()), "相同培养方案应优先展示");
-        for (TeachingPlanSupportCandidateGroupVo group : groups) {
-            List<TeachingPlanSupportCandidateItem> items = new ArrayList<>();
-            items.addAll(group.getObjectives());
-            items.addAll(group.getPurposes());
-            items.addAll(group.getKnowledgePoints());
-            items.addAll(group.getTrainingContents());
-            for (TeachingPlanSupportCandidateItem item : items) {
-                assertEquals(group.getSchemeId(), item.getSchemeId());
-                assertEquals(group.getSchemeName(), item.getSchemeName());
-            }
-        }
+        List<TeachingPlanSupportCandidateTreeNodeVo> roots =
+                teachingPlanModuleService.listSupportCandidateTree(8004L, 1);
+        assertEquals(2, roots.size(), "支撑课程和支撑训练课目各返回一个根节点");
+        assertEquals("course", roots.get(0).getNodeType());
+        assertEquals("计算机科学与技术2026级培养方案", roots.get(0).getChildren().get(0).getName());
+        assertEquals("objective", roots.get(0).getChildren().get(0).getChildren().get(0).getNodeType());
+        assertEquals("trainingSubject", roots.get(1).getNodeType());
+        assertEquals("通识通用", roots.get(1).getChildren().get(0).getName());
+        assertEquals("purpose", roots.get(1).getChildren().get(0).getChildren().get(0).getNodeType());
     }
 
     private String extractText(XWPFDocument doc) {

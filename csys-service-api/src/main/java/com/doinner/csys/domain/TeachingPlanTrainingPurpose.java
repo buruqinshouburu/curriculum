@@ -32,6 +32,9 @@ public class TeachingPlanTrainingPurpose extends AbstractDoinnerLogicalDelBaseEn
     /** 排序 */
     private Integer sort;
 
+    /** 非持久化：已绑定的支撑毕业要求名称，按绑定顺序使用顿号拼接。 */
+    private String graduationRequirements;
+
     /**
      * 非持久化：Word 导入解析时承载该条训练目的绑定的毕业要求列表，由回写逻辑落库到 ref 表。
      * 不参与序列化、不映射数据库列。
@@ -77,6 +80,14 @@ public class TeachingPlanTrainingPurpose extends AbstractDoinnerLogicalDelBaseEn
 
     public void setSort(Integer sort) {
         this.sort = sort;
+    }
+
+    public String getGraduationRequirements() {
+        return graduationRequirements;
+    }
+
+    public void setGraduationRequirements(String graduationRequirements) {
+        this.graduationRequirements = graduationRequirements;
     }
 
     @JsonIgnore

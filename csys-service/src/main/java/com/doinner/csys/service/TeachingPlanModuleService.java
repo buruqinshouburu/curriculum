@@ -35,6 +35,7 @@ import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateGroupVo;
+import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateTreeNodeVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
@@ -197,6 +198,12 @@ public interface TeachingPlanModuleService {
     TeachingPlanSupportCandidateVo listSupportCandidates(Long courseId);
 
     List<TeachingPlanSupportCandidateGroupVo> listSupportCandidateGroups(Long courseId, Long projectPlanId);
+
+    /**
+     * 实践项目支撑候选三层树：支撑课程/训练课目 -> 培养方案/通识通用 -> 候选条目。
+     * type=1 返回课程目标/训练目的，type=2 返回知识体系/训练内容。
+     */
+    List<TeachingPlanSupportCandidateTreeNodeVo> listSupportCandidateTree(Long courseId, Integer type);
 
     /** 实践项目第二部分整页详情：正文与两类绑定统一返回。 */
     TeachingPlanPracticeProjectBackgroundVo getPracticeProjectBackground(Long planId);
