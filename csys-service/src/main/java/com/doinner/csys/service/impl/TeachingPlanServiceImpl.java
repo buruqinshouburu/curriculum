@@ -896,13 +896,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 .collect(Collectors.joining("、"));
         StringBuilder sb = new StringBuilder();
         if (StringUtils.isNotBlank(supporting)) {
-            sb.append("支撑课程：").append(supporting);
+            sb.append(supporting);
         }
         if (StringUtils.isNotBlank(training)) {
             if (sb.length() > 0) {
                 sb.append("；");
             }
-            sb.append("支撑训练课目：").append(training);
+            sb.append(training);
         }
         return sb.toString();
     }
