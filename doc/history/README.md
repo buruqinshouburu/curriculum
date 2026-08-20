@@ -4,4 +4,6 @@
 
 当前有效说明以 `doc/teaching-plan-frontend-api-current.md` 为准。
 
+`doc` 根目录仅保留当前有效文档；历史 Postman 集合（`.json`）和已废止说明（`.md`）统一归档在本目录。
+
 2026-08-20 归档原因：旧文档仍描述 `candidateTree` 传 `projectPlanId`、按培养方案分组返回四个数组，或描述已下线的拆分支撑接口，与当前三层树接口不一致。
