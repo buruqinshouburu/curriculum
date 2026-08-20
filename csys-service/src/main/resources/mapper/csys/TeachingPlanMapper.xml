@@ -329,7 +329,14 @@
                      OR course.course_attr = #{courseAttr})
             </if>
             <if test="type != null and type != ''">
-                AND course.type = #{type}
+                <choose>
+                    <when test='type == "1"'>
+                        AND course.type IN (1, 3)
+                    </when>
+                    <otherwise>
+                        AND course.type = #{type}
+                    </otherwise>
+                </choose>
             </if>
             <if test="version != null and version != ''">
                 AND course.version = #{version}

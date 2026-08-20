@@ -490,11 +490,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             // 适用专业：普通课程(type1/3)聚合课程模块「全部」为公共基础、或实践训练课目(type2)课目模块(location)值∈{1,2,3,9}
             // 时固定「通识通用」；否则取聚合适用专业。rawModule 为 detail 聚合的被引用课程 c2 多值串(因不同方案引用模块可能不同)
             detail.setMajorName(resolveApplicableMajor(srcCourse, rawModule, detail.getMajorName()));
-            // type=4 实践项目：补时间安排 + 支撑课程或实践训练科目列表
+            // type=4 实践项目：补时间安排 + 支撑课程或实践训练科目名称字符串
             if (isPracticeProjectType(detail.getType())) {
                 Long mainCourseId = courseId != null ? courseId : detail.getCourseId();
                 detail.setTimeArrangement(resolveMainTimeArrangement(mainCourseId));
-                detail.setSupportingCourses(buildSupportingCourses(mainCourseId));
+                detail.setSupportingCourses(flattenSupportingCourses(buildSupportingCourses(mainCourseId)));
             }
         }
         return detail;
@@ -977,10 +977,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         TeachingPlanDetailVo detail = (planId != null)
                 ? teachingPlanMapper.selectDetailByPlanId(planId)
                 : teachingPlanMapper.selectDetailByCourseId(courseId);
-        // type=4 实践项目：补时间安排 + 支撑课程列表（buildModel 读取写入 Word 基本信息表）
+        // type=4 实践项目：补时间安排 + 支撑课程名称字符串（buildModel 读取写入 Word 基本信息表）
         if (detail != null && isPracticeProjectType(detail.getType())) {
             detail.setTimeArrangement(resolveMainTimeArrangement(courseId));
-            detail.setSupportingCourses(buildSupportingCourses(courseId));
+            detail.setSupportingCourses(flattenSupportingCourses(buildSupportingCourses(courseId)));
         }
 
         CourseTeachingPlanModel model = buildModel(course, plan, detail, planId, schemes);
@@ -1058,9 +1058,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     dictValueToLabelMap(DICT_SYS_COURSE_UNIT));
         }
         m.setTimeArrangement(timeArrangement);
-        // 支撑课程或实践训练课目(type=4 基本信息表 R5)：扁平化为文本
-        m.setSupportingCourses(flattenSupportingCourses(
-                detail == null ? null : detail.getSupportingCourses()));
+        // 支撑课程或实践训练课目(type=4 基本信息表 R5)：详情已组合为文本
+        m.setSupportingCourses(detail == null ? null : detail.getSupportingCourses());
 
         if (planId != null) {
             List<TeachingPlanTeacher> teachers = listTeacher(planId);

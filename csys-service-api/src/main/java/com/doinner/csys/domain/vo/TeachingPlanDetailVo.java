@@ -1,7 +1,6 @@
 package com.doinner.csys.domain.vo;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 /**
  * 教学计划详情返回。
@@ -24,7 +23,7 @@ import java.util.List;
  *    - timeArrangement 时间安排：course.time_Week + unit（字典 sys_course_unit 译中，形如「16周」），
  *      优先被调用课程 c2 聚合，无则回退总库课程自身；学期安排(term)与修读性质(courseAttr)同主课程规则。
  *    - supportingCourses 支撑课程或实践训练科目：源课 before_course_id（支撑课程）+ after_course_id（支撑训练课目）
- *      解析为列表，每条带回 term/timeArrangement/courseAttr（取值同上，优先被调用课程 c2 多值拼接，无则回退自身）。
+ *      解析名称后组合为字符串，如「支撑课程：A、B；支撑训练课目：C」。
  *    - 学期安排统一为「第N学年秋/春」无括号形式：培养方案排课 term(1-10) 转换；无被调用回退课程子表
  *      t_csys_course_ref_schedule 的 semester_Schedule + spring_Autumn 拼接。
  */
@@ -108,10 +107,10 @@ public class TeachingPlanDetailVo {
 
     /**
      * 支撑课程或实践训练科目（type=4 实践项目）。
-     * 源课 before_course_id（支撑课程，refType=1）+ after_course_id（支撑训练课目，refType=2）解析为列表；
-     * 每条带回 学期安排/时间安排/修读性质。非 type=4 为 null。
+     * 源课 before_course_id（支撑课程）+ after_course_id（支撑训练课目）解析名称后组合为字符串。
+     * 格式：「支撑课程：A、B；支撑训练课目：C」；无数据时为空字符串，非 type=4 为 null。
      */
-    private List<TeachingPlanSupportingCourseVo> supportingCourses;
+    private String supportingCourses;
 
     public Long getCourseId() {
         return courseId;
@@ -281,11 +280,11 @@ public class TeachingPlanDetailVo {
         this.timeArrangement = timeArrangement;
     }
 
-    public List<TeachingPlanSupportingCourseVo> getSupportingCourses() {
+    public String getSupportingCourses() {
         return supportingCourses;
     }
 
-    public void setSupportingCourses(List<TeachingPlanSupportingCourseVo> supportingCourses) {
+    public void setSupportingCourses(String supportingCourses) {
         this.supportingCourses = supportingCourses;
     }
 }
