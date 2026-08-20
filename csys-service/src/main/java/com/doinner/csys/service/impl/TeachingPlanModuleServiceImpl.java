@@ -54,6 +54,7 @@ import com.doinner.csys.domain.TeachingPlanContentPurpose;
 import com.doinner.csys.domain.TeachingPlanSupportObjective;
 import com.doinner.csys.domain.TeachingPlanSupportContent;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
 import com.doinner.csys.domain.vo.CourseIdAndName;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateItem;
@@ -2733,6 +2734,56 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         teachingPlanAssessmentMapper.deleteById(id);
     }
 
+    /**
+     * 考核与评价整页大保存。
+     * 考核明细按 planId 整表重建，项目计分规则由顶层 scoreRule 一并覆盖；
+     * assessments 为 null/空列表时清空明细，scoreRule 为 null/空串时清空主表字段。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveAssessments(TeachingPlanAssessmentSaveVo saveVo) {
+        if (saveVo == null || saveVo.getPlanId() == null) {
+            throw new IllegalArgumentException("planId 不能为空");
+        }
+        Long planId = saveVo.getPlanId();
+        if (teachingPlanMapper.selectById(planId) == null) {
+            throw new IllegalArgumentException("教学计划不存在: " + planId);
+        }
+
+        List<TeachingPlanAssessment> rows = new ArrayList<>();
+        if (ObjectUtils.isNotEmpty(saveVo.getAssessments())) {
+            for (TeachingPlanAssessment assessment : saveVo.getAssessments()) {
+                if (assessment != null) {
+                    rows.add(assessment);
+                }
+            }
+        }
+
+        // 先对全部数据做校验和规范化，校验失败时旧数据不会被删除。
+        int sort = 0;
+        for (TeachingPlanAssessment assessment : rows) {
+            assessment.setId(null);
+            assessment.setPlanId(planId);
+            assessment.setScoreRule(null);
+            if (assessment.getSort() == null) {
+                assessment.setSort(++sort);
+            } else {
+                sort = assessment.getSort();
+            }
+            validateAssessment(assessment);
+            UserUtils.reflash(assessment);
+            assessment.setSysflag(0);
+        }
+
+        teachingPlanAssessmentMapper.deleteByPlanId(planId);
+        if (rows.size() == 1) {
+            teachingPlanAssessmentMapper.insert(rows.get(0));
+        } else if (rows.size() > 1) {
+            teachingPlanAssessmentMapper.insertBatch(rows);
+        }
+        writeBackScoreRuleForBatch(planId, saveVo.getScoreRule());
+    }
+
     private void validateAssessment(TeachingPlanAssessment assessment) {
         if (assessment == null) {
             throw new IllegalArgumentException("考核评价不能为空");
@@ -2817,6 +2868,15 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         plan.setScoreRule(scoreRule);
         UserUtils.reflash(plan);
         teachingPlanMapper.updateById(plan);
+    }
+
+    /** 整页保存时 scoreRule 是页面状态的一部分，允许显式写入 null 清空。 */
+    private void writeBackScoreRuleForBatch(Long planId, String scoreRule) {
+        TeachingPlan plan = new TeachingPlan();
+        plan.setId(planId);
+        plan.setScoreRule(scoreRule);
+        UserUtils.reflash(plan);
+        teachingPlanMapper.updateScoreRule(plan);
     }
 
     // ============ 16. 教材 ============

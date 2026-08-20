@@ -20,6 +20,7 @@ import com.doinner.csys.domain.TeachingPlanTextbook;
 import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanMajorVo;
 import com.doinner.csys.domain.vo.TeachingPlanObjectiveOptionVo;
@@ -300,6 +301,11 @@ public interface TeachingPlanModuleService {
     void updateAssessment(TeachingPlanAssessment assessment);
 
     void deleteAssessment(Long id);
+
+    /**
+     * 考核与评价整页大保存：考核明细按 planId 整表重建，并同步覆盖项目计分规则。
+     */
+    void saveAssessments(TeachingPlanAssessmentSaveVo saveVo);
 
     List<TeachingPlanTextbook> listTextbook(Long planId);
 

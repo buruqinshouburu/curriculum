@@ -33,6 +33,11 @@ public interface TeachingPlanMapper {
     int updateById(TeachingPlan teachingPlan);
 
     /**
+     * 更新教学计划计分规则；支持将 scoreRule 显式置为 null。
+     */
+    int updateScoreRule(TeachingPlan teachingPlan);
+
+    /**
      * 根据主键查询
      *
      * @param id 主键

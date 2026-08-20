@@ -126,6 +126,15 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateScoreRule" parameterType="com.doinner.csys.domain.TeachingPlan">
+        UPDATE t_csys_teaching_plan
+        SET score_rule = #{scoreRule},
+            last_modifier = #{lastModifier},
+            last_modified_time = #{lastModifiedTime}
+        WHERE id = #{id}
+          AND sysflag = 0
+    </update>
+
     <select id="selectById" resultMap="BaseResultMap">
         SELECT
         <include refid="Base_Column_List"/>

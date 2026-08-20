@@ -924,6 +924,44 @@ class TeachingPlanCreateWordTest {
         assertEquals("purpose", roots.get(1).getChildren().get(0).getChildren().get(0).getNodeType());
     }
 
+    /** 考核与评价整页保存：成果评价明细与项目计分规则同一事务覆盖保存。 */
+    @Test
+    @Order(26)
+    void t26_assessmentBigSaveWithScoreRule() throws Exception {
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        mockMvc.perform(post("/teachingPlan/assessment/save")
+                        .contentType("application/json")
+                        .content("{\"planId\":6004,\"scoreRule\":\"项目总成绩=个人成果*60%+团队成果*40%\","
+                                + "\"assessments\":[{\"id\":68088,\"planId\":99999,\"assessmentCategory\":5,"
+                                + "\"outcomeType\":1,\"assessmentItem\":\"个人答辩\",\"assessedContent\":\"个人完成质量\",\"weight\":0.6},"
+                                + "{\"assessmentCategory\":5,\"outcomeType\":2,\"assessmentItem\":\"团队演示\","
+                                + "\"assessedContent\":\"团队协作质量\",\"weight\":0.4}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        mockMvc.perform(get("/teachingPlan/assessment/list").param("planId", "6004"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].planId").value(6004))
+                .andExpect(jsonPath("$.data[0].sort").value(1))
+                .andExpect(jsonPath("$.data[1].sort").value(2))
+                .andExpect(jsonPath("$.data[0].scoreRule").value("项目总成绩=个人成果*60%+团队成果*40%"));
+        assertEquals("项目总成绩=个人成果*60%+团队成果*40%", jdbc.queryForObject(
+                "SELECT score_rule FROM t_csys_teaching_plan WHERE id=6004", String.class));
+
+        mockMvc.perform(post("/teachingPlan/assessment/save")
+                        .contentType("application/json")
+                        .content("{\"planId\":6004,\"scoreRule\":\"\",\"assessments\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/teachingPlan/assessment/list").param("planId", "6004"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_teaching_plan_assessment "
+                + "WHERE plan_id=6004 AND sysflag=0", Integer.class));
+        assertEquals("", jdbc.queryForObject("SELECT score_rule FROM t_csys_teaching_plan WHERE id=6004", String.class));
+    }
+
     private String extractText(XWPFDocument doc) {
         StringBuilder sb = new StringBuilder();
         for (XWPFParagraph paragraph : doc.getParagraphs()) sb.append(paragraph.getText()).append('\n');

@@ -25,6 +25,7 @@ import com.doinner.csys.domain.TeachingPlanContentPurpose;
 import com.doinner.csys.domain.TeachingPlanSection;
 import com.doinner.csys.domain.TeachingPlanTeacher;
 import com.doinner.csys.domain.vo.TeachingPlanConditionSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanAssessmentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportCandidateTreeNodeVo;
 import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanPracticeProjectBackgroundVo;
@@ -709,6 +710,18 @@ public class TeachingPlanController {
     @DeleteMapping("/assessment/{id}")
     public Message deleteAssessment(@PathVariable("id") Long id) {
         teachingPlanModuleService.deleteAssessment(id);
+        return Message.success();
+    }
+
+    /**
+     * 考核与评价整页保存：assessment 明细整表重建，并同步保存项目计分规则 scoreRule。
+     * assessments 为空/null 清空全部明细；scoreRule 为空/null 清空项目计分规则。
+     * 原单条新增、修改、删除接口继续保留，供已接入页面兼容使用。
+     */
+    @ApiOperation("考核与评价大保存（整表重建，含项目计分规则）")
+    @PostMapping("/assessment/save")
+    public Message saveAssessments(@RequestBody TeachingPlanAssessmentSaveVo saveVo) {
+        teachingPlanModuleService.saveAssessments(saveVo);
         return Message.success();
     }
 
