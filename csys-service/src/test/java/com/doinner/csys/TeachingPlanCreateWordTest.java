@@ -300,6 +300,27 @@ class TeachingPlanCreateWordTest {
         assertTrue(text.contains("围绕力学、电磁学核心原理开展实验验证，强化理论与实验结合"), "docx 应含任务背景");
         assertTrue(text.contains("牛顿第二定律验证实验"), "docx 应含实验项目");
         try (XWPFDocument generated = new XWPFDocument(new ByteArrayInputStream(docx))) {
+            XWPFTable basicInfo = findTable(generated, "课程名称", "课程编号", "课程英文名称",
+                    "课程教学计划启用时间", "学时", "学分", "适用对象", "适用专业");
+            assertEquals(6, basicInfo.getCTTbl().getTblGrid().sizeOfGridColArray(),
+                    "实验课程基本信息表必须保留模板的 6 个物理列");
+            assertEquals(1703, Integer.parseInt(String.valueOf(
+                    basicInfo.getCTTbl().getTblGrid().getGridColArray(0).getW())));
+            assertEquals(689, Integer.parseInt(String.valueOf(
+                    basicInfo.getCTTbl().getTblGrid().getGridColArray(1).getW())));
+            assertEquals(2, basicInfo.getRow(3).getCell(0).getCTTc().getTcPr().getGridSpan().getVal().intValue(),
+                    "启用时间标签应横跨两个物理列");
+            assertEquals(4, basicInfo.getRow(3).getCell(1).getCTTc().getTcPr().getGridSpan().getVal().intValue(),
+                    "启用时间值应横跨四个物理列");
+            assertEquals(3, basicInfo.getRow(4).getCell(1).getCTTc().getTcPr().getGridSpan().getVal().intValue(),
+                    "学时值应横跨模板的三个物理列");
+            assertEquals("学分", basicInfo.getRow(4).getCell(2).getText().trim());
+            assertFalse(basicInfo.getRow(4).getCell(3).getText().trim().isEmpty(),
+                    "学分值应写入模板最右侧单元格");
+            assertEquals(2, basicInfo.getRow(5).getCell(1).getCTTc().getTcPr().getGridSpan().getVal().intValue(),
+                    "适用专业标签应横跨两个物理列");
+            assertEquals(2, basicInfo.getRow(6).getCell(1).getCTTc().getTcPr().getGridSpan().getVal().intValue(),
+                    "适用专业值应横跨两个物理列");
             XWPFTable assessment = findTable(generated, "实验项目名称", "考核方式", "评定机制", "权重", "评价标准");
             assertEquals(5, assessment.getRow(0).getTableCells().size(),
                     "实验课程考核表不应保留终结性/过程性分类列");

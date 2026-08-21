@@ -69,6 +69,9 @@ public class CourseTeachingPlanGenerator {
     /** 实践训练课目第五部分组织实施表列宽：实施步骤 | 阶段划分 | 有关要求（与2026模板一致） */
     private static final int[] PRACTICE_SUBJECT_ORGANIZATION_COL_WIDTHS = {1114, 2003, 5405};
 
+    /** 实验课程第一部分基本信息表列宽：与 2026 模板的 6 个物理列一致。 */
+    private static final int[] EXPERIMENT_BASIC_INFO_COL_WIDTHS = {1703, 689, 1014, 1704, 1704, 1704};
+
     /** 五号字 ≈ 10.5 磅 */
     private static final double FONT_SIZE_WUHAO = 10.5;
     /** 章节标题：黑体五号 */
@@ -336,33 +339,52 @@ public class CourseTeachingPlanGenerator {
         WordUtil.mergeCellsHorizontal(t, 8, 0, cols - 1);
     }
 
-    /** 实验课程基本信息表（type3）：5 列 */
+    /**
+     * 实验课程基本信息表（type3）：6 个物理列。
+     * 模板结构：学时值横跨第 2～4 个物理列；适用专业横跨第 2～3 个物理列；
+     * 启用时间标签横跨第 1～2 个物理列。不能按下方五项表头误建为 5 列，否则学分值右侧会出现空格。
+     */
     private void experimentBasicInfoTable(CourseTeachingPlanModel m, XWPFDocument doc) {
-        int cols = 5;
+        int cols = 6;
         int rows = 8;
-        XWPFTable t = createTable(doc, rows, cols);
+        XWPFTable t = createTable(doc, rows, cols, EXPERIMENT_BASIC_INFO_COL_WIDTHS);
         labelValue(t, 0, 0, 1, "课程名称", m.getCourseName(), cols - 1);
         labelValue(t, 1, 0, 1, "课程编号", m.getCourseCode(), cols - 1);
         labelValue(t, 2, 0, 1, "课程英文名称", m.getCourseEnName(), cols - 1);
-        labelValue(t, 3, 0, 1, "课程教学计划启用时间", m.getEnabledTerm(), cols - 1);
-        // R4 学时 | {hours} | 学分 | {credit} | (空)
+        // R3：课程教学计划启用时间(物理 C0-C1) | 启用时间值(物理 C2-C5)
+        setCell(t, 3, 0, "课程教学计划启用时间", true);
+        setCell(t, 3, 1, "", true);
+        setCell(t, 3, 2, m.getEnabledTerm(), false);
+        setCell(t, 3, 3, "", false);
+        setCell(t, 3, 4, "", false);
+        setCell(t, 3, 5, "", false);
+        WordUtil.mergeCellsHorizontal(t, 3, 0, 1);
+        // 横合 C0-C1 后，原 C2-C5 收缩为索引 1-4。
+        WordUtil.mergeCellsHorizontal(t, 3, 1, 4);
+        // R4：学时 | 学时值(C1-C3) | 学分 | 学分值
         setCell(t, 4, 0, "学时", true);
         setCell(t, 4, 1, formatHours(m.getHours()), false);
-        setCell(t, 4, 2, "学分", true);
-        setCell(t, 4, 3, formatHours(m.getCredit()), false);
-        setCell(t, 4, 4, "", false);
-        // R5 适用对象 | 适用专业 | 开课学期 | 课程模块 | 修读性质
+        setCell(t, 4, 2, "", false);
+        setCell(t, 4, 3, "", false);
+        setCell(t, 4, 4, "学分", true);
+        setCell(t, 4, 5, formatHours(m.getCredit()), false);
+        WordUtil.mergeCellsHorizontal(t, 4, 1, 3);
+        // R5：适用对象 | 适用专业(C1-C2) | 开课学期 | 课程模块 | 修读性质
         setCell(t, 5, 0, "适用对象", true);
         setCell(t, 5, 1, "适用专业", true);
-        setCell(t, 5, 2, "开课学期", true);
-        setCell(t, 5, 3, "课程模块", true);
-        setCell(t, 5, 4, "修读性质", true);
-        // R6 值
+        setCell(t, 5, 2, "", true);
+        setCell(t, 5, 3, "开课学期", true);
+        setCell(t, 5, 4, "课程模块", true);
+        setCell(t, 5, 5, "修读性质", true);
+        WordUtil.mergeCellsHorizontal(t, 5, 1, 2);
+        // R6：适用专业值同样横跨 C1-C2。
         setCell(t, 6, 0, m.getEducationLevel(), false);
         setCell(t, 6, 1, m.getMajorName(), false);
-        setCell(t, 6, 2, m.getTerm(), false);
-        setCell(t, 6, 3, m.getCourseModule(), false);
-        setCell(t, 6, 4, m.getCourseAttr(), false);
+        setCell(t, 6, 2, "", false);
+        setCell(t, 6, 3, m.getTerm(), false);
+        setCell(t, 6, 4, m.getCourseModule(), false);
+        setCell(t, 6, 5, m.getCourseAttr(), false);
+        WordUtil.mergeCellsHorizontal(t, 6, 1, 2);
         // R7 备注
         setCell(t, 7, 0, "备注：①如果同1门课程适用于不同培训对象，则每个培训对象生成1条数据 / ②如果同1门课程对不对专业修读性质不一样，则每个专业生成1条数据。", false);
         WordUtil.mergeCellsHorizontal(t, 7, 0, cols - 1);
