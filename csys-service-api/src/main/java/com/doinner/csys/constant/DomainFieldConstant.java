@@ -325,7 +325,7 @@ public class DomainFieldConstant {
     public static final String COURSE_TYPE_EXCEL_NAME = "必修与选修课比例.xlsx";
     public static final String COURSE_SELECT_EXCEL_NAME = "课程选用排行.xlsx";
     public static final String SCHEME_HOURS_EXCEL_NAME = "讲授、实践课比例.xlsx";
-    public static final String SCHEME_TYPE_EXCEL_NAME = "课程分配比例.xlsx";
+    public static final String SCHEME_TYPE_EXCEL_NAME = "课程模块占比.xlsx";
     public static final String KNOWLEDGE_CHECK_EXCEL_NAME = "知识点查重结果.xlsx";
     public static final String MAJOR_COUNT_EXCEL_NAME = "专业统计.xlsx";
     public static final String SCHEME_COUNT_EXCEL_NAME = "培养方案统计.xlsx";

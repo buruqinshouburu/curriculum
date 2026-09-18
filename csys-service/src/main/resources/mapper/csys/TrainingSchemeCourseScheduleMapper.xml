@@ -62,11 +62,6 @@
         <result property="cPracticeHours" column="c_practice_hours"/>
     </resultMap>
 
-    <resultMap type="com.doinner.csys.domain.statisticsVo.StandardCultivationTargetStatisticsVo"
-               id="StandardGraduationStatisticsVoResult">
-        <result property="denominatorId" column="denominator_id"/>
-        <result property="numeratorCount" column="numerator_count"/>
-    </resultMap>
     <!--    <sql id="selectTrainingSchemeCourseScheduleVo">-->
     <!--        select id, scheme_id, course_id, type, term, hours, theory_hours, practice_hours, create_time, creator, last_modified_time, last_modifier, remark, sysflag from t_csys_training_scheme_course_schedule-->
     <!--    </sql>-->
@@ -341,58 +336,33 @@
 
     <select id="selectHoursBySchemeId" resultMap="TrainingSchemeCourseScheduleStatisticsVoResult">
         SELECT sc.scheme_id,
-               sc.theory_hours   AS s_theory_hours,
-               sc.teach_hours   AS s_teach_hours,
-               sc.practice_hours AS s_practice_hours,
-               c.id              as course_id,
-               c.theory_hours    as c_theory_hours,
-               c.teach_hours    as c_teach_hours,
-               c.practice_hours  as c_practice_hours,
-               sc.term
+               sc.term,
+               SUM(COALESCE(sc.teach_hours, c.teach_hours, 0)) AS s_teach_hours,
+               SUM(COALESCE(sc.practice_hours, c.practice_hours, 0)) AS s_practice_hours
         FROM t_csys_training_scheme_course_schedule sc
                  LEFT JOIN t_csys_course c ON sc.course_id = c.id
         WHERE sc.scheme_id = #{schemeId}
-        and sc.checked = 1
+          AND sc.checked = 1
+          AND sc.sysflag = 0
+        GROUP BY sc.scheme_id, sc.term
+        ORDER BY sc.term
     </select>
 
-    <select id="selectHoursBySchemeIds" parameterType="Long" resultMap="TrainingSchemeCourseScheduleStatisticsVoResult">
+    <select id="selectHoursBySchemeIds" parameterType="java.util.List" resultMap="TrainingSchemeCourseScheduleStatisticsVoResult">
         SELECT sc.scheme_id,
-               sc.theory_hours   AS s_theory_hours,
-               sc.teach_hours   AS s_teach_hours,
-               sc.practice_hours AS s_practice_hours,
-               c.id              as course_id,
-               c.theory_hours    as c_theory_hours,
-               c.teach_hours    as c_teach_hours,
-               c.practice_hours  as c_practice_hours,
-               sc.term
+               sc.term,
+               SUM(COALESCE(sc.teach_hours, c.teach_hours, 0)) AS s_teach_hours,
+               SUM(COALESCE(sc.practice_hours, c.practice_hours, 0)) AS s_practice_hours
         FROM t_csys_training_scheme_course_schedule sc
                  LEFT JOIN t_csys_course c ON sc.course_id = c.id
         WHERE sc.scheme_id in
         <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
             #{schemeId}
         </foreach>
-        and sc.checked = 1
-    </select>
-
-    <select id="selectCourseTypeBySchemeId" resultMap="StandardGraduationStatisticsVoResult">
-        SELECT type        as denominator_id,
-               count(type) as numerator_count
-        FROM t_csys_training_scheme_course_schedule
-        WHERE scheme_id = #{schemeId}
-        GROUP BY type
-        ORDER BY type
-    </select>
-
-    <select id="selectCourseTypeBySchemeIds" parameterType="Long" resultMap="StandardGraduationStatisticsVoResult">
-        SELECT type        as denominator_id,
-               count(type) as numerator_count
-        FROM t_csys_training_scheme_course_schedule
-        WHERE scheme_id in
-        <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
-            #{schemeId}
-        </foreach>
-        GROUP BY type
-        ORDER BY type
+          AND sc.checked = 1
+          AND sc.sysflag = 0
+        GROUP BY sc.scheme_id, sc.term
+        ORDER BY sc.scheme_id, sc.term
     </select>
 
     <delete id="deleteByCourseIds">

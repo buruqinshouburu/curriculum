@@ -19,8 +19,8 @@ public interface SchemeStatisticsService {
     //讲授，实践课程比例
     List<TrainingSchemeCourseScheduleStatisticsVo> selectHoursBySchemeId(Long schemeId);
 
-    //课程比例分配图
-    List<StandardCultivationTargetStatisticsVo> selectCourseTypeBySchemeId(Long schemeId) throws Exception;
+    //课程模块占比图（优先课程子模块，没有子模块时归入课程模块）
+    List<CourseModuleStatisticsVo> courseModule(Long schemeId);
 
     List<StatisticsExcelMultiVo> statisticsCreditIn(List<Long> schemeIds);
 
@@ -28,5 +28,5 @@ public interface SchemeStatisticsService {
 
     List<StatisticsExcelMultiVo> selectHoursBySchemeIdIn(List<Long> schemeIds);
 
-    List<StandardCultivationTargetStatisticsMultiVo> selectCourseTypeBySchemeIdIn(List<Long> schemeIds);
+    List<StatisticsExcelMultiVo> courseModuleIn(List<Long> schemeIds);
 }

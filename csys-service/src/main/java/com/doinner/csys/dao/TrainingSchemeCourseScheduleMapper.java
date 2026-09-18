@@ -1,7 +1,6 @@
 package com.doinner.csys.dao;
 
 import com.doinner.csys.domain.TrainingSchemeCourseSchedule;
-import com.doinner.csys.domain.statisticsVo.StandardCultivationTargetStatisticsVo;
 import com.doinner.csys.domain.statisticsVo.TrainingSchemeCourseScheduleStatisticsVo;
 import com.doinner.csys.domain.vo.CourseChooseStatusVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
@@ -80,10 +79,6 @@ public interface TrainingSchemeCourseScheduleMapper {
     List<TrainingSchemeCourseScheduleStatisticsVo> selectHoursBySchemeId(@Param("schemeId") Long schemeId);
 
     List<TrainingSchemeCourseScheduleStatisticsVo> selectHoursBySchemeIds(@Param("schemeIds") List<Long> schemeIds);
-
-    List<StandardCultivationTargetStatisticsVo> selectCourseTypeBySchemeId(@Param("schemeId") Long schemeId);
-
-    List<StandardCultivationTargetStatisticsVo> selectCourseTypeBySchemeIds(@Param("schemeIds") List<Long> schemeIds);
 
     int deleteByCourseIds(@Param("ids") List<Long> ids);
 

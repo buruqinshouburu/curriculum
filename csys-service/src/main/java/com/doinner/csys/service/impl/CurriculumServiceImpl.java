@@ -571,9 +571,6 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Override
     @Transactional(rollbackFor = {Exception.class})
     public CourseVo insertCourse(CourseVo course) {
-        if (!checkCourseRepetition(course)) {
-            throw new RuntimeException(course.getName() + "存在重名，建议后缀加A/B/数字区分，如"+course.getName() +"A");
-        }
         UserUtils.reflash(course);
         if (course.getId() != null) {
             courseMapper.updateCourse(course);
@@ -1115,13 +1112,6 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Override
     @Transactional(rollbackFor = {Exception.class})
     public CourseVo updateCourse(CourseVo course) {
-//        if (course.getCollegeId() != null){
-//            checkCourseRepetition(course);
-//        }
-        if (!checkCourseRepetition(course)) {
-            throw new RuntimeException(course.getName() + "存在重名，请更换一个名称！");
-        }
-        ;
         CourseVo dbCourse = courseMapper.selectCourseById(course.getId());
         UserUtils.checkDataPermission(dbCourse);
         //查看版本（**）+培训层次(*)+开课单位(**)是否有修改 修改的话更新课程编号
@@ -1958,8 +1948,8 @@ public class CurriculumServiceImpl implements CurriculumService {
         List<TrainingSchemeCourseScheduleRankingVo> trainingSchemeCourseScheduleRankingVoList = courseMapper.courseSelectStatistics(courseName, types);
         if (CollectionUtils.isNotEmpty(trainingSchemeCourseScheduleRankingVoList)) {
             for (TrainingSchemeCourseScheduleRankingVo trainingSchemeCourseScheduleRankingVo : trainingSchemeCourseScheduleRankingVoList) {
-                //根据课程查培养方案
-                List<TrainingSchemeScheduleVo> trainingSchemeScheduleVos = trainingSchemeMapper.selectTrainingSchemeListByCourseId(trainingSchemeCourseScheduleRankingVo.getCourseId(), types);
+                List<TrainingSchemeScheduleVo> trainingSchemeScheduleVos = trainingSchemeMapper
+                        .selectTrainingSchemeListBySourceCourseId(trainingSchemeCourseScheduleRankingVo.getCourseId());
                 if (CollectionUtils.isNotEmpty(trainingSchemeScheduleVos)) {
                     for (TrainingSchemeScheduleVo trainingSchemeScheduleVo : trainingSchemeScheduleVos) {
                         if (trainingSchemeScheduleVo.getTerm() != null) {

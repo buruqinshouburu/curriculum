@@ -1023,23 +1023,18 @@
                                                               where ts.id = #{id}))))
     </select>
 
-    <select id="selectTrainingSchemeListByCourseId" parameterType="com.doinner.csys.domain.TrainingScheme"
+    <select id="selectTrainingSchemeListBySourceCourseId"
             resultMap="TrainingSchemeScheduleResult">
         select scs.id id, cc.name name, scs.term term, scs.type type, cs.name as schemeName
-        from t_csys_training_scheme_course_schedule scs
-                 left join t_csys_course cc on scs.course_id = cc.id
-                 left join t_csys_training_scheme cs on scs.scheme_id = cs.id
-        where scs.course_id = #{courseId}
+        from t_csys_course cc
+                 inner join t_csys_training_scheme_course_schedule scs on scs.course_id = cc.id
+                 inner join t_csys_training_scheme cs on scs.scheme_id = cs.id
+        where cc.source_id = #{sourceCourseId}
           and scs.sysflag = 0
           and cs.sysflag = 0
           and cc.sysflag = 0
           and scs.checked = 1
-        <if test="types != null">
-            and scs.type in
-            <foreach item="type" collection="types" open="(" separator="," close=")">
-                #{type}
-            </foreach>
-        </if>
+        order by cc.id, scs.term
     </select>
     <resultMap id="TrainingSchemeScheduleResult" type="com.doinner.csys.domain.vo.TrainingSchemeScheduleVo">
         <result column="id" property="id"/>
@@ -1372,7 +1367,7 @@
                  count(ts.id) as scheme_num
              from t_csys_training_scheme ts
                       left join t_csys_training_scheme_category tsc on tsc.id = ts.category_id
-             where ts.sysflag = 0 and ts.program_name is not null group by tsc.id order by scheme_num desc) t
+             where ts.sysflag = 0 group by tsc.id order by scheme_num desc) t
         left join t_csys_training_scheme_category tsc on t.category_id = tsc.id
         group by t.category_id
     </select>
@@ -1400,72 +1395,101 @@
         <result property="creditCount" column="credit_count"/>
     </resultMap>
 
+    <!-- 以有效排课为统计范围，课程/实验课程直接使用排课学时。
+         排课表不存实践类的时间安排和单位，因此仅对 2/4 类补查对应学期安排。
+         先按方案、课程、学期聚合，防止多条排课重复累加同一学期的实践时间。 -->
+    <sql id="semesterCreditSource">
+        SELECT ts.id AS scheme_id,
+               sc.term AS term_id,
+               CASE
+                   WHEN c.type IN ('1', '3')
+                       THEN (sc.teach_hours + sc.practice_hours) / 16.0
+                   WHEN c.type IN ('2', '4') THEN COALESCE((
+                       SELECT SUM(CASE
+                           WHEN TRIM(s.unit) IN ('1', '周') THEN COALESCE(s.time_Week, 0)
+                           WHEN TRIM(s.unit) IN ('2', '学时') THEN COALESCE(s.time_Week, 0) / 16.0
+                           ELSE 0 END)
+                       FROM t_csys_course_ref_schedule s
+                       WHERE s.course_id = c.id
+                         AND (s.semester_Schedule = CAST(CEIL(sc.term / 2.0) AS CHAR)
+                              OR (s.semester_Schedule = '6' AND sc.term BETWEEN 1 AND 8)
+                              OR (s.semester_Schedule = '7' AND sc.term IN (1, 2)))
+                         AND ((s.spring_Autumn IN ('1', '3') AND MOD(sc.term, 2) = 1)
+                              OR (s.spring_Autumn IN ('2', '4') AND MOD(sc.term, 2) = 0)
+                              OR s.spring_Autumn = '5')
+                   ), 0)
+                   ELSE 0
+               END AS credit
+        FROM t_csys_training_scheme ts
+        INNER JOIN (
+            SELECT scheme_id, course_id, term,
+                   SUM(COALESCE(teach_hours, 0)) AS teach_hours,
+                   SUM(COALESCE(practice_hours, 0)) AS practice_hours
+            FROM t_csys_training_scheme_course_schedule
+            WHERE sysflag = 0 AND checked = 1 AND term BETWEEN 1 AND 10
+            GROUP BY scheme_id, course_id, term
+        ) sc ON sc.scheme_id = ts.id
+        INNER JOIN t_csys_course c ON c.id = sc.course_id AND c.sysflag = 0
+        WHERE ts.sysflag = 0
+    </sql>
+
     <select id="sumCreditBySchemeId" resultMap="CumCreditResult">
-        SELECT tscs.term      as term_id,
-               sum(cc.credit) as credit_count
-        FROM t_csys_training_scheme_course_schedule tscs
-                 left join t_csys_course cc
-                           on cc.id = tscs.course_id
-        WHERE scheme_id = #{schemeId}
-          and tscs.checked = 1
-          and tscs.sysflag = 0
-        GROUP BY tscs.term
+        SELECT term_id, SUM(credit) AS credit_count
+        FROM (
+            <include refid="semesterCreditSource"/>
+            AND ts.id = #{schemeId}
+        ) semester_credit
+        GROUP BY term_id
+        ORDER BY term_id
     </select>
 
-
-    <select id="sumCreditBySchemeIds" parameterType="Long" resultMap="CumCreditResult">
-        SELECT tscs.term      as term_id,
-               sum(cc.credit) as credit_count
-        FROM t_csys_training_scheme_course_schedule tscs
-                 left join t_csys_course cc
-                           on cc.id = tscs.course_id
-        WHERE scheme_id in
-        <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
-            #{schemeId}
-        </foreach>
-          and tscs.checked = 1
-          and tscs.sysflag = 0
-        GROUP BY tscs.term
+    <select id="sumCreditBySchemeIds" resultMap="CumCreditResult">
+        SELECT term_id, SUM(credit) AS credit_count
+        FROM (
+            <include refid="semesterCreditSource"/>
+            <choose>
+                <when test="schemeIds != null and schemeIds.size() > 0">
+                    AND ts.id IN
+                    <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
+                        #{schemeId}
+                    </foreach>
+                </when>
+                <otherwise>AND 1 = 0</otherwise>
+            </choose>
+        ) semester_credit
+        GROUP BY term_id
+        ORDER BY term_id
     </select>
 
     <resultMap type="com.doinner.csys.domain.statisticsVo.CourseTypeVo" id="CourseTypeVo">
         <result property="termId" column="term_id"/>
-        <result property="publicRequiredCourseCount" column="public_required_course_count"/>
-        <result property="subjectRequiredCourseCount" column="subject_required_course_count"/>
-        <result property="specialityRequiredCourseCount" column="speciality_required_course_count"/>
-        <result property="publicElectiveCourseCount" column="public_elective_course_count"/>
-        <result property="subjectElectiveCourseCount" column="subject_elective_course_count"/>
+        <result property="requiredCourseCount" column="required_course_count"/>
+        <result property="electiveCourseCount" column="elective_course_count"/>
     </resultMap>
 
 
     <select id="countCourseByType" resultMap="CourseTypeVo">
-        SELECT tscs.term                              AS term_id,
-               sum(IF(tsrc.course_type_id = 1, 1, 0)) AS public_required_course_count,
-               sum(IF(tsrc.course_type_id = 2, 1, 0)) AS subject_required_course_count,
-               sum(IF(tsrc.course_type_id = 3, 1, 0)) AS speciality_required_course_count,
-               sum(IF(tsrc.course_type_id = 4, 1, 0)) AS public_elective_course_count,
-               sum(IF(tsrc.course_type_id = 5, 1, 0)) AS subject_elective_course_count
+        <!--
+            t_csys_training_scheme_ref_course 已只保留方案和课程关联，课程修读性质以
+            当前被调用课程的 course_attr 为准：1=必修，2=限选，3=任选。
+        -->
+        SELECT tscs.term AS term_id,
+               SUM(CASE WHEN cc.course_attr = '1' THEN 1 ELSE 0 END) AS required_course_count,
+               SUM(CASE WHEN cc.course_attr IN ('2', '3') THEN 1 ELSE 0 END) AS elective_course_count
         FROM t_csys_training_scheme_course_schedule tscs
                  LEFT JOIN t_csys_course cc ON cc.id = tscs.course_id
-                 LEFT JOIN t_csys_training_scheme_ref_course tsrc ON tsrc.course_id = tscs.course_id
-            AND tsrc.scheme_id = tscs.scheme_id
         WHERE tscs.scheme_id = #{schemeId}
           and tscs.sysflag = 0
           and tscs.checked = 1
         GROUP BY tscs.term
     </select>
 
-    <select id="countCourseByTypes" parameterType="Long" resultMap="CourseTypeVo">
-        SELECT tscs.term                              AS term_id,
-               sum(IF(tsrc.course_type_id = 1, 1, 0)) AS public_required_course_count,
-               sum(IF(tsrc.course_type_id = 2, 1, 0)) AS subject_required_course_count,
-               sum(IF(tsrc.course_type_id = 3, 1, 0)) AS speciality_required_course_count,
-               sum(IF(tsrc.course_type_id = 4, 1, 0)) AS public_elective_course_count,
-               sum(IF(tsrc.course_type_id = 5, 1, 0)) AS subject_elective_course_count
+    <select id="countCourseByTypes" parameterType="java.util.List" resultMap="CourseTypeVo">
+        SELECT tscs.term AS term_id,
+               SUM(CASE WHEN cc.course_attr = '1' THEN 1 ELSE 0 END) AS required_course_count,
+               SUM(CASE WHEN cc.course_attr IN ('2', '3') THEN 1 ELSE 0 END) AS elective_course_count
         FROM t_csys_training_scheme_course_schedule tscs
                  LEFT JOIN t_csys_course cc ON cc.id = tscs.course_id
-                 LEFT JOIN t_csys_training_scheme_ref_course tsrc ON tsrc.course_id = tscs.course_id
-            AND tsrc.scheme_id = tscs.scheme_id
         WHERE tscs.scheme_id in
         <foreach item="schemeId" collection="schemeIds" open="(" separator="," close=")">
             #{schemeId}
@@ -1473,6 +1497,25 @@
           and tscs.sysflag = 0
           and tscs.checked = 1
         GROUP BY tscs.term
+    </select>
+
+    <resultMap type="com.doinner.csys.domain.statisticsVo.CourseModuleStatisticsVo" id="CourseModuleStatisticsVo">
+        <result property="moduleId" column="module_id"/>
+        <result property="courseCount" column="course_count"/>
+    </resultMap>
+
+    <select id="countCourseByModule" resultMap="CourseModuleStatisticsVo">
+        SELECT COALESCE(NULLIF(TRIM(c.course_Module_Children), ''),
+                        NULLIF(TRIM(c.course_Module), '')) AS module_id,
+               COUNT(DISTINCT sc.course_id) AS course_count
+        FROM t_csys_training_scheme_course_schedule sc
+                 LEFT JOIN t_csys_course c ON c.id = sc.course_id
+        WHERE sc.scheme_id = #{schemeId}
+          AND sc.checked = 1
+          AND sc.sysflag = 0
+        GROUP BY COALESCE(NULLIF(TRIM(c.course_Module_Children), ''),
+                          NULLIF(TRIM(c.course_Module), ''))
+        ORDER BY module_id
     </select>
 
 
