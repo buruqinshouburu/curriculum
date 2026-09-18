@@ -323,8 +323,16 @@ public class CourseServiceImpl implements CourseService {
         List<CourseKnowledgeViewVo> courseKnowledgeViewVos = courseMapper.selectCourseKnowledgeList(trainingSchemeId);
         //替换字典值
         for (CourseKnowledgeViewVo courseKnowledgeViewVo : courseKnowledgeViewVos) {
-            Dictionary data = remoteKgService.getDictionary(courseKnowledgeViewVo.getCourseModelId()).getData();
-            courseKnowledgeViewVo.setCourseModelName(data.getName());
+            String modelId = courseKnowledgeViewVo.getCourseModelId();
+            if (StringUtils.isBlank(modelId)) {
+                continue;
+            }
+            // 字典可能已删除或远程查询未返回数据，不能影响整页课程知识统计。
+            Dictionary data = Optional.ofNullable(remoteKgService.getDictionary(modelId))
+                    .map(response -> response.getData()).orElse(null);
+            if (data != null) {
+                courseKnowledgeViewVo.setCourseModelName(data.getName());
+            }
         }
         return courseKnowledgeViewVos;
     }

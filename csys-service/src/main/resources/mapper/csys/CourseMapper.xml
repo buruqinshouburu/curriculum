@@ -2372,7 +2372,7 @@
     </update>
 
     <select id="selectCourseKnowledgeList" resultType="com.doinner.csys.domain.vo.CourseKnowledgeViewVo">
-        select ifnull(c.course_Module_Children, c.course_Module) as courseModelId,
+        select coalesce(nullif(trim(c.course_Module_Children), ''), nullif(trim(c.course_Module), '')) as courseModelId,
                c.name                                            as courseName,
                c.id                                              as courseId,
                count(distinct ku.id)                             as unitCount,
