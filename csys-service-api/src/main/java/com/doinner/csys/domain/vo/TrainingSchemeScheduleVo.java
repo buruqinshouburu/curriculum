@@ -7,7 +7,8 @@ package com.doinner.csys.domain.vo;
 public class TrainingSchemeScheduleVo {
     private Long id;
     private Integer term;
-    private Integer type;
+    /** 排课课程模块/子模块字典 ID，保留原 type 字段名。 */
+    private String type;
     private String name;
     private String schemeName;
     private String termName;
@@ -28,11 +29,11 @@ public class TrainingSchemeScheduleVo {
         this.term = term;
     }
 
-    public Integer getType() {
+    public String getType() {
         return type;
     }
 
-    public void setType(Integer type) {
+    public void setType(String type) {
         this.type = type;
     }
 

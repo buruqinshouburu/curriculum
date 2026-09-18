@@ -58,7 +58,6 @@
         <result property="sTeachHours" column="s_teach_hours"/>
         <result property="sPracticeHours" column="s_practice_hours"/>
         <result property="cTheoryHours" column="c_theory_hours"/>
-        <result property="cTeachHours" column="c_teach_hours"/>
         <result property="cPracticeHours" column="c_practice_hours"/>
     </resultMap>
 
