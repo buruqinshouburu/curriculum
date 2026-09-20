@@ -1951,26 +1951,36 @@
 
 
     <select id="courseRanking"  resultMap="TrainingSchemeCourseScheduleRankingVoResult">
-        select tscs.course_id courseId,count(tscs.course_id) selectedNum,ANY_VALUE(cc.name) courseName from t_csys_training_scheme_course_schedule tscs
-        ,t_csys_course cc,t_csys_training_scheme cs where tscs.checked = 1 and tscs.course_id = cc.id and cc.sysflag =0 and tscs.sysflag = 0
-        and tscs.scheme_id = cs.id and cs.sysflag = 0
-        GROUP BY tscs.course_id order by count(tscs.course_id) desc,tscs.course_id desc
+        select source_course.id as courseId,
+               count(invoke_course.id) as selectedNum,
+               source_course.name as courseName
+        from t_csys_course source_course
+                 inner join t_csys_course invoke_course on invoke_course.source_id = source_course.id
+        where source_course.sysflag = 0
+          and invoke_course.sysflag = 0
+        group by source_course.id, source_course.name
+        order by selectedNum desc, source_course.id desc
     </select>
 
     <select id="courseSelectStatistics"  resultMap="TrainingSchemeCourseScheduleRankingVoResult">
-        select tscs.course_id courseId,count(tscs.course_id) selectedNum,ANY_VALUE(cc.name) courseName from t_csys_training_scheme_course_schedule tscs
-        ,t_csys_course cc,t_csys_training_scheme cs where tscs.checked = 1 and tscs.course_id = cc.id and cc.sysflag =0 and tscs.sysflag = 0
-        and tscs.scheme_id = cs.id and cs.sysflag = 0
+        select source_course.id as courseId,
+               count(invoke_course.id) as selectedNum,
+               source_course.name as courseName
+        from t_csys_course source_course
+                 inner join t_csys_course invoke_course on invoke_course.source_id = source_course.id
+        where source_course.sysflag = 0
+          and invoke_course.sysflag = 0
         <if test="courseName != null and courseName != ''">
-            and cc.name like concat('%', #{courseName}, '%')
+            and source_course.name like concat('%', #{courseName}, '%')
         </if>
-        <if test="types != null">
-            and tscs.type in
+        <if test="types != null and types.size() > 0">
+            and source_course.course_attr in
             <foreach item="type" collection="types" open="(" separator="," close=")">
                 #{type}
             </foreach>
         </if>
-        GROUP BY tscs.course_id order by count(tscs.course_id) desc,tscs.course_id desc
+        group by source_course.id, source_course.name
+        order by selectedNum desc, source_course.id desc
     </select>
     <resultMap type="com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleRankingVo" id="TrainingSchemeCourseScheduleRankingVoResult">
         <result property="courseId" column="courseId"/>
@@ -2061,14 +2071,16 @@
             sm.college_id collect_id,
             count( DISTINCT ( sm.id ) ) major_count,
             sd.dept_name dept_name,
-            count( DISTINCT ( cc.id ) ) AS course_count
+            count( DISTINCT cc.source_id ) AS course_count
         FROM
             t_csys_std_major sm
                 INNER JOIN sys_dept sd ON sm.college_id = sd.dept_id
                 AND sm.sysflag = 0 and sm.parent_id = -1
-                LEFT JOIN t_csys_course cc ON cc.college_id = sd.dept_id and cc.sysflag = 0
+                LEFT JOIN t_csys_training_scheme ts ON ts.major_id = sm.id and ts.sysflag = 0
+                LEFT JOIN t_csys_training_scheme_ref_course src ON src.scheme_id = ts.id
+                LEFT JOIN t_csys_course cc ON cc.id = src.course_id and cc.sysflag = 0
         GROUP BY
-            sm.college_id
+            sm.college_id, sd.dept_name
     </select>
     <resultMap id="CourseAndSpecializedResult" type="com.doinner.csys.domain.vo.CourseAndSpecializedVo">
         <result property="collectId" column="collect_id"/>
@@ -2360,7 +2372,7 @@
     </update>
 
     <select id="selectCourseKnowledgeList" resultType="com.doinner.csys.domain.vo.CourseKnowledgeViewVo">
-        select ifnull(c.course_Module_Children, c.course_Module) as courseModelId,
+        select coalesce(nullif(trim(c.course_Module_Children), ''), nullif(trim(c.course_Module), '')) as courseModelId,
                c.name                                            as courseName,
                c.id                                              as courseId,
                count(distinct ku.id)                             as unitCount,

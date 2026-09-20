@@ -10,6 +10,7 @@ import com.doinner.csys.domain.vo.OverQuoteCourseInfo;
 import com.doinner.csys.io.utils.MultiSimpleExcelHandler;
 import com.doinner.csys.io.utils.SimpleExcelHandler;
 import com.doinner.csys.service.HomePageService;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -72,6 +73,9 @@ public class HomePageServiceImpl implements HomePageService {
 
     @Override
     public List<StandardMajor> selectMajorBySubCategories(List<Long> categoryIds){
+        if (CollectionUtils.isEmpty(categoryIds)) {
+            return Collections.emptyList();
+        }
         List<StandardMajor> standardMajorList = standardMajorMapper.selectStandardMajorByCategories(categoryIds);
         return standardMajorList;
     }

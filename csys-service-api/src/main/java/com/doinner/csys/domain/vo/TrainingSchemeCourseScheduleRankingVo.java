@@ -1,6 +1,5 @@
 package com.doinner.csys.domain.vo;
 
-
 import java.util.List;
 
 /**

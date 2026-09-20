@@ -8,6 +8,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="id"    column="id"    />
         <result property="parentId"    column="parent_id"    />
         <result property="name"    column="name"    />
+        <result property="systemType" column="system_type" />
         <result property="leaf"    column="leaf"    />
         <result property="createTime"    column="create_time"    />
         <result property="creator"    column="creator"    />
@@ -21,7 +22,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectTrainingSchemeCategoryVo">
-        select id, parent_id, name, leaf, create_time, creator, last_modified_time, last_modifier, remark, sysflag,level,url from t_csys_training_scheme_category
+        select id, parent_id, name, system_type, leaf, create_time, creator, last_modified_time, last_modifier, remark, sysflag,level,url from t_csys_training_scheme_category
     </sql>
 
     <sql id="selectTrainingSchemeCategoryVoCount">
@@ -39,6 +40,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="name != null  and name != ''"> and tsc.name like concat('%', #{name}, '%')</if>
             <if test="creator != null  and creator != ''"> and tsc.creator = #{creator}</if>
             <if test="leaf != null"> and tsc.leaf = #{leaf}</if>
+            <if test="systemType != null"> and tsc.system_type = #{systemType}</if>
             and tsc.sysflag = '0'
             group by tsc.id
         </where>
@@ -55,6 +57,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="id != null">id,</if>
             <if test="parentId != null">parent_id,</if>
             <if test="name != null and name != ''">name,</if>
+            <if test="systemType != null">system_type,</if>
             <if test="leaf != null and leaf != ''">leaf,</if>
             <if test="createTime != null">create_time,</if>
             <if test="creator != null">creator,</if>
@@ -69,6 +72,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="id != null">#{id},</if>
             <if test="parentId != null">#{parentId},</if>
             <if test="name != null and name != ''">#{name},</if>
+            <if test="systemType != null">#{systemType},</if>
             <if test="leaf != null and leaf != ''">#{leaf},</if>
             <if test="createTime != null">#{createTime},</if>
             <if test="creator != null">#{creator},</if>
@@ -86,6 +90,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="SET" suffixOverrides=",">
             <if test="parentId != null">parent_id = #{parentId},</if>
             <if test="name != null and name != ''">name = #{name},</if>
+            <if test="systemType != null">system_type = #{systemType},</if>
             <if test="leaf != null and leaf != ''">leaf = #{leaf},</if>
             <if test="createTime != null">create_time = #{createTime},</if>
             <if test="creator != null">creator = #{creator},</if>

@@ -467,11 +467,12 @@ public class CurriculumController {
     @GetMapping("/course/checkPoint")
     @ApiOperation("根据培养方案ID查看知识点查重统计结果")
     public DataSet<KnowledgeChekTotalVo> checkPoint(Long schemeId) {
-        //查询培养方案信息
-        TrainingSchemeVo trainingSchemeVo = trainingService.selectTrainingSchemeById(schemeId);
-        //查询培养方案下的知识领域
-        List<TrainingSchemeRefCourse> trainingSchemeRefCourses = trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoId(schemeId);
-        return DataSet.success(knowLedgeCheckLogService.selectCheckPointLogNoList(trainingSchemeRefCourses.stream().map(t->t.getCourseId()).collect(Collectors.toList())));
+        if (ObjectUtils.isEmpty(schemeId)) {
+            return DataSet.error("数据为空！");
+        }
+        // 与 knowledge/checkLogBySchemeId 共用课程取数逻辑，仍只返回统计信息。
+        List<Long> courseIds = knowLedgeCheckLogService.getCourseIdsBySchemeId(schemeId);
+        return DataSet.success(knowLedgeCheckLogService.selectCheckPointLogNoList(courseIds));
     }
 
     /**

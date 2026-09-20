@@ -7,16 +7,12 @@ import com.doinner.csys.domain.TrainingScheme;
 import com.doinner.csys.domain.statisticsVo.*;
 import com.doinner.csys.io.utils.ExcelUtils;
 import com.doinner.csys.service.SchemeStatisticsService;
-import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -194,15 +190,18 @@ public class SchemeStatisticsController {
     }
 
     @GetMapping("/schemeType/{id}")
-    @ApiOperation("课程比例分配图")
-    public DataSet<List<StandardCultivationTargetStatisticsVo>> statisticsSchemeTypeBySchemeId(@PathVariable("id") Long schemeId) throws Exception {
-        return DataSet.success(schemeStatisticsService.selectCourseTypeBySchemeId(schemeId));
+    @ApiOperation("课程模块占比图")
+    public DataSet<List<CourseModuleStatisticsVo>> statisticsSchemeTypeBySchemeId(@PathVariable("id") Long schemeId) {
+        return DataSet.success(schemeStatisticsService.courseModule(schemeId));
     }
 
     @GetMapping("/schemeType/export")
-    @ApiOperation("课程比例分配图")
-    public void statisticsSchemeTypeExportBySchemeId(HttpServletResponse response, Long schemeId) throws Exception {
-        List<StandardCultivationTargetStatisticsVo> voList = schemeStatisticsService.selectCourseTypeBySchemeId(schemeId);
+    @ApiOperation("导出课程模块占比图")
+    public void statisticsSchemeTypeExportBySchemeId(HttpServletResponse response, Long schemeId) {
+        List<CourseModuleStatisticsVo> voList = schemeStatisticsService.courseModule(schemeId);
+        List<StatisticsExcelVo> excelVoList = voList.stream()
+                .map(StatisticsExcelVo::new)
+                .collect(Collectors.toList());
         response.setContentType("application/x-download");
         String fileName = DomainFieldConstant.SCHEME_TYPE_EXCEL_NAME;
         try {
@@ -210,20 +209,13 @@ public class SchemeStatisticsController {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        XSSFWorkbook xssfWorkbook = ExcelUtils.getSchemeType(voList);
-
-        try (OutputStream outputStream = response.getOutputStream()) {
-            xssfWorkbook.write(outputStream);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        ExcelUtils.simpleStatisticsExport(response, List.of("课程模块/子模块", "课程数", "课程占比"), excelVoList);
     }
 
     @PostMapping("/schemeType/multi/export")
-    @ApiOperation("扩展课程比例分配图")
-    public void statisticsSchemeTypeExportBySchemeId(HttpServletResponse response, @RequestBody List<Long> schemeIds) throws Exception {
-        List<StandardCultivationTargetStatisticsMultiVo> voList = schemeStatisticsService.selectCourseTypeBySchemeIdIn(schemeIds);
+    @ApiOperation("扩展导出课程模块占比图")
+    public void statisticsSchemeTypeExportBySchemeId(HttpServletResponse response, @RequestBody List<Long> schemeIds) {
+        List<StatisticsExcelMultiVo> voList = schemeStatisticsService.courseModuleIn(schemeIds);
         response.setContentType("application/x-download");
         String fileName = DomainFieldConstant.SCHEME_TYPE_EXCEL_NAME;
         try {
@@ -231,14 +223,8 @@ public class SchemeStatisticsController {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        XSSFWorkbook xssfWorkbook = ExcelUtils.getSchemeTypeMulti(voList);
-
-        try (OutputStream outputStream = response.getOutputStream()) {
-            xssfWorkbook.write(outputStream);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        ExcelUtils.simpleStatisticsMultiExport(response,
+                List.of("培养方案名称", "课程模块/子模块", "课程数", "课程占比"), voList);
     }
     //-------------------------------xwy --------------------------------------------
 }

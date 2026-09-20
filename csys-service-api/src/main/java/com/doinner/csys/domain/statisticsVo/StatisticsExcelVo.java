@@ -49,6 +49,11 @@ public class StatisticsExcelVo {
         this.number2 = courseTypeVo.getElectiveCourseCount().doubleValue();
     }
 
+    public StatisticsExcelVo(CourseModuleStatisticsVo courseModuleStatisticsVo) {
+        this.name = courseModuleStatisticsVo.getModuleName();
+        this.number1 = courseModuleStatisticsVo.getCourseCount().doubleValue();
+    }
+
     public StatisticsExcelVo(SchemeCountVo schemeCountVo) {
         this.name = schemeCountVo.getCategoryName();
         this.number1 = Double.valueOf(schemeCountVo.getSchemeNum());
