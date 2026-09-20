@@ -1411,7 +1411,8 @@
                            ELSE 0 END)
                        FROM t_csys_course_ref_schedule s
                        WHERE s.course_id = c.id
-                         AND (s.semester_Schedule = CAST(CEIL(sc.term / 2.0) AS CHAR)
+                         <!-- 显式指定字符集和排序规则，避免 CAST 使用连接默认的 0900 排序规则而与历史列冲突。 -->
+                         AND (s.semester_Schedule = (CAST(CEIL(sc.term / 2.0) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_general_ci)
                               OR (s.semester_Schedule = '6' AND sc.term BETWEEN 1 AND 8)
                               OR (s.semester_Schedule = '7' AND sc.term IN (1, 2)))
                          AND ((s.spring_Autumn IN ('1', '3') AND MOD(sc.term, 2) = 1)

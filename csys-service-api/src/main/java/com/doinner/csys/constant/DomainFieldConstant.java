@@ -196,7 +196,7 @@ public class DomainFieldConstant {
             SUBJECT_ELECTIVE_COURSE_NAME, SUBJECT_ELECTIVE_COURSE);
 
 
-    //8个学期
+    //最多10个学期，兼容五年制
     public final static String FERSHMAN_YEAR_FIRST_SEMESTER = "大一上";
 
     public final static String FERSHMAN_YEAR_SECOND_SEMESTER = "大一下";
@@ -212,6 +212,10 @@ public class DomainFieldConstant {
     public final static String SENIOR_YEAR_FIRST_SEMESTER = "大四上";
 
     public final static String SENIOR_YEAR_SECOND_SEMESTER = "大四下";
+
+    public final static String FIFTH_YEAR_FIRST_SEMESTER = "大五上";
+
+    public final static String FIFTH_YEAR_SECOND_SEMESTER = "大五下";
 
     public final static Integer FERSHMAN_YEAR_FIRST_SEMESTER_TYPE = 1;
 
@@ -229,6 +233,10 @@ public class DomainFieldConstant {
 
     public final static Integer SENIOR_YEAR_SECOND_SEMESTER_TYPE = 8;
 
+    public final static Integer FIFTH_YEAR_FIRST_SEMESTER_TYPE = 9;
+
+    public final static Integer FIFTH_YEAR_SECOND_SEMESTER_TYPE = 10;
+
     public static Map<String, Integer> TERM_NAME_NUMBER_MAP = Map.of(
             FERSHMAN_YEAR_FIRST_SEMESTER, FERSHMAN_YEAR_FIRST_SEMESTER_TYPE,
             FERSHMAN_YEAR_SECOND_SEMESTER, FERSHMAN_YEAR_SECOND_SEMESTER_TYPE,
@@ -237,7 +245,9 @@ public class DomainFieldConstant {
             JUNIOR_YEAR_FIRST_SEMESTER, JUNIOR_YEAR_FIRST_SEMESTER_TYPE,
             JUNIOR_YEAR_SECOND_SEMESTER, JUNIOR_YEAR_SECOND_SEMESTER_TYPE,
             SENIOR_YEAR_FIRST_SEMESTER, SENIOR_YEAR_FIRST_SEMESTER_TYPE,
-            SENIOR_YEAR_SECOND_SEMESTER, SENIOR_YEAR_SECOND_SEMESTER_TYPE);
+            SENIOR_YEAR_SECOND_SEMESTER, SENIOR_YEAR_SECOND_SEMESTER_TYPE,
+            FIFTH_YEAR_FIRST_SEMESTER, FIFTH_YEAR_FIRST_SEMESTER_TYPE,
+            FIFTH_YEAR_SECOND_SEMESTER, FIFTH_YEAR_SECOND_SEMESTER_TYPE);
 
     public static Map<Integer, String> TERM_NUMBER_NAME_MAP = Map.of(
             FERSHMAN_YEAR_FIRST_SEMESTER_TYPE, FERSHMAN_YEAR_FIRST_SEMESTER,
@@ -247,7 +257,9 @@ public class DomainFieldConstant {
             JUNIOR_YEAR_FIRST_SEMESTER_TYPE, JUNIOR_YEAR_FIRST_SEMESTER,
             JUNIOR_YEAR_SECOND_SEMESTER_TYPE, JUNIOR_YEAR_SECOND_SEMESTER,
             SENIOR_YEAR_FIRST_SEMESTER_TYPE, SENIOR_YEAR_FIRST_SEMESTER,
-            SENIOR_YEAR_SECOND_SEMESTER_TYPE, SENIOR_YEAR_SECOND_SEMESTER);
+            SENIOR_YEAR_SECOND_SEMESTER_TYPE, SENIOR_YEAR_SECOND_SEMESTER,
+            FIFTH_YEAR_FIRST_SEMESTER_TYPE, FIFTH_YEAR_FIRST_SEMESTER,
+            FIFTH_YEAR_SECOND_SEMESTER_TYPE, FIFTH_YEAR_SECOND_SEMESTER);
 
     public static final String EXCEL_COURSE_NAME = "课程名称";
 
@@ -307,7 +319,7 @@ public class DomainFieldConstant {
     public static final List<String> courseType = List.of("", "公共基础必修", "学科基础必修", "专业必修", "公共基础选修", "学科基础、专业选修");
     public static final List<String> subCourseName = List.of("政治理论", "自然科学", "人文科学", "军事基础");
     public static final List<Long> subCourseValue = List.of(6L, 6L, 2L, 7L);
-    public static final List<String> termName = List.of("", "大一上", "大一下", "大二上", "大二下", "大三上", "大三下", "大四上", "大四下");
+    public static final List<String> termName = List.of("", "大一上", "大一下", "大二上", "大二下", "大三上", "大三下", "大四上", "大四下", "大五上", "大五下");
 
     /*
      * -------------------------------------------
