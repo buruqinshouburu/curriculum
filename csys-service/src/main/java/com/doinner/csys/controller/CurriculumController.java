@@ -561,6 +561,18 @@ public class CurriculumController {
     }
 
     /**
+     * 总库课程被培养方案选用次数统计
+     */
+    @GetMapping("/course/courseSelectUsageStatistics")
+    @ApiOperation("总库课程被培养方案选用次数统计")
+    public DataTable<List> courseSelectUsageStatistics(
+            @RequestParam(required = false) String courseName,
+            @RequestParam(required = false) List<String> courseModules) {
+        PageUtils.startPage();
+        return DataTable.success(courseService.courseSelectUsageStatistics(courseName, courseModules));
+    }
+
+    /**
      * 培养方案体系首页(第二个页面)统计
      *
      * @return

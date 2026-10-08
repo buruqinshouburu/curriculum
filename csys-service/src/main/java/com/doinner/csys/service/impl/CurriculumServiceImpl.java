@@ -1964,6 +1964,30 @@ public class CurriculumServiceImpl implements CurriculumService {
     }
 
     @Override
+    public List<CourseSelectUsageStatisticsVo> courseSelectUsageStatistics(String courseName, List<String> courseModules) {
+        List<CourseSelectUsageStatisticsVo> statistics = courseMapper.courseSelectUsageStatistics(courseName, courseModules);
+        if (CollectionUtils.isEmpty(statistics)) {
+            return statistics;
+        }
+
+        List<Long> courseIds = statistics.stream()
+                .map(CourseSelectUsageStatisticsVo::getCourseId)
+                .collect(Collectors.toList());
+        Map<Long, List<CourseSelectUsageDetailVo>> detailsByCourseId = courseMapper
+                .selectCourseSelectUsageDetailsBySourceCourseIds(courseIds).stream()
+                .peek(detail -> {
+                    if (detail.getTerm() != null) {
+                        detail.setTermName(DomainFieldConstant.TERM_NUMBER_NAME_MAP.get(detail.getTerm()));
+                    }
+                })
+                .collect(Collectors.groupingBy(CourseSelectUsageDetailVo::getCourseId));
+        for (CourseSelectUsageStatisticsVo statistic : statistics) {
+            statistic.setDetails(detailsByCourseId.getOrDefault(statistic.getCourseId(), new ArrayList<>()));
+        }
+        return statistics;
+    }
+
+    @Override
     public Map countCollegeCourse() {
         Map map = new HashMap();
         map.put("curriculumNum", courseMapper.countCourse());

@@ -1982,6 +1982,64 @@
         group by source_course.id, source_course.name
         order by selectedNum desc, source_course.id desc
     </select>
+    <select id="courseSelectUsageStatistics" resultType="com.doinner.csys.domain.vo.CourseSelectUsageStatisticsVo">
+        select source_course.id as courseId,
+               source_course.name as courseName,
+               source_course.course_Module as courseModule,
+               coalesce(selection.selectedNum, 0) as selectedNum
+        from t_csys_course source_course
+        left join (
+            select invoke_course.source_id as courseId,
+                   count(distinct scheme_course.id) as selectedNum
+            from t_csys_training_scheme_ref_course scheme_course
+                     inner join t_csys_training_scheme scheme
+                                on scheme.id = scheme_course.scheme_id
+                                   and scheme.sysflag = 0
+                     inner join t_csys_course invoke_course
+                                on invoke_course.id = scheme_course.course_id
+                                   and invoke_course.sysflag = 0
+            where invoke_course.source_id is not null
+            group by invoke_course.source_id
+        ) selection on selection.courseId = source_course.id
+        where source_course.sysflag = 0
+          and source_course.source_id is null
+        <if test="courseName != null and courseName != ''">
+            and source_course.name like concat('%', #{courseName}, '%')
+        </if>
+        <if test="courseModules != null and courseModules.size() > 0">
+            and source_course.course_Module in
+            <foreach item="courseModule" collection="courseModules" open="(" separator="," close=")">
+                #{courseModule}
+            </foreach>
+        </if>
+        order by selectedNum desc, source_course.id desc
+    </select>
+    <select id="selectCourseSelectUsageDetailsBySourceCourseIds"
+            resultType="com.doinner.csys.domain.vo.CourseSelectUsageDetailVo">
+        select source_course.id as courseId,
+               scheme.id as schemeId,
+               scheme.name as schemeName,
+               schedule.term as term
+        from t_csys_training_scheme_ref_course scheme_course
+                 inner join t_csys_training_scheme scheme
+                            on scheme.id = scheme_course.scheme_id
+                               and scheme.sysflag = 0
+                 inner join t_csys_course invoke_course
+                            on invoke_course.id = scheme_course.course_id
+                               and invoke_course.sysflag = 0
+                 inner join t_csys_course source_course
+                            on source_course.id = invoke_course.source_id
+                               and source_course.sysflag = 0
+                 left join t_csys_training_scheme_course_schedule schedule
+                           on schedule.course_id = invoke_course.id
+                              and schedule.scheme_id = scheme.id
+                              and schedule.sysflag = 0
+        where source_course.id in
+        <foreach item="courseId" collection="courseIds" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        order by source_course.id, scheme.name, schedule.term
+    </select>
     <resultMap type="com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleRankingVo" id="TrainingSchemeCourseScheduleRankingVoResult">
         <result property="courseId" column="courseId"/>
         <result property="selectedNum" column="selectedNum"/>
