@@ -7,17 +7,11 @@ public class CourseTypeVo {
 
     private Integer termId;
 
-    private String termName;
+    /** 修读性质为必修（course_attr=1）的课程数。 */
+    private Long requiredCourseCount = 0L;
 
-    private Long publicRequiredCourseCount = 0l;
-
-    private Long subjectRequiredCourseCount = 0l;
-
-    private Long specialityRequiredCourseCount = 0l;
-
-    private Long publicElectiveCourseCount = 0l;
-
-    private Long subjectElectiveCourseCount = 0l;
+    /** 修读性质为限选或任选（course_attr in 2,3）的课程数。 */
+    private Long electiveCourseCount = 0L;
 
     public Integer getTermId() {
         return termId;
@@ -27,40 +21,24 @@ public class CourseTypeVo {
         this.termId = termId;
     }
 
-    public void setPublicRequiredCourseCount(Long publicRequiredCourseCount) {
-        this.publicRequiredCourseCount = publicRequiredCourseCount;
-    }
-
-    public void setSubjectRequiredCourseCount(Long subjectRequiredCourseCount) {
-        this.subjectRequiredCourseCount = subjectRequiredCourseCount;
-    }
-
-    public void setSpecialityRequiredCourseCount(Long specialityRequiredCourseCount) {
-        this.specialityRequiredCourseCount = specialityRequiredCourseCount;
-    }
-
-    public void setPublicElectiveCourseCount(Long publicElectiveCourseCount) {
-        this.publicElectiveCourseCount = publicElectiveCourseCount;
-    }
-
-    public void setSubjectElectiveCourseCount(Long subjectElectiveCourseCount) {
-        this.subjectElectiveCourseCount = subjectElectiveCourseCount;
-    }
-
     public Long getRequiredCourseCount() {
-        return publicRequiredCourseCount + subjectRequiredCourseCount + specialityRequiredCourseCount;
+        return requiredCourseCount;
+    }
+
+    public void setRequiredCourseCount(Long requiredCourseCount) {
+        this.requiredCourseCount = requiredCourseCount;
     }
 
     public Long getElectiveCourseCount() {
-        return publicElectiveCourseCount + subjectElectiveCourseCount;
+        return electiveCourseCount;
+    }
+
+    public void setElectiveCourseCount(Long electiveCourseCount) {
+        this.electiveCourseCount = electiveCourseCount;
     }
 
     public String getTermName() {
         return ObjectUtils.isEmpty(this.getTermId())?null:DomainFieldConstant.TERM_NUMBER_NAME_MAP.get(this.getTermId());
-    }
-
-    public void setTermName(String termName) {
-        this.termName = termName;
     }
 
 }

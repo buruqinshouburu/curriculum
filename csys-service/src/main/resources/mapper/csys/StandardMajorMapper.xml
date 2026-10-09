@@ -175,15 +175,28 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <select id="majorCount" resultMap="StatisticsMajorResult">
+        <!--
+            专业统计以根专业为主体：
+            1. 仅统计未逻辑删除的根专业；
+            2. 按根专业的学院归组，子专业不依赖自身 college_id；
+            3. 细分专业仅统计根专业的有效直接子节点。
+        -->
         SELECT
-            sm.college_id as college_id,
-            dept.dept_name as college_name,
-            sum(if(sm.parent_id = -1, 1, 0)) as major_count,
-            sum(if(sm.leaf != 0, if(sm.class_id = 3,2,1), 0)) as sub_major_count
+            major.college_id AS college_id,
+            dept.dept_name AS college_name,
+            COUNT(DISTINCT major.id) AS major_count,
+            COUNT(DISTINCT sub_major.id) AS sub_major_count
         FROM
-            t_csys_std_major sm
-                left join sys_dept dept on sm.college_id = dept.dept_id
-        group by college_id
+            t_csys_std_major major
+                LEFT JOIN sys_dept dept
+                          ON major.college_id = dept.dept_id
+                         AND dept.del_flag = 0
+                LEFT JOIN t_csys_std_major sub_major
+                          ON sub_major.parent_id = major.id
+                         AND sub_major.sysflag = 0
+        WHERE major.parent_id = -1
+          AND major.sysflag = 0
+        GROUP BY major.college_id, dept.dept_name
         order by major_count desc, sub_major_count desc
     </select>
 

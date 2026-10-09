@@ -10,6 +10,8 @@ import com.doinner.csys.domain.vo.OverQuoteCourseInfo;
 import com.doinner.csys.io.utils.MultiSimpleExcelHandler;
 import com.doinner.csys.io.utils.SimpleExcelHandler;
 import com.doinner.csys.service.HomePageService;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -72,6 +74,9 @@ public class HomePageServiceImpl implements HomePageService {
 
     @Override
     public List<StandardMajor> selectMajorBySubCategories(List<Long> categoryIds){
+        if (CollectionUtils.isEmpty(categoryIds)) {
+            return Collections.emptyList();
+        }
         List<StandardMajor> standardMajorList = standardMajorMapper.selectStandardMajorByCategories(categoryIds);
         return standardMajorList;
     }
@@ -149,6 +154,9 @@ public class HomePageServiceImpl implements HomePageService {
     public Map<String, AtomicInteger> standardTargetWordCloud(Integer limit){
 //        wordCloudHandler.random();
         Map<String, AtomicInteger> standardCultivationTargetData = WordCloudHandler.standardCultivationTargetData;
+        if(MapUtils.isEmpty(standardCultivationTargetData)){
+            return new HashMap<>();
+        }
         standardCultivationTargetData = standardCultivationTargetData.entrySet().stream().sorted(Comparator.comparingInt(entry -> ((Map.Entry<String, AtomicInteger>)entry).getValue().get()).reversed())
                 .limit(limit).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         return standardCultivationTargetData;
@@ -174,6 +182,9 @@ public class HomePageServiceImpl implements HomePageService {
     @Override
     public void standardTargetWordCloudExport(HttpServletResponse response) {
         Map<String, AtomicInteger> data = standardTargetWordCloud(100000);
+        if (MapUtils.isEmpty(data)){
+            return;
+        }
         List<Map.Entry<String, AtomicInteger>> entryList = data.entrySet().parallelStream()
                 .sorted(Comparator.comparingInt(entry -> ((Map.Entry<String, AtomicInteger>)entry).getValue().get()).reversed())
                 .collect(Collectors.toList());

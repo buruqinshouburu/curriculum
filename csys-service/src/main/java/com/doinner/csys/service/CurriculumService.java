@@ -264,6 +264,8 @@ public interface CurriculumService {
 
     List courseSelectStatistics(String courseName,List<Integer> types);
 
+    List<CourseSelectUsageStatisticsVo> courseSelectUsageStatistics(String courseName, List<String> courseModules);
+
     Map  countCollegeCourse();
 
     /**

@@ -27,6 +27,11 @@ public class TrainingSchemeCategory extends AbstractDoinnerLogicalDelBaseEntity 
     private String name;
 
     /**
+     * 专业分类，对应字典 kg_system_type 的字典值
+     */
+    private Long systemType;
+
+    /**
      * 是否为叶子节点
      */
     private Integer leaf;
@@ -61,6 +66,14 @@ public class TrainingSchemeCategory extends AbstractDoinnerLogicalDelBaseEntity 
 
     public String getName() {
         return name;
+    }
+
+    public Long getSystemType() {
+        return systemType;
+    }
+
+    public void setSystemType(Long systemType) {
+        this.systemType = systemType;
     }
 
     public Integer getLeaf() {

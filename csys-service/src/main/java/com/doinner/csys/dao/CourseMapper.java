@@ -170,6 +170,11 @@ public interface CourseMapper {
 
     List<TrainingSchemeCourseScheduleRankingVo> courseSelectStatistics(@Param("courseName")String courseName,@Param("types")List<Integer> types);
 
+    List<CourseSelectUsageStatisticsVo> courseSelectUsageStatistics(@Param("courseName") String courseName,
+                                                                    @Param("courseModules") List<String> courseModules);
+
+    List<CourseSelectUsageDetailVo> selectCourseSelectUsageDetailsBySourceCourseIds(@Param("courseIds") List<Long> courseIds);
+
     List<String> selectCodeByCodes(@Param("codeList") List<String> codeList);
 
     Long countCourse();

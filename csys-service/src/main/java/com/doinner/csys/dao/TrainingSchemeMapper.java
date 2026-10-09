@@ -1,6 +1,7 @@
 package com.doinner.csys.dao;
 
 import com.doinner.csys.domain.TrainingScheme;
+import com.doinner.csys.domain.statisticsVo.CourseModuleStatisticsVo;
 import com.doinner.csys.domain.statisticsVo.CourseTypeVo;
 import com.doinner.csys.domain.statisticsVo.CreditStaticticsVo;
 import com.doinner.csys.domain.vo.*;
@@ -115,7 +116,7 @@ public interface TrainingSchemeMapper {
     Long secondLevelPowerCountNum(Long id);
     Long thirdLevelPowerCountNum(Long id);
 
-    List<TrainingSchemeScheduleVo> selectTrainingSchemeListByCourseId(@Param("courseId")Long courseId,@Param("types")List<Integer> types);
+    List<TrainingSchemeScheduleVo> selectTrainingSchemeListBySourceCourseId(@Param("sourceCourseId") Long sourceCourseId);
 
     List<CreditStaticticsVo> sumCreditBySchemeId(Long schemeId);
 
@@ -124,6 +125,8 @@ public interface TrainingSchemeMapper {
     List<CourseTypeVo> countCourseByType(Long schemeId);
 
     List<CourseTypeVo> countCourseByTypes(@Param("schemeIds") List<Long> schemeIds);
+
+    List<CourseModuleStatisticsVo> countCourseByModule(Long schemeId);
 
     Long selectSchemeCountByCategoryIds(List<Long> categoryIds);
 
