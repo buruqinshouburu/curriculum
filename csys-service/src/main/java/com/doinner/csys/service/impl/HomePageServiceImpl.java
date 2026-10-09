@@ -219,6 +219,7 @@ public class HomePageServiceImpl implements HomePageService {
     @Override
     public Map<String,Object> selectCourseQuoteInfo(String version) {
         //查询课程总库中全部的公共基础课
+
         HashMap<String, Object> data = new HashMap<>();
         Integer generateCourseCount=courseMapper.selectGenerateCourse(version);
         //查询超出承载课程数的课程
