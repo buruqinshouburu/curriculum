@@ -102,21 +102,6 @@ public class CoursePermissionService {
         return getPermission(courseId);
     }
 
-    /** Creation accepts explicit authors; display names must come from the user service. */
-    public void prepareCreation(Course course) {
-        if (course == null || course.getId() != null)
-            throw new CoursePermissionException(400, "新增课程不能携带已有课程ID，请使用修改接口");
-        userId();
-        if (course.getSourceId() != null)
-            throw new CoursePermissionException(400, "调用课程请使用课程调用接口");
-        String[] values = normalizeAuthors(course.getAuthorIds() == null ? "" : course.getAuthorIds());
-        course.setAuthors(values[0]);
-        course.setAuthorIds(values[1]);
-        course.setCreator(username());
-        course.setCreateTime(null);
-        course.setSysflag(0);
-    }
-
     public void preserveCourseOwners(Course course) {
         Course stored = readCourse(course.getId(), true);
         if (stored.getSourceId() == null && course.getAuthorIds() != null && !sameIds(course.getAuthorIds(), stored.getAuthorIds()))
@@ -194,8 +179,10 @@ public class CoursePermissionService {
         if (request == null) throw new CoursePermissionException(400, "课程不能为空");
         Long id = request.getId();
         if (id != null && readCourse(id, false).getSourceId() != null) return;
-        childCourse(CourseResource.THEORY_PLAN, request.getCourseTeachingTheoryPlanVo(), id);
-        childCourse(CourseResource.PRACTICE_PLAN, request.getCourseTeachingPracticePlanVo(), id);
+        if (request.getCourseTeachingTheoryPlanVo() != null)
+            childCourse(CourseResource.THEORY_PLAN, request.getCourseTeachingTheoryPlanVo(), id);
+        if (request.getCourseTeachingPracticePlanVo() != null)
+            childCourse(CourseResource.PRACTICE_PLAN, request.getCourseTeachingPracticePlanVo(), id);
         if (request.getCourseChapterVoList() != null)
             request.getCourseChapterVoList().forEach(item -> childCourse(CourseResource.COURSE_CHAPTER, item, id));
         if (request.getCourseTextbookVoList() != null)

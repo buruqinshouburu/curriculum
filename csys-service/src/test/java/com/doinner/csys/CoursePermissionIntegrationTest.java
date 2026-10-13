@@ -15,6 +15,10 @@ import com.doinner.csys.service.IKnowledgeUnitService;
 import com.doinner.csys.service.impl.KnowledgeUnitServiceImpl;
 import com.doinner.csys.service.impl.TeachingPlanServiceImpl;
 import com.doinner.csys.service.impl.CourseServiceImpl;
+import com.doinner.csys.service.impl.CurriculumServiceImpl;
+import com.doinner.common.core.utils.poi.ExcelUtil;
+import com.doinner.system.service.DoinnerDeptService;
+import com.doinner.system.service.DoinnerDictDataService;
 import com.doinner.system.domain.entity.SysUser;
 import com.doinner.system.service.DoinnerUserService;
 import org.junit.jupiter.api.*;
@@ -30,6 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 import javax.sql.DataSource;
 import java.util.*;
@@ -41,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -211,8 +217,109 @@ class CoursePermissionIntegrationTest {
         assertStatus(400, () -> permissions.preserveCourseOwners(course));
         course.setAuthorIds(null); course.setCreator("forged");
         assertStatus(400, () -> permissions.preserveCourseOwners(course));
-        CourseVo newCourse = new CourseVo(); newCourse.setId(1L);
-        assertStatus(400, () -> permissions.prepareCreation(newCourse));
+    }
+
+    @Test
+    void actualCourseCreationNeedsNeitherAuthorsNorOptionalPlansAndAllowsSameName() throws Exception {
+        login(77, "creator77");
+        CoursePermissionService permissionSpy = mock(CoursePermissionService.class);
+        CurriculumServiceImpl service = curriculum(permissionSpy);
+        CourseMapper courses = (CourseMapper) ReflectionTestUtils.getField(service, "courseMapper");
+        AtomicLong keys = new AtomicLong(100);
+        when(courses.insertCourse(any(Course.class))).thenAnswer(call -> {
+            Course course = call.getArgument(0); course.setId(keys.incrementAndGet()); return 1;
+        });
+        when(courses.selectByNameCount(any(CourseVo.class))).thenReturn(1L);
+        for (String type : Arrays.asList("1", "2", "3", "4")) {
+            CourseVo input = new CourseVo(); input.setName("source"); input.setType(type);
+            input.setCreator("clientCreator");
+            assertSame(input, service.insertCourse(input));
+            assertNotNull(input.getId());
+            assertEquals("creator77", input.getCreator());
+            assertNull(input.getAuthorIds());
+            assertEquals(!"2".equals(type), input.getCourseTeachingTheoryPlanVo() != null);
+            assertEquals(!"1".equals(type), input.getCourseTeachingPracticePlanVo() != null);
+        }
+        CourseVo input = new CourseVo(); input.setName("source"); input.setType("1");
+        input.setAuthors("existing display"); input.setAuthorIds("77");
+        service.insertCourse(input);
+        assertEquals("existing display", input.getAuthors());
+        verifyNoInteractions(permissionSpy);
+        verify(courses, never()).selectByNameCount(any(CourseVo.class));
+        verify(context.getBean(DoinnerUserService.class), never()).getUserById(anyLong());
+        input.setId(1L);
+        assertStatus(400, () -> service.insertCourse(input));
+        verify(courses, never()).updateCourse(any(Course.class));
+    }
+
+    @Test
+    void actualSourceCourseUpdatesAllowMissingOptionalPlansButStillCheckAuthorsAndOwnership() throws Exception {
+        CurriculumServiceImpl service = curriculum(permissions);
+        CourseMapper courses = (CourseMapper) ReflectionTestUtils.getField(service, "courseMapper");
+        CourseVo input = new CourseVo(); input.setId(1L); input.setName("other");
+        when(courses.selectCourseById(1L)).thenReturn(input);
+        when(courses.selectByNameCount(any(CourseVo.class))).thenReturn(1L);
+        service.updateCourse(input);
+        service.saveCourse(input);
+        verify(courses, times(2)).updateCourse(input);
+        verify(courses, never()).selectByNameCount(any(CourseVo.class));
+        login(77, "stranger");
+        assertStatus(403, () -> service.updateCourse(input));
+        assertStatus(403, () -> service.saveCourse(input));
+        login(11, "writer");
+        jdbc.execute("CREATE TABLE t_csys_course_teaching_theory_plan(id BIGINT PRIMARY KEY,course_id BIGINT,sysflag INT DEFAULT 0)");
+        jdbc.update("INSERT INTO t_csys_course_teaching_theory_plan VALUES(100,2,0)");
+        CourseTeachingTheoryPlanVo theory = new CourseTeachingTheoryPlanVo(); theory.setId(100L);
+        input.setCourseTeachingTheoryPlanVo(theory);
+        assertStatus(400, () -> service.updateCourse(input));
+        input.setCourseTeachingTheoryPlanVo(null);
+        input.setCourseChapterVoList(Collections.singletonList(null));
+        assertStatus(400, () -> service.updateCourse(input));
+    }
+
+    @Test
+    void actualExcelAndBatchImportsAllowSameNamesWithoutPermissionChecks() throws Exception {
+        login(77, "importer");
+        CoursePermissionService permissionSpy = mock(CoursePermissionService.class);
+        CurriculumServiceImpl service = curriculum(permissionSpy);
+        CourseMapper courses = (CourseMapper) ReflectionTestUtils.getField(service, "courseMapper");
+        DoinnerDeptService departments = (DoinnerDeptService) ReflectionTestUtils.getField(service, "doinnerDeptService");
+        DoinnerDictDataService dictionaries = (DoinnerDictDataService) ReflectionTestUtils.getField(service, "doinnerDictDataService");
+        when(departments.list(any())).thenReturn(DataSet.success(Collections.emptyList()));
+        when(dictionaries.dictType(anyString())).thenReturn(DataSet.success(Collections.emptyList()));
+        when(courses.selectByNameCount(any(CourseVo.class))).thenReturn(1L);
+        CourseExcelVo course = new CourseExcelVo(); course.setName("source");
+        assertEquals(200, service.importCourse(excel(CourseExcelVo.class, course), null, null, null, "1", 1, "2026", null, null).getCode());
+        TrainingExcelVo training = new TrainingExcelVo(); training.setName("source");
+        assertEquals(200, service.importTraining(excel(TrainingExcelVo.class, training), null, "2", 1, "2026").getCode());
+        PracticeExcelVo practice = new PracticeExcelVo(); practice.setName("source");
+        assertEquals(200, service.importPractice(excel(PracticeExcelVo.class, practice), null, "4", 1, "2026", null, null).getCode());
+        Course imported = new Course(); imported.setName("source"); imported.setCode("unique-code"); imported.setType("1");
+        assertEquals(1, service.insertCourse(Collections.singletonList(imported)));
+        verify(courses, times(6)).insertCourse(any(Course.class));
+        verify(courses).insertCourses(Collections.singletonList(imported));
+        verify(courses, never()).selectByNameCount(any(CourseVo.class));
+        verifyNoInteractions(permissionSpy);
+        when(courses.selectCodeByCodes(Collections.singletonList("unique-code"))).thenReturn(Collections.singletonList("unique-code"));
+        assertThrows(com.doinner.common.core.exception.DataFormatException.class,
+                () -> service.insertCourse(Collections.singletonList(imported)));
+    }
+
+    private CurriculumServiceImpl curriculum(CoursePermissionService permissionService) {
+        CurriculumServiceImpl target = new CurriculumServiceImpl();
+        for (java.lang.reflect.Field field : CurriculumServiceImpl.class.getDeclaredFields()) {
+            if (field.getType().isInterface()) ReflectionTestUtils.setField(target, field.getName(), mock(field.getType()));
+        }
+        ReflectionTestUtils.setField(target, "coursePermissions", permissionService);
+        AspectJProxyFactory factory = new AspectJProxyFactory(target);
+        factory.setProxyTargetClass(true); factory.addAspect(context.getBean(CoursePermissionAspect.class));
+        return factory.getProxy();
+    }
+
+    private <T> MockMultipartFile excel(Class<T> type, T row) {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        new ExcelUtil<>(type).exportExcel(response, Arrays.asList(row, row), "courses");
+        return new MockMultipartFile("file", "courses.xlsx", "application/octet-stream", response.getContentAsByteArray());
     }
 
     @Test

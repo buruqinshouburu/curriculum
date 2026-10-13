@@ -20,6 +20,7 @@ import com.doinner.csys.utils.GenerateCourseCodeUtils;
 import com.doinner.csys.utils.TreeBuilderUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionException;
 import com.doinner.csys.permission.CoursePermissionService;
 import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.kg.domain.Dictionary;
@@ -577,11 +578,16 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Override
     @Transactional(rollbackFor = {Exception.class})
     public CourseVo insertCourse(CourseVo course) {
-        coursePermissions.prepareCreation(course);
-        coursePermissions.validateCourseContent(course);
-        if (!checkCourseRepetition(course)) {
-            throw new RuntimeException(course.getName() + "存在重名，建议后缀加A/B/数字区分，如"+course.getName() +"A");
-        }
+        // 新增不做执笔人或关联数据校验；已有课程必须使用修改入口。
+        if (course.getId() != null)
+            throw new CoursePermissionException(400, "新增课程不能携带已有课程ID，请使用修改接口");
+        course.setCreator(null);
+        course.setCreateTime(null);
+        course.setSysflag(0);
+        // 按当前业务要求停用课程名称查重。
+        // if (!checkCourseRepetition(course)) {
+        //     throw new RuntimeException(course.getName() + "存在重名，建议后缀加A/B/数字区分，如"+course.getName() +"A");
+        // }
         UserUtils.reflash(course);
         if (course.getId() != null) {
             courseMapper.updateCourse(course);
@@ -632,7 +638,6 @@ public class CurriculumServiceImpl implements CurriculumService {
      * 新增时新增关联表信息
      */
     public void insertRelevance(CourseVo course) {
-        coursePermissions.validateCourseContent(course);
         // todo 注意这个方法是课程信息保存的公用方法
         //理论教学计划
         if (course.getCourseTeachingTheoryPlanVo() != null && course.getCourseTeachingTheoryPlanVo().getId() != null) {
@@ -1130,9 +1135,10 @@ public class CurriculumServiceImpl implements CurriculumService {
 //        if (course.getCollegeId() != null){
 //            checkCourseRepetition(course);
 //        }
-        if (!checkCourseRepetition(course)) {
-            throw new RuntimeException(course.getName() + "存在重名，请更换一个名称！");
-        }
+        // 按当前业务要求停用课程名称查重。
+        // if (!checkCourseRepetition(course)) {
+        //     throw new RuntimeException(course.getName() + "存在重名，请更换一个名称！");
+        // }
         ;
         CourseVo dbCourse = courseMapper.selectCourseById(course.getId());
 
@@ -2183,7 +2189,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                     courseVo.setCredit(new BigDecimal(totalHour/16).setScale(2, RoundingMode.HALF_UP).doubleValue());
                     courseVo.setCode(getCourseCode_new(courseVo));
                     courseVo.setSubMajorId(subMajorId);
-                    checkCourseRepetition(courseVo);
+                    // checkCourseRepetition(courseVo);
                     courseMapper.insertCourse(courseVo);
                     CourseSchedule schedule = new CourseSchedule();
                     BeanUtils.copyProperties(courseVo, schedule);
@@ -2299,7 +2305,7 @@ public class CurriculumServiceImpl implements CurriculumService {
             //Map<String, String> semesterMap = getDictDataLabelToValueMap("cur_semester_arrange");
             //Map<String, String> springAutumnMap = getDictDataLabelToValueMap("cur_semester_arrange_season");
             if (CollectionUtils.isNotEmpty(excelVos)) {
-                StringBuilder courseNameBuilder = new StringBuilder();
+                // StringBuilder courseNameBuilder = new StringBuilder();
                 for (TrainingExcelVo excelVo : excelVos) {
                     CourseVo courseVo = new CourseVo();
                     courseVo.setVersion(version);
@@ -2313,10 +2319,10 @@ public class CurriculumServiceImpl implements CurriculumService {
                     courseVo.setCredit(excelVo.getTimeWeek());
                     UserUtils.reflash(courseVo);
                     //checkCourseRepetition(courseVo);
-                    if (!checkCourseRepetition(courseVo)) {
-                        courseNameBuilder.append(courseVo.getName()).append(",");
-                        continue;
-                    }
+                    // if (!checkCourseRepetition(courseVo)) {
+                    //     courseNameBuilder.append(courseVo.getName()).append(",");
+                    //     continue;
+                    // }
                     courseVo.setLocation(excelVo.getSubjectModule());
                     courseMapper.insertCourse(courseVo);
                     CourseSchedule schedule = new CourseSchedule();
@@ -2324,9 +2330,9 @@ public class CurriculumServiceImpl implements CurriculumService {
                     schedule.setCourseId(courseVo.getId());
                     courseScheduleMapper.insert(schedule);
                 }
-                if (ObjectUtils.isNotEmpty(courseNameBuilder)) {
-                    throw new RuntimeException(courseNameBuilder.deleteCharAt(courseNameBuilder.length() - 1) + "存在重名，请更换一个名称！");
-                }
+                // if (ObjectUtils.isNotEmpty(courseNameBuilder)) {
+                //     throw new RuntimeException(courseNameBuilder.deleteCharAt(courseNameBuilder.length() - 1) + "存在重名，请更换一个名称！");
+                // }
             }
         } catch (IOException e) {
             throw new RuntimeException("导入训练课程数据异常：" + e.getMessage());
@@ -2382,7 +2388,7 @@ public class CurriculumServiceImpl implements CurriculumService {
             //Map<String, String> semesterMap = getDictDataLabelToValueMap("cur_semester_arrange");
             //Map<String, String> springAutumnMap = getDictDataLabelToValueMap("cur_semester_arrange_season");
             if (CollectionUtils.isNotEmpty(excelVos)) {
-                StringBuilder courseNameBuilder = new StringBuilder();
+                // StringBuilder courseNameBuilder = new StringBuilder();
                 for (PracticeExcelVo excelVo : excelVos) {
                     CourseVo courseVo = new CourseVo();
                     courseVo.setVersion(version);
@@ -2398,18 +2404,18 @@ public class CurriculumServiceImpl implements CurriculumService {
                     // 处理 多个字典合成一列的
                     //dealSemesterScheduleAndSpringAutumnName(excelVo.getSemesterScheduleAndSpringAutumnName(), courseVo, semesterMap, springAutumnMap);
                     UserUtils.reflash(courseVo);
-                    if (!checkCourseRepetition(courseVo)) {
-                        courseNameBuilder.append(courseVo.getName()).append(",");
-                    }
+                    // if (!checkCourseRepetition(courseVo)) {
+                    //     courseNameBuilder.append(courseVo.getName()).append(",");
+                    // }
                     courseMapper.insertCourse(courseVo);
                     CourseSchedule schedule = new CourseSchedule();
                     BeanUtils.copyProperties(courseVo, schedule);
                     schedule.setCourseId(courseVo.getId());
                     courseScheduleMapper.insert(schedule);
                 }
-                if (ObjectUtils.isNotEmpty(courseNameBuilder)) {
-                    throw new RuntimeException(courseNameBuilder.deleteCharAt(courseNameBuilder.length() - 1) + " 存在重名，请更换一个名称！");
-                }
+                // if (ObjectUtils.isNotEmpty(courseNameBuilder)) {
+                //     throw new RuntimeException(courseNameBuilder.deleteCharAt(courseNameBuilder.length() - 1) + " 存在重名，请更换一个名称！");
+                // }
             }
         } catch (IOException e) {
             throw new RuntimeException("导入实践项目数据异常：" + e.getMessage());
