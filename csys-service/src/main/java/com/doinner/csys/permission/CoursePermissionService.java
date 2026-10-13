@@ -20,7 +20,7 @@ import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Course permissions use only persisted author_ids; creators/admins only manage the list. */
+/** Authors edit their courses; the authenticated cur role can operate all courses. */
 @Service
 public class CoursePermissionService {
     private final JdbcTemplate jdbc;
@@ -33,6 +33,7 @@ public class CoursePermissionService {
 
     public void check(CourseResource resource, Object ids, Object request, boolean lock) {
         Long userId = userId();
+        boolean courseAdministrator = hasCurRole();
         List<Long> resources = ids(ids);
         SortedSet<Long> roots = new TreeSet<>();
         for (Long id : resources) {
@@ -40,7 +41,7 @@ public class CoursePermissionService {
         }
         for (Long id : roots) {
             Course course = readCourse(id, lock);
-            if (!hasAuthor(course.getAuthorIds(), userId))
+            if (!courseAdministrator && !hasAuthor(course.getAuthorIds(), userId))
                 throw new CoursePermissionException(403, "您不是该课程执笔人，无权操作课程相关数据");
         }
         if (lock) for (Long id : resources) row(resource, id, true);
@@ -80,7 +81,7 @@ public class CoursePermissionService {
         result.setPermissionCourseId(course.getId());
         result.setAuthors(course.getAuthors());
         result.setAuthorIds(course.getAuthorIds());
-        result.setCanOperate(!courseId.equals(course.getId()) || hasAuthor(course.getAuthorIds(), userId));
+        result.setCanOperate(!courseId.equals(course.getId()) || hasCurRole() || hasAuthor(course.getAuthorIds(), userId));
         result.setCanConfigureAuthors(canConfigure(course, userId));
         return result;
     }
@@ -90,7 +91,7 @@ public class CoursePermissionService {
         Long userId = userId();
         Course course = root(courseId, true);
         if (!canConfigure(course, userId))
-            throw new CoursePermissionException(403, "仅课程执笔人、创建人或系统管理员可配置执笔人");
+            throw new CoursePermissionException(403, "仅课程执笔人、创建人或课程管理员可配置执笔人");
         if (request == null || request.getAuthorIds() == null)
             throw new CoursePermissionException(400, "authorIds 必填，清空名单请传空字符串");
         String[] values = normalizeAuthors(request.getAuthorIds());
@@ -406,8 +407,14 @@ public class CoursePermissionService {
     }
 
     private boolean canConfigure(Course course, Long id) {
-        return hasAuthor(course.getAuthorIds(), id) || SecurityUtils.isAdmin(id)
+        return hasCurRole() || hasAuthor(course.getAuthorIds(), id) || SecurityUtils.isAdmin(id)
                 || (username() != null && username().equals(course.getCreator()));
+    }
+
+    /** Role keys come from the existing authenticated login context, never request fields. */
+    private static boolean hasCurRole() {
+        LoginUser user = SecurityUtils.getLoginUser();
+        return user != null && user.getRoles() != null && user.getRoles().contains("cur");
     }
 
     public static boolean hasAuthor(String authorIds, Long userId) {

@@ -20,6 +20,7 @@ import com.doinner.common.core.utils.poi.ExcelUtil;
 import com.doinner.system.service.DoinnerDeptService;
 import com.doinner.system.service.DoinnerDictDataService;
 import com.doinner.system.domain.entity.SysUser;
+import com.doinner.system.domain.view.LoginUser;
 import com.doinner.system.service.DoinnerUserService;
 import org.junit.jupiter.api.*;
 import org.springframework.context.annotation.*;
@@ -129,6 +130,71 @@ class CoursePermissionIntegrationTest {
         login(11, "writer");
         writer.editCourse(1L);
         assertEquals("modified", name(1));
+    }
+
+    @Test
+    void curRoleCanEditAllCoursesKnowledgePlansAndConfigureAuthors() throws Exception {
+        loginRoles(77, "courseAdministrator", "ordinary", "cur");
+        assertTrue(permissions.getPermission(1L).isCanOperate());
+        assertTrue(permissions.getPermission(4L).isCanOperate());
+        assertTrue(permissions.getPermission(1L).isCanConfigureAuthors());
+        permissions.requireCourseWrite(1L);
+        writer.editCourse(1L);
+        writer.editCourse(2L);
+        writer.editCourse(4L);
+        assertEquals("modified", name(2));
+        TeachingPlanContent content = new TeachingPlanContent(); content.setId(2002L); content.setContent("cur changed");
+        writer.updateContent(content);
+        assertEquals("cur changed", jdbc.queryForObject("SELECT content FROM t_csys_teaching_plan_content WHERE id=2002", String.class));
+        CourseKnowledgeVo knowledge = new CourseKnowledgeVo(); knowledge.setCourseId(1L); knowledge.setUnitList(Collections.emptyList());
+        context.getBean(IKnowledgeUnitService.class).saveBatch(knowledge);
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM t_csys_course_ref_knowledge_unit", Integer.class));
+        CurriculumController controller = new CurriculumController();
+        ReflectionTestUtils.setField(controller, "coursePermissions", permissions);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(new CoursePermissionExceptionHandler()).build();
+        mvc.perform(get("/curriculum/course/1/permission"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.canOperate").value(true))
+                .andExpect(jsonPath("$.data.canConfigureAuthors").value(true));
+        mvc.perform(put("/curriculum/course/1/authors").contentType("application/json").content("{\"authorIds\":\"\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.canOperate").value(true));
+        assertEquals("", jdbc.queryForObject("SELECT author_ids FROM t_csys_course WHERE id=1", String.class));
+        writer.deleteCourses(Arrays.asList(2L, 4L));
+        assertEquals(2, jdbc.queryForObject("SELECT sysflag FROM t_csys_course WHERE id=2", Integer.class));
+        // Removing the role restores normal author checks even for the same account.
+        loginRoles(77, "courseAdministrator", "ordinary");
+        assertFalse(permissions.getPermission(1L).isCanOperate());
+        assertStatus(403, () -> writer.editCourse(1L));
+    }
+
+    @Test
+    void onlyExactAuthenticatedCurRoleGrantsCourseAccess() {
+        login(77, "cur");
+        assertStatus(403, () -> writer.editCourse(1L));
+        loginRoles(77, "ordinary", "curator", "CUR");
+        assertStatus(403, () -> writer.editCourse(1L));
+        LoginUser loginUser = com.doinner.common.security.utils.SecurityUtils.getLoginUser();
+        loginUser.setPermissions(Collections.singleton("cur"));
+        assertStatus(403, () -> writer.editCourse(1L));
+        loginUser.setRoles(null);
+        assertStatus(403, () -> writer.editCourse(1L));
+        SecurityContextHolder.remove();
+        LoginUser unauthenticated = new LoginUser(); unauthenticated.setRoles(Collections.singleton("cur"));
+        SecurityContextHolder.set("login_user", unauthenticated);
+        assertStatus(401, () -> writer.editCourse(1L));
+    }
+
+    @Test
+    void curRoleKeepsPlanStatusOwnershipAndTransactionRules() {
+        loginRoles(77, "courseAdministrator", "cur");
+        TeachingPlanContent content = new TeachingPlanContent(); content.setId(3003L);
+        assertStatus(409, () -> writer.updateContent(content));
+        content.setId(2002L); content.setPlanId(101L);
+        assertStatus(400, () -> writer.updateContent(content));
+        assertEquals("other", jdbc.queryForObject("SELECT content FROM t_csys_teaching_plan_content WHERE id=2002", String.class));
+        assertStatus(400, () -> writer.replaceKnowledge(3L));
+        assertStatus(404, () -> writer.editCourse(999L));
+        assertThrows(IllegalStateException.class, () -> writer.writeThenFail(1L));
+        assertEquals("source", name(1));
     }
 
     @Test
@@ -433,7 +499,16 @@ class CoursePermissionIntegrationTest {
     }
 
     private String name(long id) { return jdbc.queryForObject("SELECT name FROM t_csys_course WHERE id=?", String.class, id); }
-    private static void login(long id, String name) { SecurityContextHolder.setUserId(String.valueOf(id)); SecurityContextHolder.setUserName(name); }
+    private static void login(long id, String name) {
+        SecurityContextHolder.remove();
+        SecurityContextHolder.setUserId(String.valueOf(id)); SecurityContextHolder.setUserName(name);
+    }
+    private static void loginRoles(long id, String name, String... roles) {
+        login(id, name);
+        LoginUser user = new LoginUser(); user.setUserid(id); user.setUsername(name);
+        user.setRoles(new HashSet<>(Arrays.asList(roles)));
+        SecurityContextHolder.set("login_user", user);
+    }
     private static void assertStatus(int status, Runnable call) { assertEquals(status, assertThrows(CoursePermissionException.class, call::run).getStatus()); }
 
     public interface Writer {
