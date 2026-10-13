@@ -63,6 +63,15 @@ public class CoursePermissionService {
         check(CourseResource.COURSE, courseId, null, true);
     }
 
+    /** Filter by the persisted row, never by a client-provided sourceId. */
+    public List<Long> sourceCourseIds(Object values) {
+        List<Long> sourceIds = new ArrayList<>();
+        for (Long id : ids(values)) {
+            if (readCourse(id, false).getSourceId() == null) sourceIds.add(id);
+        }
+        return sourceIds;
+    }
+
     public CoursePermissionVo getPermission(Long courseId) {
         Long userId = userId();
         Course course = root(courseId, false);
@@ -71,7 +80,7 @@ public class CoursePermissionService {
         result.setPermissionCourseId(course.getId());
         result.setAuthors(course.getAuthors());
         result.setAuthorIds(course.getAuthorIds());
-        result.setCanOperate(hasAuthor(course.getAuthorIds(), userId));
+        result.setCanOperate(!courseId.equals(course.getId()) || hasAuthor(course.getAuthorIds(), userId));
         result.setCanConfigureAuthors(canConfigure(course, userId));
         return result;
     }
@@ -110,16 +119,18 @@ public class CoursePermissionService {
 
     public void preserveCourseOwners(Course course) {
         Course stored = readCourse(course.getId(), true);
-        if (course.getAuthorIds() != null && !sameIds(course.getAuthorIds(), stored.getAuthorIds()))
+        if (stored.getSourceId() == null && course.getAuthorIds() != null && !sameIds(course.getAuthorIds(), stored.getAuthorIds()))
             throw new CoursePermissionException(400, "请通过执笔人配置接口修改执笔人");
-        if (course.getAuthors() != null && !Objects.equals(course.getAuthors(), stored.getAuthors()))
+        if (stored.getSourceId() == null && course.getAuthors() != null && !Objects.equals(course.getAuthors(), stored.getAuthors()))
             throw new CoursePermissionException(400, "请通过执笔人配置接口修改执笔人");
         if (course.getSourceId() != null && !Objects.equals(course.getSourceId(), stored.getSourceId()))
             throw new CoursePermissionException(400, "不能修改课程来源");
         if (course.getCreator() != null && !Objects.equals(course.getCreator(), stored.getCreator()))
             throw new CoursePermissionException(400, "不能修改课程创建人");
-        course.setAuthors(stored.getAuthors());
-        course.setAuthorIds(stored.getAuthorIds());
+        if (stored.getSourceId() == null) {
+            course.setAuthors(stored.getAuthors());
+            course.setAuthorIds(stored.getAuthorIds());
+        }
         course.setCreator(stored.getCreator());
         course.setCreateTime(stored.getCreateTime());
         course.setSourceId(stored.getSourceId());
@@ -165,7 +176,6 @@ public class CoursePermissionService {
 
     /** Copying only changes target-course relationships; no source content-edit privilege required. */
     public void lockKnowledgeSources(List<Long> courseIds) {
-        userId();
         SortedSet<Long> roots = new TreeSet<>();
         for (Long id : ids(courseIds)) roots.add(root(id, false).getId());
         roots.forEach(id -> readCourse(id, true));
@@ -183,6 +193,7 @@ public class CoursePermissionService {
     public void validateCourseContent(CourseVo request) {
         if (request == null) throw new CoursePermissionException(400, "课程不能为空");
         Long id = request.getId();
+        if (id != null && readCourse(id, false).getSourceId() != null) return;
         childCourse(CourseResource.THEORY_PLAN, request.getCourseTeachingTheoryPlanVo(), id);
         childCourse(CourseResource.PRACTICE_PLAN, request.getCourseTeachingPracticePlanVo(), id);
         if (request.getCourseChapterVoList() != null)

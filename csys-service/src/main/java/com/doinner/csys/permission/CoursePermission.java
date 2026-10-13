@@ -13,4 +13,6 @@ public @interface CoursePermission {
     boolean upsert() default false;
     /** File generation does its final locked check immediately before binding the file. */
     boolean transactional() default true;
+    /** Shared course CRUD: only source rows are covered; invoked rows keep scheme rules. */
+    boolean sourceCoursesOnly() default false;
 }

@@ -208,7 +208,6 @@ public class CurriculumController {
      */
     @PostMapping("/course/upload")
     public Message upload(@RequestParam("file") MultipartFile file, @RequestParam("id") Long id) {
-        coursePermissions.requireCourseWrite(id);
         //文件目录后续需要写成配置
         DataSet<FileInfo> upload = remoteFileInfoService.upload(file, DomainFieldConstants.COURSE_CATEGORY_ID);
         courseService.updateFileById(upload.getData().getFileId(), upload.getData().getFileName(), id);

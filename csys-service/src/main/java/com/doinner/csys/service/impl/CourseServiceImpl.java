@@ -21,7 +21,6 @@ import com.doinner.csys.service.TrainingService;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.csys.permission.CoursePermission;
 import com.doinner.csys.permission.CoursePermissionService;
-import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.kg.domain.Dictionary;
 import com.doinner.kg.service.RemoteKgService;
 import com.doinner.common.security.utils.SecurityUtils;
@@ -77,7 +76,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @CoursePermission(value = "#p0")
+    @CoursePermission(value = "#p0", sourceCoursesOnly = true)
     public void removeStorageCourse(List<Long> ids) {
         List<Course> courses = courseMapper.selectCoursesByIds(ids);
         for (Course course : courses) {
@@ -102,12 +101,8 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @CoursePermission(value = "#p0")
     public void removeInvokeCourse(List<Long> ids) {
         List<Course> courses = courseMapper.selectCoursesByIds(ids);
-        for (Course course : courses) {
-
-        }
         //记录调用课程删除日志，便于追溯调用课程被删除的问题
         recordInvokeCourseDeleteLog(courses);
         //删除关联知识单元
@@ -182,14 +177,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @CoursePermission(value = "#p0")
     public void disableCourse(Long courseId) {
         courseMapper.updateEnableFlag(courseId, CourseConstant.COURSE_ENABLE_FLAG_DISABLE);
     }
 
     @Override
     @Transactional
-    @CoursePermission(value = "#p0")
     public void startCourse(Long courseId) {
         courseMapper.updateEnableFlag(courseId,CourseConstant.COURSE_ENABLE_FLAG_START);
     }
@@ -307,7 +300,6 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @CoursePermission(value = "#p0.courseId")
     public Message boundGraduation(CourseBoundGraduationVo courseBoundGraduationVo) {
         //删除现有关联
         courseRefGraduationMapper.deleteCourseRefGraduationByCourseId(courseBoundGraduationVo.getCourseId());
@@ -412,7 +404,6 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> refreshLegacySchedule() {
-        coursePermissions.requireSystemMaintenance();
         Map<String, Object> summary = new LinkedHashMap<>();
         int refreshed = 0, skippedAlready = 0, noData = 0, rowsInserted = 0;
 
@@ -554,7 +545,6 @@ public class CourseServiceImpl implements CourseService {
         }
         List<Long> invokedCourseIds = refCourses.stream()
                 .map(TrainingSchemeRefCourse::getCourseId).collect(Collectors.toList());
-        coursePermissions.check(COURSE, invokedCourseIds, null, true);
         // selectCoursesByIds 已带 source_id
         List<Course> invokedCourses = courseMapper.selectCoursesByIds(invokedCourseIds);
 

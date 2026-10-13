@@ -14,6 +14,7 @@ import com.doinner.csys.entity.csys.po.CourseKnowledgePoint;
 import com.doinner.csys.service.IKnowledgeUnitService;
 import com.doinner.csys.service.impl.KnowledgeUnitServiceImpl;
 import com.doinner.csys.service.impl.TeachingPlanServiceImpl;
+import com.doinner.csys.service.impl.CourseServiceImpl;
 import com.doinner.system.domain.entity.SysUser;
 import com.doinner.system.service.DoinnerUserService;
 import org.junit.jupiter.api.*;
@@ -125,13 +126,39 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
-    void invokedCourseReadsRootAuthorsAndCreator() {
+    void invokedCourseOperationsDoNotRequireSourceAuthors() {
         assertTrue(permissions.getPermission(3L).isCanOperate());
         writer.editCourse(3L);
         login(22, "copier");
-        assertFalse(permissions.getPermission(3L).isCanOperate());
+        assertTrue(permissions.getPermission(3L).isCanOperate());
         assertFalse(permissions.getPermission(3L).isCanConfigureAuthors());
-        assertStatus(403, () -> writer.editCourse(3L));
+        writer.editCourse(3L);
+        assertStatus(403, () -> writer.editCourse(1L));
+        assertStatus(403, () -> writer.deleteCourses(Arrays.asList(3L, 1L)));
+        assertEquals(0, jdbc.queryForObject("SELECT sysflag FROM t_csys_course WHERE id=3", Integer.class));
+        writer.deleteCourses(Collections.singletonList(3L));
+        assertEquals(2, jdbc.queryForObject("SELECT sysflag FROM t_csys_course WHERE id=3", Integer.class));
+    }
+
+    @Test
+    void schemeBindingAndActualInvokedDeletionAreOutsideAuthorControl() throws Exception {
+        login(77, "schemeEditor");
+        CourseServiceImpl target = new CourseServiceImpl();
+        for (java.lang.reflect.Field field : CourseServiceImpl.class.getDeclaredFields()) {
+            if (field.getType().isInterface()) ReflectionTestUtils.setField(target, field.getName(), mock(field.getType()));
+        }
+        CourseMapper courses = (CourseMapper) ReflectionTestUtils.getField(target, "courseMapper");
+        ReflectionTestUtils.setField(target, "coursePermissions", permissions);
+        Course invoked = new Course(); invoked.setId(3L); invoked.setSourceId(1L);
+        when(courses.selectCoursesByIds(Collections.singletonList(3L))).thenReturn(Collections.singletonList(invoked));
+        AspectJProxyFactory factory = new AspectJProxyFactory(target);
+        factory.setProxyTargetClass(true); factory.addAspect(context.getBean(CoursePermissionAspect.class));
+        CourseServiceImpl service = factory.getProxy();
+        CourseBoundGraduationVo binding = new CourseBoundGraduationVo(); binding.setCourseId(3L); binding.setGraduationIds(Collections.emptyList());
+        assertEquals(200, service.boundGraduation(binding).getCode());
+        service.removeInvokeCourse(Collections.singletonList(3L));
+        verify(courses).removeCourseByIds(Collections.singletonList(3L));
+        assertStatus(403, () -> service.removeStorageCourse(Collections.singletonList(1L)));
     }
 
     @Test
@@ -314,9 +341,9 @@ class CoursePermissionIntegrationTest {
         private final JdbcTemplate jdbc;
         private final CoursePermissionService permissions;
         WriterImpl(JdbcTemplate jdbc, CoursePermissionService permissions) { this.jdbc = jdbc; this.permissions = permissions; }
-        @CoursePermission(value = "#p0")
+        @CoursePermission(value = "#p0", sourceCoursesOnly = true)
         public void editCourse(Long id) { jdbc.update("UPDATE t_csys_course SET name='modified' WHERE id=?", id); }
-        @CoursePermission(value = "#p0")
+        @CoursePermission(value = "#p0", sourceCoursesOnly = true)
         public void deleteCourses(List<Long> ids) { ids.forEach(id -> jdbc.update("UPDATE t_csys_course SET sysflag=2 WHERE id=?", id)); }
         @CoursePermission(value = "#p0")
         public void writeThenFail(Long id) { editCourse(id); throw new IllegalStateException("rollback"); }

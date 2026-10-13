@@ -45,19 +45,25 @@ public class CoursePermissionAspect {
             resource = resource == CourseResource.PLAN ? CourseResource.COURSE : CourseResource.PLAN;
             request = null;
         }
+        if (annotation.sourceCoursesOnly()) {
+            if (resource != CourseResource.COURSE) throw new IllegalStateException("sourceCoursesOnly只用于课程主表");
+            ids = permissions.sourceCourseIds(ids);
+            if (((java.util.List<?>) ids).isEmpty()) return point.proceed();
+        }
         final CourseResource checkedResource = resource;
         final Object checkedRequest = request;
+        final Object checkedIds = ids;
         final Object input = point.getArgs().length == 0 ? null : point.getArgs()[0];
         if (!annotation.transactional()) {
-            permissions.check(checkedResource, ids, checkedRequest, false);
+            permissions.check(checkedResource, checkedIds, checkedRequest, false);
             return point.proceed();
         }
         // Start the transaction BEFORE permission reads/locks, including self-invoking batch writers.
         try {
             return transaction.execute(status -> {
-                permissions.check(checkedResource, ids, checkedRequest, true);
+                permissions.check(checkedResource, checkedIds, checkedRequest, true);
                 if (checkedResource != CourseResource.COURSE)
-                    permissions.validatePlanScope(checkedResource, ids, input);
+                    permissions.validatePlanScope(checkedResource, checkedIds, input);
                 try {
                     return point.proceed();
                 } catch (RuntimeException | Error exception) {
