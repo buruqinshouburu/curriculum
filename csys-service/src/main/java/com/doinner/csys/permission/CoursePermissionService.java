@@ -20,7 +20,7 @@ import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Authors edit their courses; the authenticated cur role can operate all courses. */
+/** Authors edit their courses; creators edit unassigned courses; cur can operate all courses. */
 @Service
 public class CoursePermissionService {
     private final JdbcTemplate jdbc;
@@ -33,7 +33,6 @@ public class CoursePermissionService {
 
     public void check(CourseResource resource, Object ids, Object request, boolean lock) {
         Long userId = userId();
-        boolean courseAdministrator = hasCurRole();
         List<Long> resources = ids(ids);
         SortedSet<Long> roots = new TreeSet<>();
         for (Long id : resources) {
@@ -41,7 +40,7 @@ public class CoursePermissionService {
         }
         for (Long id : roots) {
             Course course = readCourse(id, lock);
-            if (!courseAdministrator && !hasAuthor(course.getAuthorIds(), userId))
+            if (!canOperateCourse(course, userId))
                 throw new CoursePermissionException(403, "您不是该课程执笔人，无权操作课程相关数据");
         }
         if (lock) for (Long id : resources) row(resource, id, true);
@@ -81,7 +80,7 @@ public class CoursePermissionService {
         result.setPermissionCourseId(course.getId());
         result.setAuthors(course.getAuthors());
         result.setAuthorIds(course.getAuthorIds());
-        result.setCanOperate(!courseId.equals(course.getId()) || hasCurRole() || hasAuthor(course.getAuthorIds(), userId));
+        result.setCanOperate(!courseId.equals(course.getId()) || canOperateCourse(course, userId));
         result.setCanConfigureAuthors(canConfigure(course, userId));
         return result;
     }
@@ -408,7 +407,17 @@ public class CoursePermissionService {
 
     private boolean canConfigure(Course course, Long id) {
         return hasCurRole() || hasAuthor(course.getAuthorIds(), id) || SecurityUtils.isAdmin(id)
-                || (username() != null && username().equals(course.getCreator()));
+                || isCreator(course);
+    }
+
+    private boolean canOperateCourse(Course course, Long id) {
+        boolean noAuthors = course.getAuthorIds() == null || course.getAuthorIds().trim().isEmpty();
+        return hasCurRole() || hasAuthor(course.getAuthorIds(), id) || (noAuthors && isCreator(course));
+    }
+
+    private static boolean isCreator(Course course) {
+        String name = username();
+        return name != null && !name.trim().isEmpty() && name.equals(course.getCreator());
     }
 
     /** Role keys come from the existing authenticated login context, never request fields. */

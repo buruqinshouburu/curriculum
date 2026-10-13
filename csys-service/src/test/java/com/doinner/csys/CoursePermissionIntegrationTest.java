@@ -198,6 +198,76 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
+    void emptyAuthorCourseIsEditableOnlyByItsCreatorOrCur() throws Exception {
+        CurriculumServiceImpl service = curriculum(permissions);
+        CourseMapper courses = (CourseMapper) ReflectionTestUtils.getField(service, "courseMapper");
+        CourseVo input = new CourseVo(); input.setId(4L); input.setName("edited empty course");
+        when(courses.selectCourseById(4L)).thenReturn(input);
+        login(5, "creator");
+        for (String authors : Arrays.asList(null, "", "  ")) {
+            jdbc.update("UPDATE t_csys_course SET author_ids=? WHERE id=4", authors);
+            assertTrue(permissions.getPermission(4L).isCanOperate());
+            writer.editCourse(4L);
+            service.updateCourse(input);
+            service.saveCourse(input);
+        }
+        verify(courses, times(6)).updateCourse(input);
+        jdbc.update("INSERT INTO t_csys_teaching_plan(id,source_course_id,status) VALUES(404,4,0)");
+        jdbc.update("INSERT INTO t_csys_teaching_plan_content VALUES(4004,404,'new','creator',0)");
+        TeachingPlanContent content = new TeachingPlanContent(); content.setId(4004L); content.setContent("creator edited");
+        writer.updateContent(content);
+        assertEquals("creator edited", jdbc.queryForObject("SELECT content FROM t_csys_teaching_plan_content WHERE id=4004", String.class));
+        CourseKnowledgeVo knowledge = new CourseKnowledgeVo(); knowledge.setCourseId(4L); knowledge.setUnitList(Collections.emptyList());
+        context.getBean(IKnowledgeUnitService.class).saveBatch(knowledge);
+        CurriculumController controller = new CurriculumController();
+        ReflectionTestUtils.setField(controller, "coursePermissions", permissions);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(new CoursePermissionExceptionHandler()).build();
+        mvc.perform(get("/curriculum/course/4/permission"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.canOperate").value(true));
+        login(77, "stranger");
+        assertFalse(permissions.getPermission(4L).isCanOperate());
+        assertStatus(403, () -> service.updateCourse(input));
+        assertStatus(403, () -> writer.updateContent(content));
+        assertStatus(403, () -> context.getBean(IKnowledgeUnitService.class).saveBatch(knowledge));
+        login(1, "admin");
+        assertStatus(403, () -> writer.editCourse(4L));
+        loginRoles(77, "courseAdministrator", "cur");
+        writer.editCourse(4L);
+    }
+
+    @Test
+    void assigningAuthorsRemovesCreatorFallbackAndClearingRestoresIt() {
+        login(5, "creator");
+        assertTrue(permissions.getPermission(4L).isCanOperate());
+        CourseAuthorsSaveVo input = new CourseAuthorsSaveVo(); input.setAuthorIds("22");
+        assertFalse(permissions.saveAuthors(4L, input).isCanOperate());
+        assertStatus(403, () -> writer.editCourse(4L));
+        login(22, "writer22"); writer.editCourse(4L);
+        login(5, "creator"); input.setAuthorIds("");
+        assertTrue(permissions.saveAuthors(4L, input).isCanOperate());
+        writer.editCourse(4L);
+        login(22, "writer22");
+        assertStatus(403, () -> writer.editCourse(4L));
+    }
+
+    @Test
+    void missingCreatorOrInvalidAuthorIdsDoNotGrantCreatorFallback() {
+        login(5, "creator");
+        jdbc.update("UPDATE t_csys_course SET creator=NULL WHERE id=4");
+        assertStatus(403, () -> writer.editCourse(4L));
+        jdbc.update("UPDATE t_csys_course SET creator='' WHERE id=4");
+        login(5, "");
+        assertStatus(403, () -> writer.editCourse(4L));
+        login(5, "creator");
+        jdbc.update("UPDATE t_csys_course SET creator='creator',author_ids='invalid' WHERE id=4");
+        assertStatus(403, () -> writer.editCourse(4L));
+        jdbc.update("UPDATE t_csys_course SET author_ids=NULL WHERE id=4");
+        login(77, "stranger");
+        CourseVo forged = new CourseVo(); forged.setId(4L); forged.setCreator("creator");
+        assertStatus(403, () -> curriculum(permissions).updateCourse(forged));
+    }
+
+    @Test
     void invokedCourseOperationsDoNotRequireSourceAuthors() {
         assertTrue(permissions.getPermission(3L).isCanOperate());
         writer.editCourse(3L);
@@ -234,7 +304,7 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
-    void creatorsConfigureValidatedNamesAndCanClearAgainWithoutEditingContent() {
+    void creatorsConfigureValidatedNamesAndEditOnlyWhenAuthorsAreEmpty() {
         login(5, "creator");
         CourseAuthorsSaveVo input = new CourseAuthorsSaveVo(); input.setAuthorIds("22, 22,11");
         CoursePermissionVo result = permissions.saveAuthors(1L, input);
@@ -242,8 +312,10 @@ class CoursePermissionIntegrationTest {
         assertEquals("name22,name11", result.getAuthors());
         assertEquals("22,11", jdbc.queryForObject("SELECT author_ids FROM t_csys_course WHERE id=3", String.class));
         assertFalse(result.isCanOperate());
-        input.setAuthorIds(""); permissions.saveAuthors(1L, input);
-        assertStatus(403, () -> writer.editCourse(1L));
+        input.setAuthorIds(""); assertTrue(permissions.saveAuthors(1L, input).isCanOperate());
+        writer.editCourse(1L);
+        login(11, "writer"); assertStatus(403, () -> writer.editCourse(1L));
+        login(5, "creator");
         input.setAuthorIds("11"); permissions.saveAuthors(1L, input);
         input.setAuthorIds(null); assertStatus(400, () -> permissions.saveAuthors(1L, input));
         input.setAuthorIds("11,,22"); assertStatus(400, () -> permissions.saveAuthors(1L, input));
