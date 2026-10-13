@@ -14,6 +14,7 @@ import com.doinner.csys.service.CurriculumService;
 import com.doinner.csys.service.KnowledgeCheckLogService;
 import com.doinner.csys.service.KnowledgeSourceService;
 import com.doinner.csys.service.TrainingService;
+import com.doinner.csys.permission.CoursePermissionService;
 import com.doinner.file.api.constant.DomainFieldConstants;
 import com.doinner.file.api.domain.FileInfo;
 import com.doinner.file.api.service.RemoteFileInfoService;
@@ -49,6 +50,21 @@ import java.util.stream.Collectors;
 @RequestMapping("/curriculum")
 @Api(value = "/curriculum", tags = "curriculum-controller")
 public class CurriculumController {
+    @Resource
+    private CoursePermissionService coursePermissions;
+
+    @GetMapping("/course/{courseId}/permission")
+    @ApiOperation("查询课程执笔人及当前用户操作权限")
+    public DataSet<CoursePermissionVo> coursePermission(@PathVariable Long courseId) {
+        return DataSet.success(coursePermissions.getPermission(courseId));
+    }
+
+    @PutMapping("/course/{courseId}/authors")
+    @ApiOperation("配置课程执笔人，authorIds为空字符串表示清空")
+    public DataSet<CoursePermissionVo> saveAuthors(@PathVariable Long courseId,
+                                                  @RequestBody CourseAuthorsSaveVo request) {
+        return DataSet.success(coursePermissions.saveAuthors(courseId, request));
+    }
     @Resource
     private CurriculumService courseService;
     @Resource
@@ -192,6 +208,7 @@ public class CurriculumController {
      */
     @PostMapping("/course/upload")
     public Message upload(@RequestParam("file") MultipartFile file, @RequestParam("id") Long id) {
+        coursePermissions.requireCourseWrite(id);
         //文件目录后续需要写成配置
         DataSet<FileInfo> upload = remoteFileInfoService.upload(file, DomainFieldConstants.COURSE_CATEGORY_ID);
         courseService.updateFileById(upload.getData().getFileId(), upload.getData().getFileName(), id);

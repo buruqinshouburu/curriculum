@@ -85,6 +85,9 @@ import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.csys.utils.UserUtils;
+import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionService;
+import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.system.domain.entity.SysDictData;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -504,6 +507,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addObjective(TeachingPlanObjective objective) {
         boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
         validateObjectiveForInsert(objective, publicFoundation);
@@ -514,6 +518,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveObjectivesBatch(TeachingPlanObjectiveBatchSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -598,6 +603,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE, value = "#p0.id", request = "#p0")
     public void updateObjective(TeachingPlanObjective objective) {
         if (objective == null || objective.getId() == null) {
             throw new IllegalArgumentException("教学目标id不能为空");
@@ -635,6 +641,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE, value = "#p0")
     public void deleteObjective(Long id) {
         // 删目标时同步逻辑删除其支撑毕业要求，避免孤儿绑定
         if (id != null) {
@@ -832,6 +839,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE, value = "#p0.objective.id ?: #p0.objective.planId", request = "#p0.objective", upsert = true)
     public Long saveObjectiveWithRefs(TeachingPlanObjectiveSaveVo saveVo) {
         if (saveVo == null || saveVo.getObjective() == null) {
             throw new IllegalArgumentException("教学目标不能为空");
@@ -869,6 +877,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE, value = "#p0.objectiveId")
     public void saveObjectiveRefs(TeachingPlanObjectiveRefSaveVo saveVo) {
         if (saveVo == null || saveVo.getObjectiveId() == null) {
             throw new IllegalArgumentException("objectiveId 不能为空");
@@ -985,6 +994,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE, value = "#p0.objectiveId")
     public Long addObjectiveRef(TeachingPlanObjectiveRef ref) {
         if (ref == null || ref.getObjectiveId() == null) {
             throw new IllegalArgumentException("objectiveId 不能为空");
@@ -1014,6 +1024,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE_REF, value = "#p0.id", request = "#p0")
     public void updateObjectiveRef(TeachingPlanObjectiveRef ref) {
         UserUtils.reflash(ref);
         teachingPlanObjectiveRefMapper.updateById(ref);
@@ -1021,6 +1032,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = OBJECTIVE_REF, value = "#p0")
     public void deleteObjectiveRef(Long id) {
         teachingPlanObjectiveRefMapper.deleteById(id);
     }
@@ -1065,6 +1077,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addTaskBackground(TeachingPlanTaskBackground taskBackground) {
         boolean publicFoundation = forceNullSchemeIfPublicFoundation(taskBackground);
         if (publicFoundation) {
@@ -1078,6 +1091,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TASK_BACKGROUND, value = "#p0.id", request = "#p0")
     public void updateTaskBackground(TeachingPlanTaskBackground taskBackground) {
         if (taskBackground == null || taskBackground.getId() == null) {
             throw new IllegalArgumentException("任务背景id不能为空");
@@ -1129,6 +1143,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TASK_BACKGROUND, value = "#p0")
     public void deleteTaskBackground(Long id) {
         // 删任务背景时同步逻辑删除其绑定的毕业要求，避免孤儿绑定
         if (id != null) {
@@ -1144,6 +1159,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TASK_BACKGROUND, value = "#p0.taskBackgroundId")
     public void saveTaskBackgroundRefs(TeachingPlanTaskBackgroundRefSaveVo saveVo) {
         if (saveVo == null || saveVo.getTaskBackgroundId() == null) {
             throw new IllegalArgumentException("taskBackgroundId 不能为空");
@@ -1298,6 +1314,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveTrainingPurposesBatch(TeachingPlanTrainingPurposeBatchSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -1382,6 +1399,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addTrainingPurpose(TeachingPlanTrainingPurpose trainingPurpose) {
         boolean generalSubject = forceNullSchemeIfGeneralSubject(trainingPurpose);
         if (generalSubject) {
@@ -1395,6 +1413,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TRAINING_PURPOSE, value = "#p0.id", request = "#p0")
     public void updateTrainingPurpose(TeachingPlanTrainingPurpose trainingPurpose) {
         if (trainingPurpose == null || trainingPurpose.getId() == null) {
             throw new IllegalArgumentException("训练目的id不能为空");
@@ -1432,6 +1451,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TRAINING_PURPOSE, value = "#p0")
     public void deleteTrainingPurpose(Long id) {
         // 删训练目的时同步逻辑删除其绑定的毕业要求，避免孤儿绑定
         if (id != null) {
@@ -1447,6 +1467,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TRAINING_PURPOSE, value = "#p0.purposeId")
     public void saveTrainingPurposeRefs(TeachingPlanTrainingPurposeRefSaveVo saveVo) {
         if (saveVo == null || saveVo.getPurposeId() == null) {
             throw new IllegalArgumentException("purposeId 不能为空");
@@ -1548,6 +1569,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = CONTENT, value = "#p0.contentId")
     public void saveContentPurposes(TeachingPlanContentPurposeSaveVo saveVo) {
         if (saveVo == null || saveVo.getContentId() == null) {
             throw new IllegalArgumentException("contentId 不能为空");
@@ -2118,6 +2140,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void savePracticeProjectBackground(TeachingPlanPracticeProjectBackgroundSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -2179,6 +2202,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveSupportObjectives(TeachingPlanSupportObjectiveSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -2257,6 +2281,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveSupportContents(TeachingPlanSupportContentSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -2401,6 +2426,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveObjectiveAssessmentBatch(TeachingPlanObjectiveAssessmentSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -2433,6 +2459,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addContent(TeachingPlanContent content) {
         UserUtils.reflash(content);
         teachingPlanContentMapper.insert(content);
@@ -2441,6 +2468,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = CONTENT, value = "#p0.id", request = "#p0")
     public void updateContent(TeachingPlanContent content) {
         UserUtils.reflash(content);
         teachingPlanContentMapper.updateById(content);
@@ -2448,6 +2476,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = CONTENT, value = "#p0")
     public void deleteContent(Long id) {
         teachingPlanContentMapper.deleteById(id);
     }
@@ -2479,6 +2508,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addTargetDesign(TeachingPlanTargetDesign design) {
         prepareTargetDesignForWrite(design);
         UserUtils.reflash(design);
@@ -2488,6 +2518,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TARGET_DESIGN, value = "#p0.id", request = "#p0")
     public void updateTargetDesign(TeachingPlanTargetDesign design) {
         prepareTargetDesignForWrite(design);
         UserUtils.reflash(design);
@@ -2496,6 +2527,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TARGET_DESIGN, value = "#p0")
     public void deleteTargetDesign(Long id) {
         teachingPlanTargetDesignMapper.deleteById(id);
     }
@@ -2644,6 +2676,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addPracticeItem(TeachingPlanPracticeItem item) {
         UserUtils.reflash(item);
         teachingPlanPracticeItemMapper.insert(item);
@@ -2652,6 +2685,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PRACTICE_ITEM, value = "#p0.id", request = "#p0")
     public void updatePracticeItem(TeachingPlanPracticeItem item) {
         UserUtils.reflash(item);
         teachingPlanPracticeItemMapper.updateById(item);
@@ -2659,6 +2693,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PRACTICE_ITEM, value = "#p0")
     public void deletePracticeItem(Long id) {
         // 逻辑删除项目，同时清理其明细
         teachingPlanPracticeItemMapper.deleteById(id);
@@ -2672,6 +2707,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PRACTICE_ITEM, value = "#p0.itemId")
     public Long addPracticeItemDetail(TeachingPlanPracticeItemDetail detail) {
         teachingPlanPracticeItemDetailMapper.insert(detail);
         return detail.getId();
@@ -2679,12 +2715,14 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PRACTICE_DETAIL, value = "#p0.id", request = "#p0")
     public void updatePracticeItemDetail(TeachingPlanPracticeItemDetail detail) {
         teachingPlanPracticeItemDetailMapper.updateById(detail);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PRACTICE_DETAIL, value = "#p0")
     public void deletePracticeItemDetail(Long id) {
         teachingPlanPracticeItemDetailMapper.deleteById(id);
     }
@@ -2709,6 +2747,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addAssessment(TeachingPlanAssessment assessment) {
         validateAssessment(assessment);
         UserUtils.reflash(assessment);
@@ -2720,6 +2759,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = ASSESSMENT, value = "#p0.id", request = "#p0")
     public void updateAssessment(TeachingPlanAssessment assessment) {
         validateAssessment(assessment);
         UserUtils.reflash(assessment);
@@ -2730,6 +2770,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = ASSESSMENT, value = "#p0")
     public void deleteAssessment(Long id) {
         teachingPlanAssessmentMapper.deleteById(id);
     }
@@ -2741,6 +2782,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveAssessments(TeachingPlanAssessmentSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -2888,6 +2930,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addTextbook(TeachingPlanTextbook textbook) {
         UserUtils.reflash(textbook);
         teachingPlanTextbookMapper.insert(textbook);
@@ -2896,6 +2939,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TEXTBOOK, value = "#p0.id", request = "#p0")
     public void updateTextbook(TeachingPlanTextbook textbook) {
         UserUtils.reflash(textbook);
         teachingPlanTextbookMapper.updateById(textbook);
@@ -2903,6 +2947,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TEXTBOOK, value = "#p0")
     public void deleteTextbook(Long id) {
         teachingPlanTextbookMapper.deleteById(id);
     }
@@ -2971,6 +3016,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addCondition(TeachingPlanCondition condition) {
         UserUtils.reflash(condition);
         teachingPlanConditionMapper.insert(condition);
@@ -2979,6 +3025,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = CONDITION, value = "#p0.id", request = "#p0")
     public void updateCondition(TeachingPlanCondition condition) {
         UserUtils.reflash(condition);
         teachingPlanConditionMapper.updateById(condition);
@@ -2986,6 +3033,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = CONDITION, value = "#p0")
     public void deleteCondition(Long id) {
         teachingPlanConditionMapper.deleteById(id);
     }
@@ -2997,6 +3045,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveConditions(TeachingPlanConditionSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -3040,6 +3089,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public void saveOrganization(TeachingPlanOrganizationSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlanId() == null) {
             throw new IllegalArgumentException("planId 不能为空");
@@ -3120,6 +3170,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addProcessStep(TeachingPlanProcessStep step) {
         UserUtils.reflash(step);
         teachingPlanProcessStepMapper.insert(step);
@@ -3128,6 +3179,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PROCESS_STEP, value = "#p0.id", request = "#p0")
     public void updateProcessStep(TeachingPlanProcessStep step) {
         UserUtils.reflash(step);
         teachingPlanProcessStepMapper.updateById(step);
@@ -3135,6 +3187,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PROCESS_STEP, value = "#p0")
     public void deleteProcessStep(Long id) {
         teachingPlanProcessStepMapper.deleteById(id);
     }
@@ -3151,6 +3204,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addRef(TeachingPlanRef ref) {
         UserUtils.reflash(ref);
         teachingPlanRefMapper.insert(ref);
@@ -3159,6 +3213,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = REF, value = "#p0.id", request = "#p0")
     public void updateRef(TeachingPlanRef ref) {
         UserUtils.reflash(ref);
         teachingPlanRefMapper.updateById(ref);
@@ -3166,6 +3221,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = REF, value = "#p0")
     public void deleteRef(Long id) {
         teachingPlanRefMapper.deleteById(id);
     }

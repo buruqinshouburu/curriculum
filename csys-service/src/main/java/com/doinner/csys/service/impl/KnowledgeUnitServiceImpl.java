@@ -17,6 +17,8 @@ import com.doinner.csys.entity.csys.po.CourseRefKnowledgeUnit;
 import com.doinner.csys.io.utils.ExcelUtils;
 import com.doinner.csys.service.IKnowledgeUnitService;
 import com.doinner.csys.utils.UserUtils;
+import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionService;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -42,6 +44,9 @@ import java.util.stream.Collectors;
  */
 @Service
 public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
+    @javax.annotation.Resource
+    private CoursePermissionService coursePermissions;
+
     @Autowired
     private  CourseKnowledgeUnitMapper knowledgeUnitMapper;
     @Autowired
@@ -54,6 +59,7 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
 
     @Override
     public List<CourseKnowledgeUnitVo> listByCourseId(Long courseId) {
+        courseId = coursePermissions.sourceCourseId(courseId);
         List<CourseRefKnowledgeUnit> courseRefKnowledgeUnits = courseRefKnowledgeUnitMapper.selectByCourseId(courseId);
         if(ObjectUtils.isEmpty(courseRefKnowledgeUnits)){
             return null;
@@ -100,26 +106,30 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p0.courseId")
     public void saveBatch(CourseKnowledgeVo courseKnowledgeVo) {
-        //查看是否具有修改权限
-        CourseVo courseVo = courseMapper.selectCourseById(courseKnowledgeVo.getCourseId());
-        UserUtils.checkDataPermission(courseVo);
+        coursePermissions.requireSourceCourse(courseKnowledgeVo.getCourseId());
+        coursePermissions.validateKnowledge(courseKnowledgeVo);
+
         //清空现有知识单元知识点
         List<CourseKnowledgeUnit> courseKnowledgeUnits = knowledgeUnitMapper.selectByCourseId(courseKnowledgeVo.getCourseId());
         List<Long> unitIds = courseKnowledgeUnits.stream().map(c -> c.getId()).collect(Collectors.toList());
-        if(ObjectUtils.isNotEmpty(unitIds)){
-            courseRefKnowledgeUnitMapper.deleteByCourseId(courseKnowledgeVo.getCourseId());
-            knowledgePointMapper.deleteByUnitIds(unitIds);
-            knowledgeUnitMapper.deleteBatchIds(unitIds);
+        courseRefKnowledgeUnitMapper.deleteByCourseIds(coursePermissions.knowledgeCourseFamily(courseKnowledgeVo.getCourseId()));
+        List<Long> orphanIds = coursePermissions.unreferencedKnowledgeUnits(unitIds);
+        if (!orphanIds.isEmpty()) {
+            knowledgePointMapper.deleteByUnitIds(orphanIds);
+            knowledgeUnitMapper.deleteBatchIds(orphanIds);
         }
         //重新添加
         saveCourseKnowLedge(courseKnowledgeVo);
+        coursePermissions.synchronizeKnowledgeReferences(courseKnowledgeVo.getCourseId());
     }
 
     private void saveCourseKnowLedge(CourseKnowledgeVo courseKnowledgeVo) {
         for (CourseKnowledgeUnitVo courseKnowledgeUnitVo : courseKnowledgeVo.getUnitList()) {
             CourseKnowledgeUnit courseKnowledgeUnit = new CourseKnowledgeUnit();
             BeanUtils.copyProperties(courseKnowledgeUnitVo, courseKnowledgeUnit);
+            courseKnowledgeUnit.setId(null);
             UserUtils.reflash(courseKnowledgeUnit);
             knowledgeUnitMapper.insert(courseKnowledgeUnit);
             saveCourseKnowledgeRef(courseKnowledgeVo, courseKnowledgeUnit);
@@ -135,6 +145,7 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
         for (CourseKnowledgePointVo knowledgePoint : courseKnowledgeUnitVo.getKnowledgePoints()) {
             CourseKnowledgePoint courseKnowledgePoint = new CourseKnowledgePoint();
             BeanUtils.copyProperties(knowledgePoint, courseKnowledgePoint);
+            courseKnowledgePoint.setId(null);
             courseKnowledgePoint.setUnitId(courseKnowledgeUnit.getId());
             if(ObjectUtils.isEmpty(courseKnowledgePoint.getSort())){
                 courseKnowledgePoint.setSort(pointSort++);
@@ -142,7 +153,7 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
             UserUtils.reflash(courseKnowledgePoint);
             pointList.add(courseKnowledgePoint);
         }
-        knowledgePointMapper.insertBatch(pointList);
+        if (!pointList.isEmpty()) knowledgePointMapper.insertBatch(pointList);
     }
 
     private void saveCourseKnowledgeRef(CourseKnowledgeVo courseKnowledgeVo, CourseKnowledgeUnit courseKnowledgeUnit) {
@@ -160,10 +171,12 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p1")
     public Message exportInTemplate(MultipartFile file, Long courseId, Integer type) {
-        //查看是否有导入权限 非课程创建人无法导入
-        CourseVo courseVo = courseMapper.selectCourseById(courseId);
-        UserUtils.checkDataPermission(courseVo);
+        coursePermissions.requireSourceCourse(courseId);
+        if (!Integer.valueOf(1).equals(type) && !Integer.valueOf(2).equals(type))
+            throw new com.doinner.csys.permission.CoursePermissionException(400, "type只能为1追加或2覆盖");
+
         //导入
         List<TreeTableVo> treeTableVos = ExcelUtils.readTreeTable(file,   0 , 1);
         if (CollectionUtils.isNotEmpty(treeTableVos)){
@@ -201,6 +214,7 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
                 saveBatch(courseKnowledgeVo);
             }
         }
+        coursePermissions.synchronizeKnowledgeReferences(courseId);
         return Message.success();
     }
 

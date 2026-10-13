@@ -79,6 +79,9 @@ import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
 import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.csys.utils.UserUtils;
+import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionService;
+import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.file.api.domain.FileInfo;
 import com.doinner.file.api.domain.vo.FileInfoVO;
 import com.doinner.file.api.service.RemoteFileInfoService;
@@ -126,6 +129,9 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class TeachingPlanServiceImpl implements TeachingPlanService {
+    @javax.annotation.Resource
+    private CoursePermissionService coursePermissions;
+
 
     private static final Logger log = LoggerFactory.getLogger(TeachingPlanServiceImpl.class);
 
@@ -909,11 +915,13 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.plan.id ?: #p0.plan.sourceCourseId", request = "#p0.plan", upsert = true)
     public Long saveTeachingPlan(TeachingPlanSaveVo saveVo) {
         if (saveVo == null || saveVo.getPlan() == null) {
             throw new IllegalArgumentException("教学计划信息不能为空");
         }
         TeachingPlan plan = saveVo.getPlan();
+        coursePermissions.requireSourceCourse(plan.getSourceCourseId());
         if (plan.getSourceCourseId() == null) {
             throw new IllegalArgumentException("总库课程id不能为空");
         }
@@ -931,6 +939,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 plan.setId(existing.getId());
             }
         }
+        if (plan.getId() != null) {
+            coursePermissions.check(PLAN, plan.getId(), plan, true);
+        } else {
+            plan.setStatus(0);
+            plan.setSysflag(0);
+            plan.setCreator(com.doinner.common.security.utils.SecurityUtils.getUsername());
+            plan.setCreateTime(null);
+        }
         UserUtils.reflash(plan);
         if (plan.getId() == null) {
             teachingPlanMapper.insert(plan);
@@ -944,12 +960,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(value = "#p0", transactional = false)
     public FileInfo generateTeachingPlanWord(Long courseId) {
         return generateTeachingPlanWord(courseId, null);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(value = "#p0", transactional = false)
     public FileInfo generateTeachingPlanWord(Long courseId, Long planIdParam) {
         CourseVo course = courseMapper.selectCourseById(courseId);
         if (course == null) {
@@ -967,6 +985,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         if (plan == null){
             throw new IllegalArgumentException("教学计划不存在,请先保存后再生成!" );
+        }
+        if (!java.util.Objects.equals(plan.getSourceCourseId(), courseId)) {
+            throw new com.doinner.csys.permission.CoursePermissionException(400, "教学计划不属于当前总库课程");
         }
         Long planId =  plan.getId();
         // 源课被引用的全部培养方案（多方案 → Word 中「课程目标与支撑毕业要求」多张表）
@@ -988,20 +1009,18 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         try {
             InputStream stream = new CourseTeachingPlanGenerator().generate(model);
             String oldFileId = courseMapper.selectPlanFileId(courseId);
-            if (StringUtils.isNotBlank(oldFileId)) {
-                try {
-                    FileInfo oldInfo = remoteFileInfoService.getFileInfo(oldFileId).getData();
-                    if (oldInfo != null && oldInfo.getId() != null) {
-                        remoteFileInfoService.delete(oldInfo.getId().toString());
-                    }
-                } catch (Exception e) {
-                    log.warn("清理旧课程教学计划文档失败, courseId={}, err={}", courseId, e.getMessage());
-                }
-            }
             String fileName = nz(course.getName(), "课程") + "教学计划.docx";
             String fileId = commonService.uploadFile(stream, fileName, teachingPlanCategoryId);
             FileInfo info = fetchFileInfo(fileId);
             String storeId = (info.getId() != null) ? info.getId().toString() : fileId;
+            try {
+                coursePermissions.requireCourseWriteLocked(courseId);
+            } catch (com.doinner.csys.permission.CoursePermissionException exception) {
+                try { remoteFileInfoService.delete(storeId); }
+                catch (Exception cleanupFailure) { log.warn("清理未绑定教学计划文档失败, courseId={}", courseId); }
+                throw exception;
+            }
+
             courseMapper.updatePlanFileById(storeId, fileName, info.getDownloadUrl(), info.getPreviewUrl(), courseId);
             // 同步回写教学计划表文件字段（有计划时）
             if (plan != null && plan.getId() != null) {
@@ -1011,6 +1030,20 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 plan.setPreviewUrl(info.getPreviewUrl());
                 UserUtils.reflash(plan);
                 teachingPlanMapper.updateById(plan);
+            }
+            if (StringUtils.isNotBlank(oldFileId) && !oldFileId.equals(storeId)) {
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override public void afterCommit() {
+                                try {
+                                    FileInfo oldInfo = remoteFileInfoService.getFileInfo(oldFileId).getData();
+                                    if (oldInfo != null && oldInfo.getId() != null)
+                                        remoteFileInfoService.delete(oldInfo.getId().toString());
+                                } catch (Exception exception) {
+                                    log.warn("清理旧课程教学计划文档失败, courseId={}", courseId);
+                                }
+                            }
+                        });
             }
             return info;
         } catch (IOException e) {
@@ -1897,6 +1930,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
 @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addTeacher(TeachingPlanTeacher teacher) {
         UserUtils.reflash(teacher);
         teachingPlanTeacherMapper.insert(teacher);
@@ -1905,6 +1939,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TEACHER, value = "#p0.id", request = "#p0")
     public void updateTeacher(TeachingPlanTeacher teacher) {
         UserUtils.reflash(teacher);
         teachingPlanTeacherMapper.updateById(teacher);
@@ -1912,6 +1947,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TEACHER, value = "#p0")
     public void deleteTeacher(Long id) {
         teachingPlanTeacherMapper.deleteById(id);
     }
@@ -1925,6 +1961,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addSection(TeachingPlanSection section) {
         UserUtils.reflash(section);
         teachingPlanSectionMapper.insert(section);
@@ -1933,6 +1970,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = SECTION, value = "#p0.id", request = "#p0")
     public void updateSection(TeachingPlanSection section) {
         UserUtils.reflash(section);
         teachingPlanSectionMapper.updateById(section);
@@ -1940,6 +1978,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = SECTION, value = "#p0")
     public void deleteSection(Long id) {
         teachingPlanSectionMapper.deleteById(id);
     }
@@ -1954,6 +1993,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0")
     public void deleteTeachingPlan(Long planId) {
         if (planId == null) {
             throw new IllegalArgumentException("教学计划id不能为空");
@@ -1971,7 +2011,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(value = "#p0")
     public TeachingPlanImportResultVo importWord(Long courseId, Integer planType, MultipartFile file) {
+        coursePermissions.requireSourceCourse(courseId);
         if (courseId == null) {
             throw new IllegalArgumentException("courseId 不能为空");
         }
@@ -1990,6 +2032,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         if (course == null) {
             throw new IllegalArgumentException("课程不存在: " + courseId);
         }
+
+        TeachingPlan existing = teachingPlanMapper.selectBySourceCourseIdAndPlanType(courseId, planType);
+        if (existing != null) coursePermissions.check(PLAN, existing.getId(), null, true);
 
         TeachingPlanWordImporter.ParseContext ctx = buildImportParseContext(courseId, course, planType);
         TeachingPlanWordImporter.ParseResult parsed;
@@ -2016,7 +2061,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
 
         // 类型以前端传入为准；严格按 (courseId, planType) 定位，不再回退其他类型的计划
-        TeachingPlan existing = teachingPlanMapper.selectBySourceCourseIdAndPlanType(courseId, planType);
+
         if (existing != null && existing.getStatus() != null
                 && (existing.getStatus() == 1 || existing.getStatus() == 2)) {
             throw new IllegalArgumentException("教学计划审核中或已通过，无法覆盖导入");

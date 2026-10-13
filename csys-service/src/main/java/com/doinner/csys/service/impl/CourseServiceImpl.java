@@ -19,6 +19,9 @@ import com.doinner.csys.io.service.ExportService;
 import com.doinner.csys.service.CourseService;
 import com.doinner.csys.service.TrainingService;
 import com.doinner.csys.utils.UserUtils;
+import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionService;
+import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.kg.domain.Dictionary;
 import com.doinner.kg.service.RemoteKgService;
 import com.doinner.common.security.utils.SecurityUtils;
@@ -38,6 +41,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class CourseServiceImpl implements CourseService {
+    @javax.annotation.Resource
+    private CoursePermissionService coursePermissions;
+
     @Resource
     protected CourseMapper courseMapper;
     @Resource
@@ -71,10 +77,11 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p0")
     public void removeStorageCourse(List<Long> ids) {
         List<Course> courses = courseMapper.selectCoursesByIds(ids);
         for (Course course : courses) {
-            UserUtils.checkDataPermission(course);
+
             //检查课程是否被调用
             List<Course> courseList=courseMapper.selectCourseBySourceId(course.getId());
             if(ObjectUtils.isNotEmpty(courseList)){
@@ -84,20 +91,22 @@ public class CourseServiceImpl implements CourseService {
         //删除关联知识单元知识点
         List<CourseRefKnowledgeUnit> courseRefKnowledgeUnits = courseRefKnowledgeUnitMapper.selectByCourseIds(ids);
         List<Long> unitIds = courseRefKnowledgeUnits.stream().map(c -> c.getCourseUnitId()).collect(Collectors.toList());
-        if(ObjectUtils.isNotEmpty(unitIds)){
-            courseknowledgePointMapper.deleteByUnitIds(unitIds);
-            courseknowledgeUnitMapper.deleteByIds(unitIds);
-            courseRefKnowledgeUnitMapper.deleteByCourseIds(ids);
+        courseRefKnowledgeUnitMapper.deleteByCourseIds(ids);
+        List<Long> orphanIds = coursePermissions.unreferencedKnowledgeUnits(unitIds);
+        if (!orphanIds.isEmpty()) {
+            courseknowledgePointMapper.deleteByUnitIds(orphanIds);
+            courseknowledgeUnitMapper.deleteByIds(orphanIds);
         }
         courseMapper.deleteCourseByIds(ids);
     }
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p0")
     public void removeInvokeCourse(List<Long> ids) {
         List<Course> courses = courseMapper.selectCoursesByIds(ids);
         for (Course course : courses) {
-            UserUtils.checkDataPermission(course);
+
         }
         //记录调用课程删除日志，便于追溯调用课程被删除的问题
         recordInvokeCourseDeleteLog(courses);
@@ -173,12 +182,14 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p0")
     public void disableCourse(Long courseId) {
         courseMapper.updateEnableFlag(courseId, CourseConstant.COURSE_ENABLE_FLAG_DISABLE);
     }
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p0")
     public void startCourse(Long courseId) {
         courseMapper.updateEnableFlag(courseId,CourseConstant.COURSE_ENABLE_FLAG_START);
     }
@@ -186,6 +197,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional
     public Message courseInvoke(CourseTemplateVo courseTemplateVo) {
+        coursePermissions.lockKnowledgeSources(courseTemplateVo.getIds());
         //查询该培养方案是否已经调用该课程
         List<TrainingSchemeRefCourse> trainingSchemeRefCourses = trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoId(courseTemplateVo.getTrainingSchemeId());
         List<Long> hasInvokeCourseIds = trainingSchemeRefCourses.stream().map(t -> t.getCourseId()).collect(Collectors.toList());
@@ -295,6 +307,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
+    @CoursePermission(value = "#p0.courseId")
     public Message boundGraduation(CourseBoundGraduationVo courseBoundGraduationVo) {
         //删除现有关联
         courseRefGraduationMapper.deleteCourseRefGraduationByCourseId(courseBoundGraduationVo.getCourseId());
@@ -399,6 +412,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> refreshLegacySchedule() {
+        coursePermissions.requireSystemMaintenance();
         Map<String, Object> summary = new LinkedHashMap<>();
         int refreshed = 0, skippedAlready = 0, noData = 0, rowsInserted = 0;
 
@@ -540,6 +554,7 @@ public class CourseServiceImpl implements CourseService {
         }
         List<Long> invokedCourseIds = refCourses.stream()
                 .map(TrainingSchemeRefCourse::getCourseId).collect(Collectors.toList());
+        coursePermissions.check(COURSE, invokedCourseIds, null, true);
         // selectCoursesByIds 已带 source_id
         List<Course> invokedCourses = courseMapper.selectCoursesByIds(invokedCourseIds);
 

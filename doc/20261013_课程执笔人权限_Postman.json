@@ -1,0 +1,97 @@
+{
+  "info": {
+    "name": "课程执笔人权限接口_20261013",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "清空执笔人会撤销内容权限，请使用测试课程联调。"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9219/csys"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "courseId",
+      "value": ""
+    },
+    {
+      "key": "authorIds",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "查询课程执笔人与操作权限",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/permission"
+      }
+    },
+    {
+      "name": "配置执笔人",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/authors",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"authorIds\": \"{{authorIds}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "清空执笔人",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/authors",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"authorIds\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "查询共享知识体系",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/courseKnowledge/list?courseId={{courseId}}"
+      }
+    }
+  ]
+}
