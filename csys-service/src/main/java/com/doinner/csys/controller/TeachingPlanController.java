@@ -42,6 +42,8 @@ import com.doinner.csys.domain.vo.TeachingPlanObjectiveTreeVo;
 import com.doinner.csys.domain.vo.TeachingPlanOrganizationSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.domain.vo.TeachingPlanTaskBackgroundRefSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTeacherBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTeamCandidateVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeBatchSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanTrainingPurposeRefSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
@@ -192,6 +194,35 @@ public class TeachingPlanController {
     @DeleteMapping("/teacher/{id}")
     public Message deleteTeacher(@PathVariable("id") Long id) {
         teachingPlanService.deleteTeacher(id);
+        return Message.success();
+    }
+
+    /**
+     * 教学团队候选人：当前教学计划所属课程（总库）的课程负责人 + 课程团队成员。
+     * selected=true 表示已在本教学计划团队中；userId 为 null 的历史负责人只能查看，不能勾选。
+     */
+    @ApiOperation("教学团队候选人（课程负责人+课程团队成员）")
+    @GetMapping("/teacher/candidates")
+    public DataSet<List<TeachingPlanTeamCandidateVo>> teacherCandidates(@RequestParam("planId") Long planId) {
+        return DataSet.success(teachingPlanService.listTeacherCandidates(planId));
+    }
+
+    /**
+     * 批量保存教学团队成员：email/teacherId 为统一认证帐号，新人员保存后同步并入课程库团队成员，不改变课程负责人。
+     * 已属于课程库团队的人员不会重复添加。
+     */
+    @ApiOperation("批量保存教学团队成员（同步课程库团队）")
+    @PostMapping("/teacher/batch")
+    public DataSet<List<TeachingPlanTeacher>> saveTeachersBatch(@RequestBody TeachingPlanTeacherBatchSaveVo request) {
+        return DataSet.success(teachingPlanService.saveTeachersBatch(request));
+    }
+
+    /** 批量移除教学团队成员：只解除当前教学计划关联，不删除课程库团队成员。 */
+    @ApiOperation("批量移除教学团队成员")
+    @DeleteMapping("/teacher/batch")
+    public Message removeTeachersBatch(@RequestParam("planId") Long planId,
+                                       @RequestParam("ids") List<Long> ids) {
+        teachingPlanService.removeTeachersBatch(planId, ids);
         return Message.success();
     }
 

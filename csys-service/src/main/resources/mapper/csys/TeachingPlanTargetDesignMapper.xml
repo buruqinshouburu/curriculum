@@ -158,8 +158,8 @@
             <if test="contentIds != null">content_ids = #{contentIds},</if>
             <if test="contentText != null">content_text = #{contentText},</if>
             <if test="teachingLink != null">teaching_link = #{teachingLink},</if>
-            <if test="teachingMethod != null">teaching_method = #{teachingMethod},</if>
-            <if test="learningMethod != null">learning_method = #{learningMethod},</if>
+            <if test="teachingMethodSpecified">teaching_method = #{teachingMethod,jdbcType=VARCHAR},</if>
+            <if test="learningMethodSpecified">learning_method = #{learningMethod,jdbcType=VARCHAR},</if>
             <if test="hours != null">hours = #{hours},</if>
             <if test="teachingDesign != null">teaching_design = #{teachingDesign},</if>
             <if test="sort != null">sort = #{sort},</if>

@@ -933,6 +933,7 @@ public class CurriculumServiceImpl implements CurriculumService {
 
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = COURSE_TARGET, value = "#p0.courseTargetId", request = "#p0")
     public CourseTarget courseTargetConfiguration(CourseTarget courseTarget) {
         dealSourceKnowledgeVoList(courseTarget.getSourceKnowledgeVoList(), courseTarget.getCourseId(), courseTarget.getCourseTargetId());
         // 树结构 课程和毕业标准
@@ -1061,6 +1062,7 @@ public class CurriculumServiceImpl implements CurriculumService {
 
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(value = "#p0")
     public int deleteFile(Long id) {
         return courseMapper.deleteFile(id);
     }
@@ -1515,6 +1517,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(value = "#p0.courseId")
     public CourseTeachingTheoryPlan insertCourseTeachingTheoryPlan(CourseTeachingTheoryPlan courseTeachingTheoryPlan) {
         UserUtils.reflash(courseTeachingTheoryPlan);
         courseTeachingTheoryPlanMapper.insertCourseTeachingTheoryPlan(courseTeachingTheoryPlan);
@@ -1529,6 +1532,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = THEORY_PLAN, value = "#p0.id", request = "#p0")
     public CourseTeachingTheoryPlan updateCourseTeachingTheoryPlan(CourseTeachingTheoryPlan courseTeachingTheoryPlan) {
         UserUtils.reflash(courseTeachingTheoryPlan);
         courseTeachingTheoryPlanMapper.updateCourseTeachingTheoryPlan(courseTeachingTheoryPlan);
@@ -1543,6 +1547,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = THEORY_PLAN, value = "#p0")
     public int deleteCourseTeachingTheoryPlanByIds(Long[] ids) {
         return courseTeachingTheoryPlanMapper.deleteCourseTeachingTheoryPlanByIds(ids);
     }
@@ -1555,6 +1560,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(value = "#p0.courseId")
     public CourseTeachingPracticePlan insertCourseTeachingPracticePlan(CourseTeachingPracticePlan courseTeachingPracticePlan) {
         UserUtils.reflash(courseTeachingPracticePlan);
         courseTeachingPracticePlanMapper.insertCourseTeachingPracticePlan(courseTeachingPracticePlan);
@@ -1569,6 +1575,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = PRACTICE_PLAN, value = "#p0.id", request = "#p0")
     public CourseTeachingPracticePlan updateCourseTeachingPracticePlan(CourseTeachingPracticePlan courseTeachingPracticePlan) {
         UserUtils.reflash(courseTeachingPracticePlan);
         courseTeachingPracticePlanMapper.updateCourseTeachingPracticePlan(courseTeachingPracticePlan);
@@ -1583,6 +1590,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = PRACTICE_PLAN, value = "#p0")
     public int deleteCourseTeachingPracticePlanByIds(Long[] ids) {
         return courseTeachingPracticePlanMapper.deleteCourseTeachingPracticePlanByIds(ids);
     }
@@ -1596,6 +1604,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(value = "#p0.courseId")
     public CourseChapter insertCourseChapter(CourseChapter courseChapter) {
         UserUtils.reflash(courseChapter);
         courseChapterMapper.insertCourseChapter(courseChapter);
@@ -1610,6 +1619,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = COURSE_CHAPTER, value = "#p0.id", request = "#p0")
     public CourseChapter updateCourseChapter(CourseChapter courseChapter) {
         UserUtils.reflash(courseChapter);
         courseChapterMapper.updateCourseChapter(courseChapter);
@@ -1799,6 +1809,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(value = "#p0.courseId")
     public CourseTextbook insertCourseTextbook(CourseTextbook courseTextbook) {
         UserUtils.reflash(courseTextbook);
         courseTextbookMapper.insertCourseTextbook(courseTextbook);
@@ -1813,6 +1824,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(resource = COURSE_TEXTBOOK, value = "#p0.id", request = "#p0")
     public CourseTextbook updateCourseTextbook(CourseTextbook courseTextbook) {
         UserUtils.reflash(courseTextbook);
         courseTextbookMapper.updateCourseTextbook(courseTextbook);
@@ -2018,6 +2030,7 @@ public class CurriculumServiceImpl implements CurriculumService {
 
     @Override
     @Transactional(rollbackFor = {Exception.class})
+    @CoursePermission(value = "#p2")
     public void updateFileById(String fileId, String fileName, Long id) {
         courseMapper.updateFileById(fileId, fileName, id);
     }

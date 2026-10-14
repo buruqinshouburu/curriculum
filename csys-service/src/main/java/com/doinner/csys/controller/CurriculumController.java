@@ -65,6 +65,33 @@ public class CurriculumController {
                                                   @RequestBody CourseAuthorsSaveVo request) {
         return DataSet.success(coursePermissions.saveAuthors(courseId, request));
     }
+
+    @GetMapping("/course/{courseId}/teamMembers")
+    @ApiOperation("查询课程团队成员（调用课程返回总库课程成员）")
+    public DataSet<List<CourseTeamMember>> listTeamMembers(@PathVariable Long courseId) {
+        return DataSet.success(coursePermissions.listTeamMembers(courseId));
+    }
+
+    @PutMapping("/course/{courseId}/teamMembers")
+    @ApiOperation("配置课程团队成员（帐号+姓名），members传空数组清空可见名单")
+    public DataSet<CoursePermissionVo> saveTeamMembers(@PathVariable Long courseId,
+                                                       @RequestBody CourseTeamMemberSaveVo request) {
+        return DataSet.success(coursePermissions.saveTeamMembers(courseId, request));
+    }
+
+    @PostMapping("/course/{courseId}/teamMembers")
+    @ApiOperation("新增课程团队成员（追加，已在名单中的帐号自动跳过）")
+    public DataSet<CoursePermissionVo> addTeamMembers(@PathVariable Long courseId,
+                                                      @RequestBody CourseTeamMemberSaveVo request) {
+        return DataSet.success(coursePermissions.addTeamMembers(courseId, request));
+    }
+
+    @DeleteMapping("/course/{courseId}/teamMembers")
+    @ApiOperation("移除课程团队成员，userIds为英文逗号拼接的统一认证帐号")
+    public DataSet<CoursePermissionVo> removeTeamMembers(@PathVariable Long courseId,
+                                                         @RequestParam("userIds") List<String> userIds) {
+        return DataSet.success(coursePermissions.removeTeamMembers(courseId, userIds));
+    }
     @Resource
     private CurriculumService courseService;
     @Resource
@@ -208,6 +235,7 @@ public class CurriculumController {
      */
     @PostMapping("/course/upload")
     public Message upload(@RequestParam("file") MultipartFile file, @RequestParam("id") Long id) {
+        coursePermissions.requireCourseWrite(id);
         //文件目录后续需要写成配置
         DataSet<FileInfo> upload = remoteFileInfoService.upload(file, DomainFieldConstants.COURSE_CATEGORY_ID);
         courseService.updateFileById(upload.getData().getFileId(), upload.getData().getFileName(), id);

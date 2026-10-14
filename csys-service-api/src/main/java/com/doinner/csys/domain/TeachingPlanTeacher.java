@@ -18,7 +18,7 @@ public class TeachingPlanTeacher extends AbstractDoinnerLogicalDelBaseEntity {
     private Long planId;
 
     /**
-     * 教员ID（外库主键，字符串；非本系统用户数字ID）
+     * 统一认证帐号：第三方 email，对应 sys_user.user_name；字段名保留兼容。
      */
     private String teacherId;
 
@@ -78,6 +78,12 @@ public class TeachingPlanTeacher extends AbstractDoinnerLogicalDelBaseEntity {
     public void setTeacherName(String teacherName) {
         this.teacherName = teacherName;
     }
+
+    /** 接受第三方人员原始字段，兼容原 teacherId / teacherName 入参。 */
+    public String getEmail() { return teacherId; }
+    public void setEmail(String email) { this.teacherId = email; }
+    public String getUserName() { return teacherName; }
+    public void setUserName(String userName) { this.teacherName = userName; }
 
     public String getProfessionalTitle() {
         return professionalTitle;

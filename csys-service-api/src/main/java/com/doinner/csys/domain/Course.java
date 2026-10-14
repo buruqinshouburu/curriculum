@@ -44,7 +44,7 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
     private String authors;
 
     /**
-     * 执笔人ID(author_ids)，多值拼接字符串，对应 sys_user.user_id
+     * 执笔人统一认证帐号(author_ids)，第三方 email，多值英文逗号拼接，对应 sys_user.user_name。
      */
     private String authorIds;
 

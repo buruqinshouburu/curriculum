@@ -251,6 +251,7 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
 
     public void setTeachingMethod(String teachingMethod) {
         this.teachingMethod = teachingMethod;
+        this.teachingMethodSpecified = true;
     }
 
     public String getLearningMethod() {
@@ -259,7 +260,15 @@ public class TeachingPlanTargetDesign extends AbstractDoinnerLogicalDelBaseEntit
 
     public void setLearningMethod(String learningMethod) {
         this.learningMethod = learningMethod;
+        this.learningMethodSpecified = true;
     }
+
+    private boolean teachingMethodSpecified;
+    private boolean learningMethodSpecified;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isTeachingMethodSpecified() { return teachingMethodSpecified; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isLearningMethodSpecified() { return learningMethodSpecified; }
 
     public BigDecimal getHours() {
         return hours;

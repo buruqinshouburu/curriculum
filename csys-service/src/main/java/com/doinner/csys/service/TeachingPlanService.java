@@ -8,6 +8,8 @@ import com.doinner.csys.domain.vo.TeachingPlanImportResultVo;
 import com.doinner.csys.domain.vo.TeachingPlanListVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTeacherBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTeamCandidateVo;
 import com.doinner.file.api.domain.FileInfo;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,6 +55,21 @@ public interface TeachingPlanService {
     void updateTeacher(TeachingPlanTeacher teacher);
 
     void deleteTeacher(Long id);
+
+    /**
+     * 教学团队候选人：当前教学计划所属课程（总库）的课程负责人 + 课程团队成员，
+     * 带「是否已加入本教学计划团队」标记，供前端勾选。
+     */
+    List<TeachingPlanTeamCandidateVo> listTeacherCandidates(Long planId);
+
+    /**
+     * 批量保存教学团队成员（选择课程库已有人员或从第三方人员新增）。
+     * 人员以统一认证帐号识别，允许未注册帐号；保存后同步并入课程库团队成员，不改变课程负责人。
+     */
+    List<TeachingPlanTeacher> saveTeachersBatch(TeachingPlanTeacherBatchSaveVo request);
+
+    /** 批量移除教学团队成员：只解除当前教学计划的关联，不删除课程库团队成员。 */
+    void removeTeachersBatch(Long planId, List<Long> ids);
 
     List<TeachingPlanSection> listSection(Long planId);
 

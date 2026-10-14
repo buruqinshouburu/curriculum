@@ -3,13 +3,11 @@ package com.doinner.csys.permission;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.doinner.common.core.domain.DataSet;
 import com.doinner.common.security.utils.SecurityUtils;
 import com.doinner.csys.domain.Course;
+import com.doinner.csys.domain.CourseTeamMember;
 import com.doinner.csys.domain.vo.*;
-import com.doinner.system.domain.entity.SysUser;
 import com.doinner.system.domain.view.LoginUser;
-import com.doinner.system.service.DoinnerUserService;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,18 +15,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Array;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Authors edit their courses; creators edit unassigned courses; cur can operate all courses. */
+/** Authors and course team members edit their courses; creators edit unassigned courses; cur can operate all courses. */
 @Service
 public class CoursePermissionService {
-    private final JdbcTemplate jdbc;
-    private final DoinnerUserService users;
 
-    public CoursePermissionService(JdbcTemplate jdbc, DoinnerUserService users) {
+    /** 课程库团队成员表（团队成员业务身份，与执笔人相互独立） */
+    private static final String TEAM_TABLE = "t_csys_course_team_member";
+
+    private final JdbcTemplate jdbc;
+
+    public CoursePermissionService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
-        this.users = users;
     }
 
     public void check(CourseResource resource, Object ids, Object request, boolean lock) {
@@ -40,8 +42,8 @@ public class CoursePermissionService {
         }
         for (Long id : roots) {
             Course course = readCourse(id, lock);
-            if (!canOperateCourse(course, userId))
-                throw new CoursePermissionException(403, "您不是该课程执笔人，无权操作课程相关数据");
+            if (!canOperateCourse(course, userId, teamMembers(course.getId(), lock)))
+                throw new CoursePermissionException(403, "您不是该课程负责人或团队成员，无权操作课程相关数据");
         }
         if (lock) for (Long id : resources) row(resource, id, true);
         // Owner fields are immutable even when the user happens to edit both courses.
@@ -75,13 +77,18 @@ public class CoursePermissionService {
     public CoursePermissionVo getPermission(Long courseId) {
         Long userId = userId();
         Course course = root(courseId, false);
+        List<CourseTeamMember> teamMembers = excludeCourseOwners(teamMembers(course.getId()), course.getAuthorIds());
         CoursePermissionVo result = new CoursePermissionVo();
         result.setCourseId(courseId);
         result.setPermissionCourseId(course.getId());
         result.setAuthors(course.getAuthors());
         result.setAuthorIds(course.getAuthorIds());
-        result.setCanOperate(!courseId.equals(course.getId()) || canOperateCourse(course, userId));
+        result.setTeamMembers(teamMembers);
+        result.setTeamMemberIds(joinUserIds(teamMembers));
+        result.setTeamMemberNames(joinUserNames(teamMembers));
+        result.setCanOperate(!courseId.equals(course.getId()) || canOperateCourse(course, userId, teamMembers));
         result.setCanConfigureAuthors(canConfigure(course, userId));
+        result.setCanConfigureTeamMembers(canConfigureTeam(course, userId, teamMembers));
         return result;
     }
 
@@ -93,13 +100,184 @@ public class CoursePermissionService {
             throw new CoursePermissionException(403, "仅课程执笔人、创建人或课程管理员可配置执笔人");
         if (request == null || request.getAuthorIds() == null)
             throw new CoursePermissionException(400, "authorIds 必填，清空名单请传空字符串");
-        String[] values = normalizeAuthors(request.getAuthorIds());
+        String[] values = normalizeAuthors(course, request);
         jdbc.update("UPDATE t_csys_course SET authors=?,author_ids=?,last_modifier=?,last_modified_time=CURRENT_TIMESTAMP WHERE id=? AND sysflag=0",
                 values[0], values[1], username(), course.getId());
         // Existing invoked rows retain display compatibility. Authorization always reads the root.
         jdbc.update("UPDATE t_csys_course SET authors=?,author_ids=?,last_modifier=?,last_modified_time=CURRENT_TIMESTAMP WHERE source_id=? AND sysflag=0",
                 values[0], values[1], username(), course.getId());
         return getPermission(courseId);
+    }
+
+    // 人员帐号沿用 author_ids 的口径：第三方 email = sys_user.user_name。
+    public LinkedHashSet<String> teamMemberIdSet(Long courseId) {
+        LinkedHashSet<String> accounts = new LinkedHashSet<>();
+        for (CourseTeamMember member : teamMembers(required(courseId), true)) accounts.add(member.getUserId());
+        return accounts;
+    }
+
+    public List<CourseTeamMember> listTeamMembers(Long courseId) {
+        Course course = root(courseId, false);
+        return excludeCourseOwners(teamMembers(course.getId()), course.getAuthorIds());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public CoursePermissionVo saveTeamMembers(Long courseId, CourseTeamMemberSaveVo request) {
+        Course course = requireTeamConfigure(courseId);
+        LinkedHashMap<String, String> resolved = resolveMembers(course, requestedMembers(request));
+        Set<String> owners = splitIds(course.getAuthorIds());
+        // 查询隐藏负责人团队身份，全量保存可见名单时保留这些隐藏行。
+        for (String account : teamMemberIdSet(course.getId())) {
+            if (!resolved.containsKey(account) && !owners.contains(account)) deactivateTeamMember(course.getId(), account);
+        }
+        int sort = 1;
+        for (Map.Entry<String, String> entry : resolved.entrySet())
+            upsertTeamMemberRow(course.getId(), entry.getKey(), entry.getValue(), sort++);
+        return getPermission(courseId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public CoursePermissionVo addTeamMembers(Long courseId, CourseTeamMemberSaveVo request) {
+        Course course = requireTeamConfigure(courseId);
+        List<CoursePersonVo> members = requestedMembers(request);
+        if (members.isEmpty()) throw new CoursePermissionException(400, "members 必填");
+        appendTeamMembers(course, resolveMembers(course, members), false);
+        return getPermission(courseId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public CoursePermissionVo removeTeamMembers(Long courseId, Collection<String> accounts) {
+        Course course = requireTeamConfigure(courseId);
+        if (accounts == null || accounts.isEmpty()) throw new CoursePermissionException(400, "userIds 必填（统一认证帐号）");
+        for (String account : accounts) deactivateTeamMember(course.getId(), normalizeAccount(account));
+        return getPermission(courseId);
+    }
+
+    /** 新增/更换计划人员时合并团队；同步失败直接回滚调用事务。 */
+    @Transactional(rollbackFor = Exception.class)
+    public List<CourseTeamMember> mergeTeamMembers(Long courseId, Collection<CoursePersonVo> members) {
+        Course course = root(courseId, true);
+        if (!canOperateCourse(course, userId(), teamMembers(course.getId(), true)))
+            throw new CoursePermissionException(403, "无课程权限，不能同步课程团队成员");
+        return appendTeamMembers(course, resolveMembers(course, members), true);
+    }
+
+    private static List<CoursePersonVo> requestedMembers(CourseTeamMemberSaveVo request) {
+        try {
+            List<CoursePersonVo> members = request == null ? null : request.resolvedMembers();
+            if (members == null) throw new CoursePermissionException(400, "members 或 teamMemberIds 必填，清空请传空数组");
+            return members;
+        } catch (IllegalArgumentException exception) {
+            throw new CoursePermissionException(400, exception.getMessage());
+        }
+    }
+
+    private Course requireTeamConfigure(Long courseId) {
+        Long id = userId();
+        Course course = root(courseId, true);
+        if (!canConfigureTeam(course, id, teamMembers(course.getId(), true)))
+            throw new CoursePermissionException(403, "仅课程负责人、团队成员或课程管理员可维护团队；空名单时允许创建人初始化");
+        return course;
+    }
+
+    /** 姓名取第三方提交值；省略姓名时只复用同课程已有姓名，不依赖首次单点注册。 */
+    private LinkedHashMap<String, String> resolveMembers(Course course, Collection<CoursePersonVo> members) {
+        Map<String, String> known = coursePeople(course);
+        LinkedHashMap<String, String> resolved = new LinkedHashMap<>();
+        for (CoursePersonVo person : members) {
+            if (person == null) throw new CoursePermissionException(400, "人员不能为空");
+            String account = normalizeAccount(person.getEmail());
+            String name = person.getUserName();
+            if (name == null || name.trim().isEmpty()) name = known.get(account);
+            resolved.put(account, normalizePersonName(name));
+        }
+        return resolved;
+    }
+
+    private Map<String, String> coursePeople(Course course) {
+        Map<String, String> result = new LinkedHashMap<>();
+        String[] accounts = course.getAuthorIds() == null ? new String[0] : course.getAuthorIds().split(",", -1);
+        String[] names = course.getAuthors() == null ? new String[0] : course.getAuthors().split(",", -1);
+        for (int i = 0; i < accounts.length; i++)
+            if (!accounts[i].trim().isEmpty() && i < names.length) result.put(accounts[i].trim(), names[i].trim());
+        for (CourseTeamMember member : teamMembers(course.getId(), true)) result.putIfAbsent(member.getUserId(), member.getUserName());
+        return result;
+    }
+
+    private List<CourseTeamMember> appendTeamMembers(Course course, LinkedHashMap<String, String> resolved, boolean skipOwners) {
+        List<CourseTeamMember> added = new ArrayList<>();
+        Set<String> owners = splitIds(course.getAuthorIds());
+        List<CourseTeamMember> currentMembers = teamMembers(course.getId(), true);
+        Set<String> current = currentMembers.stream().map(CourseTeamMember::getUserId).collect(Collectors.toSet());
+        int sort = currentMembers.stream().map(CourseTeamMember::getSort).filter(Objects::nonNull).mapToInt(Integer::intValue).max().orElse(0) + 1;
+        for (Map.Entry<String, String> entry : resolved.entrySet()) {
+            if (skipOwners && owners.contains(entry.getKey())) continue;
+            if (current.contains(entry.getKey())) continue;
+            upsertTeamMemberRow(course.getId(), entry.getKey(), entry.getValue(), sort);
+            CourseTeamMember member = new CourseTeamMember();
+            member.setCourseId(course.getId()); member.setUserId(entry.getKey());
+            member.setUserName(entry.getValue()); member.setSort(sort++);
+            added.add(member);
+        }
+        return added;
+    }
+
+    private static List<CourseTeamMember> excludeCourseOwners(List<CourseTeamMember> members, String authorIds) {
+        Set<String> owners = splitIds(authorIds);
+        return members.stream().filter(member -> !owners.contains(member.getUserId())).collect(Collectors.toList());
+    }
+
+    private void upsertTeamMemberRow(Long courseId, String account, String name, int sort) {
+        List<Long> found = jdbc.queryForList("SELECT id FROM " + TEAM_TABLE + " WHERE course_id=? AND user_id=? FOR UPDATE", Long.class, courseId, account);
+        if (!found.isEmpty()) {
+            jdbc.update("UPDATE " + TEAM_TABLE + " SET user_name=?,sort=?,sysflag=0,last_modifier=?,last_modified_time=CURRENT_TIMESTAMP WHERE course_id=? AND user_id=?",
+                    name, sort, username(), courseId, account);
+        } else {
+            jdbc.update("INSERT INTO " + TEAM_TABLE + "(course_id,user_id,user_name,sort,creator,last_modifier) VALUES(?,?,?,?,?,?)",
+                    courseId, account, name, sort, username(), username());
+        }
+    }
+
+    private void deactivateTeamMember(Long courseId, String account) {
+        jdbc.update("UPDATE " + TEAM_TABLE + " SET sysflag=2,last_modifier=?,last_modified_time=CURRENT_TIMESTAMP WHERE course_id=? AND user_id=? AND sysflag=0",
+                username(), courseId, account);
+    }
+
+    private List<CourseTeamMember> teamMembers(Long courseId) {
+        return teamMembers(courseId, false);
+    }
+
+    private List<CourseTeamMember> teamMembers(Long courseId, boolean lock) {
+        return jdbc.query("SELECT id,course_id,user_id,user_name,sort FROM " + TEAM_TABLE
+                + " WHERE course_id=? AND sysflag=0 ORDER BY sort ASC, id ASC" + (lock ? " FOR UPDATE" : ""), CoursePermissionService::readTeamMember, courseId);
+    }
+
+    private static CourseTeamMember readTeamMember(ResultSet rs, int rowNum) throws SQLException {
+        CourseTeamMember member = new CourseTeamMember();
+        member.setId(rs.getLong("id")); member.setCourseId(rs.getLong("course_id"));
+        member.setUserId(rs.getString("user_id")); member.setUserName(rs.getString("user_name")); member.setSort(rs.getInt("sort"));
+        return member;
+    }
+
+    private static String joinUserIds(List<CourseTeamMember> members) {
+        return members.stream().map(CourseTeamMember::getUserId).collect(Collectors.joining(","));
+    }
+
+    private static String joinUserNames(List<CourseTeamMember> members) {
+        return members.stream().map(CourseTeamMember::getUserName).collect(Collectors.joining(","));
+    }
+
+    /**
+     * 读接口使用：返回课程，调用课程解析到总库课程。
+     * 课程不存在时返回 null（例如来源课程已删除），不抛错，便于只读回退。
+     */
+    public Course findRootCourse(Long courseId) {
+        if (courseId == null || courseId <= 0) return null;
+        try {
+            return root(courseId, false);
+        } catch (CoursePermissionException exception) {
+            return null;
+        }
     }
 
     public void preserveCourseOwners(Course course) {
@@ -406,13 +584,33 @@ public class CoursePermissionService {
     }
 
     private boolean canConfigure(Course course, Long id) {
-        return hasCurRole() || hasAuthor(course.getAuthorIds(), id) || SecurityUtils.isAdmin(id)
+        return hasCurRole() || hasAuthor(course.getAuthorIds(), username()) || SecurityUtils.isAdmin(id)
                 || isCreator(course);
     }
 
-    private boolean canOperateCourse(Course course, Long id) {
-        boolean noAuthors = course.getAuthorIds() == null || course.getAuthorIds().trim().isEmpty();
-        return hasCurRole() || hasAuthor(course.getAuthorIds(), id) || (noAuthors && isCreator(course));
+    /** 负责人/团队成员维护团队；空名单时允许创建人初始化，管理员规则保留。 */
+    private boolean canConfigureTeam(Course course, Long id, List<CourseTeamMember> teamMembers) {
+        return hasCurRole() || SecurityUtils.isAdmin(id) || canOperateCourse(course, id, teamMembers);
+    }
+
+    /**
+     * 课程内容写权限 = 课程负责人 ∪ 课程团队成员；两者均为空时维持既有兜底（创建人可操作），
+     * 一旦配置了任一人员，创建人不再仅凭创建人身份维护内容或团队。
+     */
+    private boolean canOperateCourse(Course course, Long id, List<CourseTeamMember> teamMembers) {
+        if (hasCurRole() || hasAuthor(course.getAuthorIds(), username()) || isTeamMember(teamMembers, id)) return true;
+        boolean noOwners = (course.getAuthorIds() == null || course.getAuthorIds().trim().isEmpty())
+                && teamMembers.isEmpty();
+        return noOwners && isCreator(course);
+    }
+
+    private static boolean isTeamMember(List<CourseTeamMember> teamMembers, Long id) {
+        if (id == null || id <= 0 || teamMembers == null) return false;
+        String account = username();
+        for (CourseTeamMember member : teamMembers) {
+            if (account != null && account.equals(member.getUserId())) return true;
+        }
+        return false;
     }
 
     private static boolean isCreator(Course course) {
@@ -426,38 +624,37 @@ public class CoursePermissionService {
         return user != null && user.getRoles() != null && user.getRoles().contains("cur");
     }
 
-    public static boolean hasAuthor(String authorIds, Long userId) {
-        if (userId == null || userId <= 0 || authorIds == null) return false;
-        for (String id : authorIds.split(",", -1)) {
-            if (id.trim().equals(userId.toString())) return true;
-        }
-        return false;
+    public static boolean hasAuthor(String authorIds, String account) {
+        return account != null && !account.trim().isEmpty() && splitIds(authorIds).contains(account);
     }
 
-    private String[] normalizeAuthors(String value) {
-        LinkedHashSet<Long> ids = new LinkedHashSet<>();
-        if (!value.trim().isEmpty()) {
-            for (String item : value.split(",", -1)) {
-                if (!item.trim().matches("[1-9][0-9]*")) throw new CoursePermissionException(400, "authorIds 必须为英文逗号分隔的有效用户ID");
-                ids.add(required(item.trim()));
-            }
-        }
-        List<String> names = new ArrayList<>();
-        for (Long id : ids) {
-            DataSet<SysUser> response;
-            try { response = users.getUserById(id); }
-            catch (RuntimeException exception) { throw new CoursePermissionException(503, "用户服务不可用，无法校验执笔人"); }
-            SysUser user = response == null ? null : response.getData();
-            if (user == null || !id.equals(user.getUserId()) || !"0".equals(user.getStatus()) || !"0".equals(user.getDelFlag()))
-                throw new CoursePermissionException(400, "执笔人不存在、已停用或已删除：" + id);
-            String name = user.getNickName() == null || user.getNickName().trim().isEmpty() ? user.getUserName() : user.getNickName();
-            if (name == null || name.trim().isEmpty()) throw new CoursePermissionException(400, "执笔人缺少有效姓名：" + id);
-            names.add(name);
-        }
-        String idsValue = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
-        String namesValue = String.join(",", names);
+    private String[] normalizeAuthors(Course course, CourseAuthorsSaveVo request) {
+        if (request.getAuthorIds().trim().isEmpty()) return new String[]{"", ""};
+        String[] accounts = request.getAuthorIds().split(",", -1);
+        String[] names = request.getAuthors() == null ? new String[0] : request.getAuthors().split(",", -1);
+        if (request.getAuthors() != null && accounts.length != names.length)
+            throw new CoursePermissionException(400, "authorIds 与 authors 数量必须一致");
+        List<CoursePersonVo> people = new ArrayList<>();
+        for (int i = 0; i < accounts.length; i++) people.add(new CoursePersonVo(accounts[i], i < names.length ? names[i] : null));
+        LinkedHashMap<String, String> resolved = resolveMembers(course, people);
+        String idsValue = String.join(",", resolved.keySet());
+        String namesValue = String.join(",", resolved.values());
         if (idsValue.length() > 500 || namesValue.length() > 500) throw new CoursePermissionException(400, "执笔人名单超过字段长度限制");
         return new String[]{namesValue, idsValue};
+    }
+
+    public static String normalizeAccount(String value) {
+        String account = value == null ? null : value.trim();
+        if (account == null || account.isEmpty() || account.length() > 100 || !account.matches("[^\\s,，、;；]+"))
+            throw new CoursePermissionException(400, "email/人员帐号必填，不允许空白或多值分隔符，最多100字符");
+        return account;
+    }
+
+    public static String normalizePersonName(String value) {
+        String name = value == null ? null : value.trim();
+        if (name == null || name.isEmpty() || name.length() > 100 || name.contains(","))
+            throw new CoursePermissionException(400, "人员姓名必填，最多100字符，不能包含英文逗号");
+        return name;
     }
 
     private static Set<String> splitIds(String value) {

@@ -84,8 +84,10 @@ import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
+import com.doinner.csys.utils.MultiValueUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionException;
 import com.doinner.csys.permission.CoursePermissionService;
 import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.system.domain.entity.SysDictData;
@@ -139,6 +141,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>> KP_LIST_TYPE =
             new TypeReference<List<TeachingPlanTargetDesign.KnowledgePointItem>>() {};
+
+    /** t_csys_teaching_plan_target_design.teaching_method / learning_method 的列宽上限 */
+    private static final int TARGET_DESIGN_DICT_COLUMN_LENGTH = 500;
 
     @Resource
     private TeachingPlanObjectiveMapper teachingPlanObjectiveMapper;
@@ -2578,6 +2583,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (design == null) {
             return;
         }
+        // 教法/学法多选：统一顿号拼接并去重；历史单选值拆分后仍是自身，回写不改变原有数据
+        if (design.isTeachingMethodSpecified()) design.setTeachingMethod(normalizeTargetDesignDict(design.getTeachingMethod(), "教法"));
+        if (design.isLearningMethodSpecified()) design.setLearningMethod(normalizeTargetDesignDict(design.getLearningMethod(), "学法"));
         List<TeachingPlanTargetDesign.KnowledgePointItem> points = design.getKnowledgePoints();
         // 前端只传了旧单字段时，组装成列表
         if (ObjectUtils.isEmpty(points)
@@ -2613,6 +2621,18 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             // 显式传空列表：清空 JSON
             design.setKnowledgePointsJson("[]");
         }
+    }
+
+    /**
+     * 教法/学法落库规范化：顿号拼接、去重、去空白；
+     * 超过列宽时直接报错，避免严格模式下截断造成「保存后丢选项」。
+     */
+    private static String normalizeTargetDesignDict(String raw, String fieldLabel) {
+        String normalized = MultiValueUtils.normalize(raw);
+        if (normalized != null && normalized.length() > TARGET_DESIGN_DICT_COLUMN_LENGTH) {
+            throw new CoursePermissionException(400, fieldLabel + "选项过多，最多 " + TARGET_DESIGN_DICT_COLUMN_LENGTH + " 字符");
+        }
+        return normalized;
     }
 
     private void fillKnowledgePointsFromJson(TeachingPlanTargetDesign design) {

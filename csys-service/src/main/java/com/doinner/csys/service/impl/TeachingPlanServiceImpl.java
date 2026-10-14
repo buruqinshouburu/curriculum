@@ -28,6 +28,7 @@ import com.doinner.csys.dao.StandardMajorMapper;
 import com.doinner.csys.dao.TrainingSchemeCourseScheduleMapper;
 import com.doinner.csys.domain.Course;
 import com.doinner.csys.domain.CourseSchedule;
+import com.doinner.csys.domain.CourseTeamMember;
 import com.doinner.csys.domain.TeachingPlanContext;
 import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.StandardMajor;
@@ -69,6 +70,9 @@ import com.doinner.csys.domain.vo.TeachingPlanSupportContentSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportObjectiveSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportingAggVo;
 import com.doinner.csys.domain.vo.TeachingPlanSupportingCourseVo;
+import com.doinner.csys.domain.vo.TeachingPlanTeacherBatchSaveVo;
+import com.doinner.csys.domain.vo.TeachingPlanTeamCandidateVo;
+import com.doinner.csys.domain.vo.CoursePersonVo;
 import com.doinner.csys.entity.csys.CourseTeachingPlanGenerator;
 import com.doinner.csys.entity.csys.TeachingPlanWordImporter;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
@@ -80,6 +84,7 @@ import com.doinner.csys.service.TeachingPlanService;
 import com.doinner.csys.utils.CurDictUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.csys.permission.CoursePermission;
+import com.doinner.csys.permission.CoursePermissionException;
 import com.doinner.csys.permission.CoursePermissionService;
 import static com.doinner.csys.permission.CourseResource.*;
 import com.doinner.file.api.domain.FileInfo;
@@ -950,6 +955,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         UserUtils.reflash(plan);
         if (plan.getId() == null) {
             teachingPlanMapper.insert(plan);
+            // 新建时记录负责人快照；以后换负责人或清空团队都不改变该计划。
+            for (TeachingPlanTeacher teacher : buildTeachersFromCourse(plan.getId())) {
+                UserUtils.reflash(teacher);
+                teachingPlanTeacherMapper.insert(teacher);
+            }
         } else {
             teachingPlanMapper.updateById(plan);
         }
@@ -1872,25 +1882,24 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     // ============ 教员团队 ============
 
-        @Override
+    @Override
     public List<TeachingPlanTeacher> listTeacher(Long planId) {
         if (planId == null) {
             throw new IllegalArgumentException("planId cannot be null");
         }
         List<TeachingPlanTeacher> teachers = teachingPlanTeacherMapper.selectByPlanId(planId);
-        if (ObjectUtils.isNotEmpty(teachers)) {
-            return teachers;
-        }
-        // No plan teachers: read-only fallback from course authors, do not insert
-        return buildTeachersFromCourse(planId);
+        return teachers == null ? Collections.emptyList() : teachers;
     }
 
+    /**
+     * 构造新建计划的负责人快照；调用方在同一事务内写入计划成员。
+     */
     private List<TeachingPlanTeacher> buildTeachersFromCourse(Long planId) {
         TeachingPlan plan = teachingPlanMapper.selectById(planId);
         if (plan == null || plan.getSourceCourseId() == null) {
             return Collections.emptyList();
         }
-        CourseVo course = courseMapper.selectCourseById(plan.getSourceCourseId());
+        Course course = coursePermissions.findRootCourse(plan.getSourceCourseId());
         if (course == null) {
             return Collections.emptyList();
         }
@@ -1901,39 +1910,52 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         int size = Math.max(names.length, ids.length);
         List<TeachingPlanTeacher> result = new ArrayList<>(size);
+        Set<String> added = new HashSet<>();
         for (int i = 0; i < size; i++) {
             String name = i < names.length ? names[i] : null;
             String teacherId = i < ids.length ? ids[i] : null;
             if (StringUtils.isBlank(name) && StringUtils.isBlank(teacherId)) {
                 continue;
             }
-            TeachingPlanTeacher teacher = new TeachingPlanTeacher();
-            teacher.setPlanId(planId);
-            teacher.setTeacherId(StringUtils.trimToNull(teacherId));
-            teacher.setTeacherName(StringUtils.defaultIfBlank(StringUtils.trimToNull(name), teacherId));
-            teacher.setSort(i + 1);
-            teacher.setSysflag(0);
-            result.add(teacher);
+            if (StringUtils.isNotBlank(teacherId) && !added.add(teacherId.trim())) continue;
+            result.add(fallbackTeacher(planId, StringUtils.trimToNull(teacherId),
+                    StringUtils.defaultIfBlank(StringUtils.trimToNull(name), teacherId), result.size() + 1));
         }
         return result;
+    }
+
+    private static TeachingPlanTeacher fallbackTeacher(Long planId, String teacherId, String teacherName, int sort) {
+        TeachingPlanTeacher teacher = new TeachingPlanTeacher();
+        teacher.setPlanId(planId);
+        teacher.setTeacherId(teacherId);
+        teacher.setTeacherName(teacherName);
+        teacher.setSort(sort);
+        teacher.setSysflag(0);
+        return teacher;
     }
 
     private String[] splitCsv(String raw) {
         if (StringUtils.isBlank(raw)) {
             return new String[0];
         }
-        return Arrays.stream(raw.split("[,，、;；]"))
+        return Arrays.stream(raw.split(",", -1))
                 .map(String::trim)
-                .filter(StringUtils::isNotBlank)
                 .toArray(String[]::new);
     }
 
-@Override
+    @Override
     @Transactional(rollbackFor = Exception.class)
     @CoursePermission(resource = PLAN, value = "#p0.planId")
     public Long addTeacher(TeachingPlanTeacher teacher) {
+        if (teacher.getId() != null) throw new CoursePermissionException(400, "新增成员不能携带记录ID，请使用修改接口");
+        normalizeTeacher(teacher, null);
+        requireUniqueTeacher(teacher);
+        teacher.setSysflag(0);
+        teacher.setCreator(com.doinner.common.security.utils.SecurityUtils.getUsername());
+        teacher.setCreateTime(null);
         UserUtils.reflash(teacher);
         teachingPlanTeacherMapper.insert(teacher);
+        syncCourseTeam(teacher.getPlanId(), teacher);
         return teacher.getId();
     }
 
@@ -1941,15 +1963,217 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     @Transactional(rollbackFor = Exception.class)
     @CoursePermission(resource = TEACHER, value = "#p0.id", request = "#p0")
     public void updateTeacher(TeachingPlanTeacher teacher) {
+        TeachingPlanTeacher previous = teachingPlanTeacherMapper.selectById(teacher.getId());
+        if (previous == null) throw new CoursePermissionException(404, "教学团队成员不存在");
+        normalizeTeacher(teacher, previous);
+        requireUniqueTeacher(teacher);
+        boolean changedPerson = !Objects.equals(previous.getTeacherId(), teacher.getTeacherId());
         UserUtils.reflash(teacher);
         teachingPlanTeacherMapper.updateById(teacher);
+        if (changedPerson) syncCourseTeam(teacher.getPlanId(), teacher);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     @CoursePermission(resource = TEACHER, value = "#p0")
     public void deleteTeacher(Long id) {
+        // 只解除当前教学计划的关联，不删除课程库团队成员
         teachingPlanTeacherMapper.deleteById(id);
+    }
+
+    /**
+     * 教学团队候选人：当前教学计划所属总库课程的课程负责人 + 课程团队成员。
+     * roleType 仅标识课程库中的既有身份，不因被教学计划选择而改变。
+     */
+    @Override
+    public List<TeachingPlanTeamCandidateVo> listTeacherCandidates(Long planId) {
+        List<TeachingPlanTeamCandidateVo> candidates = new ArrayList<>();
+        if (planId == null) {
+            return candidates;
+        }
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null || plan.getSourceCourseId() == null) {
+            return candidates;
+        }
+        Course course = coursePermissions.findRootCourse(plan.getSourceCourseId());
+        if (course == null) {
+            return candidates;
+        }
+        Map<String, TeachingPlanTeacher> selected = new LinkedHashMap<>();
+        for (TeachingPlanTeacher teacher : teachingPlanTeacherMapper.selectByPlanId(planId)) {
+            if (StringUtils.isNotBlank(teacher.getTeacherId())) {
+                selected.put(teacher.getTeacherId().trim(), teacher);
+            }
+        }
+        LinkedHashSet<String> added = new LinkedHashSet<>();
+        String[] names = splitCsv(course.getAuthors());
+        String[] ids = splitCsv(course.getAuthorIds());
+        int size = Math.max(names.length, ids.length);
+        for (int i = 0; i < size; i++) {
+            String name = i < names.length ? names[i] : null;
+            String teacherId = i < ids.length ? ids[i] : null;
+            if (StringUtils.isBlank(name) && StringUtils.isBlank(teacherId)) {
+                continue;
+            }
+            String userId = StringUtils.trimToNull(teacherId);
+            if (userId != null && !added.add(userId)) {
+                continue;
+            }
+            candidates.add(candidate(userId, StringUtils.defaultIfBlank(StringUtils.trimToNull(name), teacherId),
+                    1, "课程负责人", selected));
+        }
+        for (CourseTeamMember member : coursePermissions.listTeamMembers(course.getId())) {
+            if (member.getUserId() == null || !added.add(member.getUserId())) {
+                continue;
+            }
+            candidates.add(candidate(member.getUserId(), member.getUserName(),
+                    2, "课程团队成员", selected));
+        }
+        return candidates;
+    }
+
+    private static TeachingPlanTeamCandidateVo candidate(String userId, String userName, int roleType,
+                                                         String roleName, Map<String, TeachingPlanTeacher> selected) {
+        TeachingPlanTeamCandidateVo vo = new TeachingPlanTeamCandidateVo();
+        vo.setUserId(StringUtils.trimToNull(userId));
+        vo.setUserName(userName);
+        vo.setRoleType(roleType);
+        vo.setRoleName(roleName);
+        TeachingPlanTeacher current = selected.get(userId == null ? null : userId.trim());
+        vo.setSelected(current != null);
+        vo.setTeacherRecordId(current == null ? null : current.getId());
+        return vo;
+    }
+
+    /**
+     * 批量保存教学团队成员：以统一认证帐号识别，姓名由第三方提交。
+     * 新增/更换人员时同步课程团队，资料编辑不重新入队；全部成功或全部回滚。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0.planId")
+    public List<TeachingPlanTeacher> saveTeachersBatch(TeachingPlanTeacherBatchSaveVo request) {
+        if (request == null || request.getPlanId() == null) {
+            throw new CoursePermissionException(400, "planId 必填");
+        }
+        if (CollectionUtils.isEmpty(request.getTeachers())) {
+            throw new CoursePermissionException(400, "teachers 必填");
+        }
+        Long planId = request.getPlanId();
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null) {
+            throw new CoursePermissionException(404, "教学计划不存在");
+        }
+        Map<String, TeachingPlanTeacher> existing = new LinkedHashMap<>();
+        Map<Long, TeachingPlanTeacher> existingById = new LinkedHashMap<>();
+        int maxSort = 0;
+        for (TeachingPlanTeacher teacher : teachingPlanTeacherMapper.selectByPlanId(planId)) {
+            existingById.put(teacher.getId(), teacher);
+            if (StringUtils.isNotBlank(teacher.getTeacherId())) {
+                existing.put(teacher.getTeacherId().trim(), teacher);
+            }
+            maxSort = Math.max(maxSort, teacher.getSort() == null ? 0 : teacher.getSort());
+        }
+        LinkedHashMap<String, TeachingPlanTeacher> inputs = new LinkedHashMap<>();
+        Set<Long> submittedIds = new HashSet<>();
+        Set<Long> targetedIds = new HashSet<>();
+        for (TeachingPlanTeacher input : request.getTeachers()) {
+            if (input == null) throw new CoursePermissionException(400, "人员不能为空");
+            TeachingPlanTeacher previous = input.getId() == null ? null : existingById.get(input.getId());
+            if (input.getId() != null && (previous == null || !submittedIds.add(input.getId())))
+                throw new CoursePermissionException(400, "成员记录不属于当前计划或被重复提交");
+            String account = CoursePermissionService.normalizeAccount(input.getTeacherId() == null && previous != null ? previous.getTeacherId() : input.getTeacherId());
+            TeachingPlanTeacher sameAccount = existing.get(account);
+            if (previous != null && sameAccount != null && !previous.getId().equals(sameAccount.getId()))
+                throw new CoursePermissionException(409, "同一教学计划中该帐号已存在");
+            TeachingPlanTeacher target = previous == null ? sameAccount : previous;
+            if (target != null && !inputs.containsKey(account) && !targetedIds.add(target.getId()))
+                throw new CoursePermissionException(409, "同一成员记录不能在一次请求中更换为多个人员");
+            input.setTeacherId(account);
+            input.setPlanId(planId);
+            normalizeTeacher(input, previous == null ? sameAccount : previous);
+            if (inputs.containsKey(account) && !Objects.equals(inputs.get(account).getId(), input.getId()))
+                throw new CoursePermissionException(409, "同一请求中人员帐号重复");
+            inputs.put(account, input);
+        }
+        List<TeachingPlanTeacher> saved = new ArrayList<>();
+        List<CoursePersonVo> addedPeople = new ArrayList<>();
+        for (TeachingPlanTeacher input : inputs.values()) {
+            TeachingPlanTeacher record = input.getId() == null ? existing.get(input.getTeacherId()) : existingById.get(input.getId());
+            if (record == null) {
+                record = input;
+                record.setId(null);
+                record.setSort(input.getSort() == null ? ++maxSort : input.getSort());
+                record.setSysflag(0);
+                record.setCreator(com.doinner.common.security.utils.SecurityUtils.getUsername());
+                record.setCreateTime(null);
+                UserUtils.reflash(record);
+                teachingPlanTeacherMapper.insert(record);
+                addedPeople.add(new CoursePersonVo(record.getTeacherId(), record.getTeacherName()));
+            } else {
+                if (!record.getTeacherId().equals(input.getTeacherId())) {
+                    record.setTeacherId(input.getTeacherId());
+                    addedPeople.add(new CoursePersonVo(input.getTeacherId(), input.getTeacherName()));
+                }
+                record.setTeacherName(input.getTeacherName());
+                if (input.getProfessionalTitle() != null) record.setProfessionalTitle(input.getProfessionalTitle());
+                if (input.getDuty() != null) record.setDuty(input.getDuty());
+                if (input.getLectureContent() != null) record.setLectureContent(input.getLectureContent());
+                if (input.getSort() != null) record.setSort(input.getSort());
+                UserUtils.reflash(record);
+                teachingPlanTeacherMapper.updateById(record);
+            }
+            saved.add(record);
+        }
+        if (!addedPeople.isEmpty()) coursePermissions.mergeTeamMembers(plan.getSourceCourseId(), addedPeople);
+        return saved;
+    }
+
+    private void normalizeTeacher(TeachingPlanTeacher input, TeachingPlanTeacher previous) {
+        String account = input.getTeacherId();
+        if (account == null && previous != null) account = previous.getTeacherId();
+        account = CoursePermissionService.normalizeAccount(account);
+        input.setTeacherId(account);
+        if (input.getTeacherName() == null && previous != null && account.equals(previous.getTeacherId()))
+            input.setTeacherName(previous.getTeacherName());
+        input.setTeacherName(CoursePermissionService.normalizePersonName(input.getTeacherName()));
+    }
+
+    private void requireUniqueTeacher(TeachingPlanTeacher input) {
+        for (TeachingPlanTeacher teacher : teachingPlanTeacherMapper.selectByPlanId(input.getPlanId())) {
+            if (input.getTeacherId().equals(StringUtils.trimToNull(teacher.getTeacherId())) && !Objects.equals(input.getId(), teacher.getId()))
+                throw new CoursePermissionException(409, "同一教学计划中该帐号已存在");
+        }
+    }
+
+    /** 批量移除教学团队成员：只解除当前教学计划的关联，课程库团队成员不动。 */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = TEACHER, value = "#p1")
+    public void removeTeachersBatch(Long planId, List<Long> ids) {
+        if (planId == null || CollectionUtils.isEmpty(ids)) {
+            throw new CoursePermissionException(400, "planId 与 ids 必填");
+        }
+        for (Long id : new LinkedHashSet<>(ids)) {
+            if (id == null) {
+                continue;
+            }
+            TeachingPlanTeacher record = teachingPlanTeacherMapper.selectById(id);
+            if (record == null) {
+                continue;
+            }
+            if (!planId.equals(record.getPlanId())) {
+                throw new CoursePermissionException(400, "教学团队成员不属于当前教学计划");
+            }
+            teachingPlanTeacherMapper.deleteById(id);
+        }
+    }
+
+    private void syncCourseTeam(Long planId, TeachingPlanTeacher teacher) {
+        TeachingPlan plan = teachingPlanMapper.selectById(planId);
+        if (plan == null || plan.getSourceCourseId() == null) throw new CoursePermissionException(404, "教学计划或所属课程不存在");
+        coursePermissions.mergeTeamMembers(plan.getSourceCourseId(),
+                Collections.singletonList(new CoursePersonVo(teacher.getTeacherId(), teacher.getTeacherName())));
     }
 
     // ============ 课程章节 ============

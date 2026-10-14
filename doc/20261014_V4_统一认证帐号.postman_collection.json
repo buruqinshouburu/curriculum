@@ -1,0 +1,265 @@
+{
+  "info": {
+    "name": "V4.0 统一认证帐号、课程团队与计划人员",
+    "description": "email=统一认证帐号，对应sys_user.user_name；userName=教员姓名。人员字段不能传系统数字主键。courseId/planId/teacherRecordId仍为业务记录数字ID。baseUrl填写当前服务或网关地址，并配置实际登录认证。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/flowable-demo"
+    },
+    {
+      "key": "courseId",
+      "value": "1"
+    },
+    {
+      "key": "planId",
+      "value": "101"
+    },
+    {
+      "key": "teacherRecordId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "执笔人：帐号与姓名对应保存",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/authors",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"authorIds\": \"teacher.a,teacher.b\",\n  \"authors\": \"教员甲,教员乙\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "课程操作能力与人员回显",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/permission"
+      },
+      "response": []
+    },
+    {
+      "name": "查询课程团队",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/teamMembers"
+      },
+      "response": []
+    },
+    {
+      "name": "全量保存第三方课程团队",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/teamMembers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"members\": [\n    {\n      \"email\": \"teacher.a\",\n      \"userName\": \"教员甲\",\n      \"unitName\": \"单位甲\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "追加未注册人员",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/teamMembers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"members\": [\n    {\n      \"email\": \"teacher.new\",\n      \"userName\": \"新教员\",\n      \"unitName\": \"单位乙\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "按帐号移除课程团队成员",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/teamMembers?userIds=teacher.new"
+      },
+      "response": []
+    },
+    {
+      "name": "清空可见团队名单",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/curriculum/course/{{courseId}}/teamMembers",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"members\": []\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "计划人员候选人（帐号+已选标记）",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/teachingPlan/teacher/candidates?planId={{planId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "计划团队回显",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/teachingPlan/teacher/list?planId={{planId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "新增计划成员并同步课程团队",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/teachingPlan/teacher",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"teacher.a\",\n  \"userName\": \"教员甲\",\n  \"unitName\": \"单位甲\",\n  \"professionalTitle\": \"讲师\",\n  \"duty\": \"主讲\",\n  \"lectureContent\": \"第一章\",\n  \"planId\": \"{{planId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "修改计划成员资料（不重新入队）",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/teachingPlan/teacher",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{teacherRecordId}}\",\n  \"professionalTitle\": \"副教授\",\n  \"duty\": \"指导\",\n  \"lectureContent\": \"第二章\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "更换计划人员（同步新帐号）",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/teachingPlan/teacher",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{teacherRecordId}}\",\n  \"email\": \"teacher.other\",\n  \"userName\": \"另一教员\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "批量新增或更新计划人员",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/teachingPlan/teacher/batch",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"{{planId}}\",\n  \"teachers\": [\n    {\n      \"email\": \"teacher.a\",\n      \"userName\": \"教员甲\",\n      \"unitName\": \"单位甲\",\n      \"professionalTitle\": \"讲师\",\n      \"duty\": \"主讲\",\n      \"lectureContent\": \"第一章\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "批量按记录ID移除计划成员",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/teachingPlan/teacher/batch?planId={{planId}}&ids={{teacherRecordId}}"
+      },
+      "response": []
+    }
+  ]
+}
