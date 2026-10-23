@@ -79,9 +79,11 @@ import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
 import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.CommonService;
+import com.doinner.csys.service.IKnowledgeUnitService;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
 import com.doinner.csys.utils.CurDictUtils;
+import com.doinner.csys.utils.MultiValueUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.csys.permission.CoursePermission;
 import com.doinner.csys.permission.CoursePermissionException;
@@ -268,6 +270,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
 
     @Resource
     private TeachingPlanModuleService teachingPlanModuleService;
+
+    @Resource
+    private IKnowledgeUnitService knowledgeUnitService;
 
     @Resource
     private CommonService commonService;
@@ -1170,6 +1175,25 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             // 一次取 plan 下全量，由生成器按 designTypeName(字典 label) 分流到知识/能力/素质三表
             List<TeachingPlanTargetDesign> designs =
                     teachingPlanModuleService.listTargetDesign(planId, null, null);
+            if (Objects.equals(m.getDocType(), CourseTeachingPlanGenerator.DOC_TYPE_COURSE)) {
+                boolean publicFoundation = detail != null && detail.getPublicFoundation() != null
+                        ? detail.getPublicFoundation() : isPublicFoundationCourseModuleValue(course.getCourseModule());
+                if (!publicFoundation) {
+                    // 前端按当前引用方案顺序合并；未引用或空 scheme 的设计不显示。
+                    List<TeachingPlanTargetDesign> ordered = new ArrayList<>();
+                    Set<Long> seenSchemes = new LinkedHashSet<>();
+                    if (ObjectUtils.isNotEmpty(schemes) && ObjectUtils.isNotEmpty(designs)) {
+                        for (TeachingPlanSchemeVo scheme : schemes) {
+                            if (scheme == null || scheme.getSchemeId() == null || !seenSchemes.add(scheme.getSchemeId())) continue;
+                            for (TeachingPlanTargetDesign design : designs) {
+                                if (design != null && Objects.equals(scheme.getSchemeId(), design.getSchemeId())) ordered.add(design);
+                            }
+                        }
+                    }
+                    designs = ordered;
+                }
+                m.setKnowledgeUnits(knowledgeUnitService.listByCourseId(course.getId()));
+            }
             // 表内教学环节/教法/学法 + 设计类型：字典编码译为 label（可多值顿号/逗号分隔）
             translateTargetDesignDictFields(designs);
             m.setTargetDesigns(designs);
@@ -1628,12 +1652,28 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 continue;
             }
             d.setTeachingLink(translateDictJoined(d.getTeachingLink(), linkMap));
-            d.setTeachingMethod(translateDictJoined(d.getTeachingMethod(), methodMap));
-            d.setLearningMethod(translateDictJoined(d.getLearningMethod(), learningMap));
+            d.setTeachingMethod(translateTargetDesignMethods(d.getTeachingMethod(), methodMap));
+            d.setLearningMethod(translateTargetDesignMethods(d.getLearningMethod(), learningMap));
             // design_type_code 存字典 value(如 1/2/3)，译成中文 label 填 designTypeName，
             // 供生成器按"知识/能力/素质"分流；已是中文或字典未命中时保留原文
             d.setDesignTypeName(translateDictJoined(d.getDesignTypeCode(), targetTypeMap));
         }
+    }
+
+    private String translateTargetDesignMethods(String raw, Map<String, String> valueToLabel) {
+        if (StringUtils.isBlank(raw)) {
+            return raw;
+        }
+        String trimmed = raw.trim();
+        // 完整 label 可能包含 "/"；只拆原编码，不再拆译名。
+        if (valueToLabel.containsKey(trimmed) || valueToLabel.containsValue(trimmed)) {
+            return translateDictJoined(trimmed, valueToLabel);
+        }
+        return MultiValueUtils.split(raw).stream()
+                .map(code -> translateDictJoined(code, valueToLabel))
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.joining(MultiValueUtils.JOINER));
     }
 
     /**

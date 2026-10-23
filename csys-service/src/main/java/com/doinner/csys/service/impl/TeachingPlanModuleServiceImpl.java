@@ -554,12 +554,59 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 throw new IllegalArgumentException("课程目标权重合计必须等于1，当前为" + total.stripTrailingZeros().toPlainString());
             }
         }
-        teachingPlanObjectiveRefMapper.deleteByPlanAndScheme(
-                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation);
-        teachingPlanObjectiveMapper.deleteByPlanAndScheme(
-                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation);
-        if (ObjectUtils.isEmpty(rows)) {
-            return;
+        Map<Long, TeachingPlanObjective> existingById = new LinkedHashMap<>();
+        for (TeachingPlanObjective existing : teachingPlanObjectiveMapper.selectByPlanAndScheme(
+                saveVo.getPlanId(), batchSchemeId, batchPublicFoundation)) {
+            existingById.put(existing.getId(), existing);
+        }
+        if (rows == null) {
+            rows = Collections.emptyList();
+        }
+        Set<Long> submittedIds = new HashSet<>();
+        Set<Long> graduationIds = new LinkedHashSet<>();
+        // Validate the entire batch before deleting or updating any existing row.
+        for (TeachingPlanObjectiveSaveVo row : rows) {
+            if (row == null || row.getObjective() == null) {
+                continue;
+            }
+            TeachingPlanObjective objective = row.getObjective();
+            if (objective.getPlanId() != null && !saveVo.getPlanId().equals(objective.getPlanId())) {
+                throw new IllegalArgumentException("同一次批量保存不能混入不同教学计划的课程目标");
+            }
+            if (objective.getId() != null) {
+                if (!existingById.containsKey(objective.getId())) {
+                    throw new IllegalArgumentException("教学目标不属于当前教学计划和培养方案: " + objective.getId());
+                }
+                if (!submittedIds.add(objective.getId())) {
+                    throw new IllegalArgumentException("教学目标id重复: " + objective.getId());
+                }
+            }
+            objective.setPlanId(saveVo.getPlanId());
+            objective.setSchemeId(batchSchemeId);
+            validateObjectiveForInsert(objective, batchPublicFoundation);
+            if (row.getRefs() != null) {
+                for (TeachingPlanObjectiveRef ref : row.getRefs()) {
+                    if (ref == null) {
+                        continue;
+                    }
+                    if (ref.getGraduationId() == null) {
+                        throw new IllegalArgumentException("毕业要求id(graduationId)不能为空");
+                    }
+                    graduationIds.add(ref.getGraduationId());
+                }
+            }
+        }
+        Map<Long, StandardGraduation> graduationMap = loadGraduationMap(new ArrayList<>(graduationIds));
+        for (Long graduationId : graduationIds) {
+            if (!graduationMap.containsKey(graduationId)) {
+                throw new IllegalArgumentException("毕业要求不存在: " + graduationId);
+            }
+        }
+        for (Long existingId : existingById.keySet()) {
+            if (!submittedIds.contains(existingId)) {
+                teachingPlanObjectiveRefMapper.deleteByObjectiveId(existingId);
+                teachingPlanObjectiveMapper.deleteById(existingId);
+            }
         }
         int sort = 1;
         for (TeachingPlanObjectiveSaveVo row : rows) {
@@ -567,22 +614,17 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 continue;
             }
             TeachingPlanObjective objective = row.getObjective();
-            objective.setId(null);
-            objective.setPlanId(saveVo.getPlanId());
-            if (objective.getSchemeId() == null) {
-                objective.setSchemeId(batchSchemeId);
-            }
-            boolean publicFoundation = forceNullSchemeIfPublicFoundation(objective);
-            if (publicFoundation) {
-                objective.setSchemeId(null);
-            }
-            validateObjectiveForInsert(objective, publicFoundation);
             if (objective.getSort() == null) {
                 objective.setSort(sort);
             }
             sort++;
             UserUtils.reflash(objective);
-            teachingPlanObjectiveMapper.insert(objective);
+            if (objective.getId() == null) {
+                teachingPlanObjectiveMapper.insert(objective);
+            } else {
+                teachingPlanObjectiveMapper.updateById(objective);
+                teachingPlanObjectiveRefMapper.deleteByObjectiveId(objective.getId());
+            }
             insertObjectiveRefs(objective.getId(), objective.getPlanId(), objective.getSchemeId(), row.getRefs());
         }
     }

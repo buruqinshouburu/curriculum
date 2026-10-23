@@ -688,17 +688,19 @@ public class TeachingPlanWordImporter {
     }
 
     private void parseKnowledgeDesign(List<List<String>> grid, ParseResult result, ParseContext ctx) {
-        // 序号|知识单元|知识点|支撑的课程知识目标|教学内容|教学环节|教法|学法|学时
+        // 新表逐点独立；旧表仍按序号还原多知识点设计。
+        boolean numbered = "序号".equals(cell(grid.get(0), 0));
+        int offset = numbered ? 1 : 0;
         TeachingPlanTargetDesign current = null;
         List<TeachingPlanTargetDesign.KnowledgePointItem> points = null;
         Integer currentSeq = null;
         for (int r = 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
-            if (isAllBlank(row)) {
+            if (isAllBlank(row) || (!numbered && isPlaceholderDesignRow(row, 2))) {
                 continue;
             }
-            Integer seqNum = parseInt(cell(row, 0));
-            boolean newGroup = current == null
+            Integer seqNum = numbered ? parseInt(cell(row, 0)) : null;
+            boolean newGroup = !numbered || current == null
                     || (seqNum != null && (currentSeq == null || !seqNum.equals(currentSeq)));
             if (newGroup) {
                 if (current != null) {
@@ -710,16 +712,16 @@ public class TeachingPlanWordImporter {
                 currentSeq = seqNum;
                 current.setDesignTypeCode(mapDesignTypeCode("知识目标", ctx));
                 current.setSort(seqNum != null ? seqNum : result.targetDesigns.size() + 1);
-                current.setObjectiveText(cell(row, 3));
-                current.setContentText(cell(row, 4));
-                current.setTeachingLink(reverseDictMulti(cell(row, 5), "sys_plan_teaching_link", ctx, result, "六、达成设计"));
-                current.setTeachingMethod(reverseDictMulti(cell(row, 6), "sys_plan_teaching_method", ctx, result, "六、达成设计"));
-                current.setLearningMethod(reverseDictMulti(cell(row, 7), "sys_plan_learning_method", ctx, result, "六、达成设计"));
-                current.setHours(parseDecimal(cell(row, 8)));
+                current.setObjectiveText(designImportCell(row, offset + 2, numbered));
+                current.setContentText(designImportCell(row, offset + 3, numbered));
+                current.setTeachingLink(reverseDictMulti(designImportCell(row, offset + 4, numbered), "sys_plan_teaching_link", ctx, result, "六、达成设计"));
+                current.setTeachingMethod(reverseDictMulti(designImportCell(row, offset + 5, numbered), "sys_plan_teaching_method", ctx, result, "六、达成设计"));
+                current.setLearningMethod(reverseDictMulti(designImportCell(row, offset + 6, numbered), "sys_plan_learning_method", ctx, result, "六、达成设计"));
+                current.setHours(parseDecimal(designImportCell(row, offset + 7, numbered)));
             }
             TeachingPlanTargetDesign.KnowledgePointItem item = new TeachingPlanTargetDesign.KnowledgePointItem();
-            String unitName = cell(row, 1);
-            String pointName = cell(row, 2);
+            String unitName = designImportCell(row, offset, numbered);
+            String pointName = designImportCell(row, offset + 1, numbered);
             item.setKnowledgeUnitName(unitName);
             item.setKnowledgePointName(pointName);
             matchKnowledgeUnit(item, unitName, ctx, result);
@@ -773,25 +775,40 @@ public class TeachingPlanWordImporter {
     }
 
     private void parseAbilityQualityDesign(List<List<String>> grid, String designType, ParseResult result) {
-        // 序号|目标|观测点|教学内容|教学设计
+        boolean numbered = "序号".equals(cell(grid.get(0), 0));
+        int offset = numbered ? 1 : 0;
         for (int r = 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
             if (isAllBlank(row)) {
                 continue;
             }
-            String objectiveText = cell(row, 1);
-            if (StringUtils.isBlank(objectiveText) && StringUtils.isBlank(cell(row, 2))) {
+            String objectiveText = designImportCell(row, offset, numbered);
+            if (numbered ? StringUtils.isBlank(objectiveText) && StringUtils.isBlank(cell(row, offset + 1))
+                    : isPlaceholderDesignRow(row, 0)) {
                 continue;
             }
             TeachingPlanTargetDesign d = new TeachingPlanTargetDesign();
             d.setDesignTypeCode(designType);
-            d.setSort(parseInt(cell(row, 0)) != null ? parseInt(cell(row, 0)) : result.targetDesigns.size() + 1);
+            Integer seq = numbered ? parseInt(cell(row, 0)) : null;
+            d.setSort(seq != null ? seq : result.targetDesigns.size() + 1);
             d.setObjectiveText(objectiveText);
-            d.setObservationPoint(cell(row, 2));
-            d.setContentText(cell(row, 3));
-            d.setTeachingDesign(cell(row, 4));
+            d.setObservationPoint(designImportCell(row, offset + 1, numbered));
+            d.setContentText(designImportCell(row, offset + 2, numbered));
+            d.setTeachingDesign(designImportCell(row, offset + 3, numbered));
             result.targetDesigns.add(d);
         }
+    }
+
+    private String designImportCell(List<String> row, int column, boolean numbered) {
+        String value = cell(row, column);
+        return !numbered && "-".equals(value) ? "" : value;
+    }
+
+    private boolean isPlaceholderDesignRow(List<String> row, int start) {
+        for (int c = start; c < row.size(); c++) {
+            if (StringUtils.isNotBlank(designImportCell(row, c, false))) return false;
+        }
+        return true;
     }
 
     private void parsePracticeItems(List<List<String>> grid, ParseResult result) {

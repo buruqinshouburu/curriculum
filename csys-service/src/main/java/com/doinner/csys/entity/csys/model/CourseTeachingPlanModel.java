@@ -20,6 +20,7 @@ import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.TeachingPlanTrainingPurposeRef;
 import com.doinner.csys.domain.TeachingPlanSupportObjective;
 import com.doinner.csys.domain.TeachingPlanSupportContent;
+import com.doinner.csys.domain.vo.CourseKnowledgeUnitVo;
 
 import java.util.List;
 import java.util.Map;
@@ -119,6 +120,8 @@ public class CourseTeachingPlanModel {
     private List<TeachingPlanContent> contents;
     /** 目标达成设计（知识/能力/素质，生成器按 designTypeCode 分组） */
     private List<TeachingPlanTargetDesign> targetDesigns;
+    /** 与前端知识表同源的完整知识树，用于补齐未配置知识点。 */
+    private List<CourseKnowledgeUnitVo> knowledgeUnits;
     /**
      * 第六节「说明」- 教学环节说明行（取自字典 sys_plan_teaching_link 的全部 label）。
      * 形如：教学环节主要包括：课前预习（准备）、理论教学、……
@@ -379,6 +382,14 @@ public class CourseTeachingPlanModel {
 
     public void setTargetDesigns(List<TeachingPlanTargetDesign> targetDesigns) {
         this.targetDesigns = targetDesigns;
+    }
+
+    public List<CourseKnowledgeUnitVo> getKnowledgeUnits() {
+        return knowledgeUnits;
+    }
+
+    public void setKnowledgeUnits(List<CourseKnowledgeUnitVo> knowledgeUnits) {
+        this.knowledgeUnits = knowledgeUnits;
     }
 
     public String getTeachingLinkNote() {
