@@ -41,13 +41,34 @@
         <result property="creator" column="creator"/>
         <result property="lastModifiedTime" column="last_modified_time"/>
         <result property="lastModifier" column="last_modifier"/>
-        <result property="courseAttr" column="course_attr"/>
+        <result property="courseAttr" column="current_course_attr"/>
         <result property="c_type" column="c_type"/>
         <result property="timeWeek" column="time_Week"/>
         <result property="unit" column="unit"/>
         <result property="remark" column="remark"/>
         <result property="sysflag" column="sysflag"/>
+        <collection property="courseScheduleList" column="course_id"
+                    select="selectCurrentCourseScheduleList" fetchType="eager"/>
     </resultMap>
+
+    <resultMap type="com.doinner.csys.domain.CourseSchedule" id="CurrentCourseScheduleResult">
+        <id property="id" column="id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="semesterSchedule" column="semester_schedule"/>
+        <result property="springAutumn" column="spring_autumn"/>
+        <result property="teachHours" column="teach_hours"/>
+        <result property="practiceHours" column="practice_hours"/>
+        <result property="timeWeek" column="time_week"/>
+        <result property="unit" column="unit"/>
+    </resultMap>
+
+    <!-- A nested read preserves one parent row per saved schedule ID and caches repeated course IDs. -->
+    <select id="selectCurrentCourseScheduleList" parameterType="Long" resultMap="CurrentCourseScheduleResult">
+        select id, course_id, semester_schedule, spring_autumn, teach_hours, practice_hours, time_week, unit
+        from t_csys_course_ref_schedule
+        where course_id = #{courseId}
+        order by id asc
+    </select>
 
     <resultMap type="com.doinner.csys.domain.statisticsVo.TrainingSchemeCourseScheduleStatisticsVo"
                id="TrainingSchemeCourseScheduleStatisticsVoResult">
@@ -76,7 +97,7 @@
                c.name             as course_name,
                c.before_course_id as c_before,
                c.after_course_id  as c_after,
-               c.course_attr,
+               c.course_attr      as current_course_attr,
                c.type             as c_type,
                c.time_Week,
                c.unit,

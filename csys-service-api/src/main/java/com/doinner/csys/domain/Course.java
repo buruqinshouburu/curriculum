@@ -3,6 +3,7 @@ package com.doinner.csys.domain;
 import com.doinner.common.core.domain.db.AbstractDoinnerLogicalDelBaseEntity;
 import com.doinner.common.core.annotation.Excel;
 import com.doinner.csys.domain.vo.GraduationTreeVo;
+import com.doinner.csys.domain.vo.CoursePermissionVo;
 import com.doinner.csys.domain.vo.StandardTreeVo;
 
 import java.util.ArrayList;
@@ -16,6 +17,10 @@ import java.util.List;
  * @date 2023-03-14
  */
 public class Course extends AbstractDoinnerLogicalDelBaseEntity {
+
+    private CoursePermissionVo permissions;
+    public CoursePermissionVo getPermissions() { return permissions; }
+    public void setPermissions(CoursePermissionVo permissions) { this.permissions = permissions; }
 
     private static final long serialVersionUID = -4203290278528654761L;
 

@@ -76,7 +76,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @CoursePermission(value = "#p0", sourceCoursesOnly = true)
+    @CoursePermission(value = "#p0", sourceCoursesOnly = true, sourceDelete = true)
     public void removeStorageCourse(List<Long> ids) {
         List<Course> courses = courseMapper.selectCoursesByIds(ids);
         for (Course course : courses) {
@@ -84,7 +84,7 @@ public class CourseServiceImpl implements CourseService {
             //检查课程是否被调用
             List<Course> courseList=courseMapper.selectCourseBySourceId(course.getId());
             if(ObjectUtils.isNotEmpty(courseList)){
-                throw new RuntimeException("课程已被调用，不能删除！");
+                throw new RuntimeException(invokedCourseDeletionMessage(course, courseList));
             }
         }
         //删除关联知识单元知识点
@@ -97,6 +97,25 @@ public class CourseServiceImpl implements CourseService {
             courseknowledgeUnitMapper.deleteByIds(orphanIds);
         }
         courseMapper.deleteCourseByIds(ids);
+    }
+
+    private String invokedCourseDeletionMessage(Course course, List<Course> invokedCourses) {
+        List<Long> invokedIds = invokedCourses.stream().map(Course::getId).collect(Collectors.toList());
+        List<Long> schemeIds = trainingSchemeRefCourseMapper.selectByCourseIds(invokedIds).stream()
+                .map(TrainingSchemeRefCourse::getSchemeId).filter(Objects::nonNull).distinct().sorted()
+                .collect(Collectors.toList());
+        Map<Long, TrainingSchemeVo> schemes = schemeIds.isEmpty() ? Collections.emptyMap()
+                : trainingSchemeMapper.selectTrainingSchemeByIds(schemeIds).stream()
+                .collect(Collectors.toMap(TrainingSchemeVo::getId, scheme -> scheme));
+        String references = schemeIds.isEmpty() ? "未关联培养方案" : "引用培养方案：" + schemeIds.stream()
+                .map(id -> {
+                    TrainingSchemeVo scheme = schemes.get(id);
+                    String name = scheme == null ? null : StringUtils.defaultIfBlank(scheme.getProgramName(), scheme.getName());
+                    return StringUtils.defaultIfBlank(name, "名称不可用") + "（ID：" + id + "）";
+                }).collect(Collectors.joining("、"));
+        return "课程“" + course.getName() + "”（ID：" + course.getId() + "）已被调用，不能删除。"
+                + references + "；调用课程ID：" + invokedIds.stream().map(String::valueOf).collect(Collectors.joining("、"))
+                + "。请先移除调用课程后重试。";
     }
 
     @Override
@@ -532,6 +551,7 @@ public class CourseServiceImpl implements CourseService {
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> syncGraduationFromSource(Long trainingSchemeId) {
         Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("skippedExempt", 0);
         int coursesSynced = 0, rowsInserted = 0, skippedExisting = 0, skippedUnmapped = 0, skippedNoSourceBinding = 0;
         int totalInvoked = 0, withSourceBinding = 0;
 
@@ -550,14 +570,21 @@ public class CourseServiceImpl implements CourseService {
 
         // 只处理有源课程的被调用课程
         Map<Long, Long> invokedToSource = new LinkedHashMap<>();
+        int skippedExempt = 0;
         for (Course c : invokedCourses) {
             if (c.getSourceId() != null) {
+                if ("69a7f32e2dc370362ef3ee6e".equals(c.getCourseModule()) && "3".equals(c.getCourseAttr())) {
+                    skippedExempt++;
+                    continue;
+                }
                 invokedToSource.put(c.getId(), c.getSourceId());
             }
         }
+        summary.put("skippedExempt", skippedExempt);
         totalInvoked = invokedToSource.size();
         if (invokedToSource.isEmpty()) {
-            summary.put("message", "培养方案下没有可同步的课程(无被调用课程)");
+            summary.put("message", skippedExempt > 0 ? "公共基础任选课程免绑定毕业要求，已跳过；已有绑定保持不变。"
+                    : "培养方案下没有可同步的课程(无被调用课程)");
             putSyncSummary(summary, 0, 0, 0, 0, 0);
             return summary;
         }
@@ -648,7 +675,8 @@ public class CourseServiceImpl implements CourseService {
 
         // 6. 生成提示信息
         summary.put("message", buildSyncMessage(totalInvoked, withSourceBinding, schemeHasGraduationTree,
-                coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding));
+                coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding)
+                + (skippedExempt > 0 ? " 公共基础任选课程免绑定，跳过" + skippedExempt + "门；已有绑定保持不变。" : ""));
         putSyncSummary(summary, coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding);
         return summary;
     }

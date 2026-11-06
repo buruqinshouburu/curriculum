@@ -20,7 +20,7 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Authors and course team members edit their courses; creators edit unassigned courses; cur can operate all courses. */
+/** Creators, authors and course team members edit their courses; cur can operate all courses. */
 @Service
 public class CoursePermissionService {
 
@@ -43,7 +43,7 @@ public class CoursePermissionService {
         for (Long id : roots) {
             Course course = readCourse(id, lock);
             if (!canOperateCourse(course, userId, teamMembers(course.getId(), lock)))
-                throw new CoursePermissionException(403, "您不是该课程负责人或团队成员，无权操作课程相关数据");
+                throw new CoursePermissionException(403, "您不是该课程创建人、负责人或团队成员，无权操作课程相关数据");
         }
         if (lock) for (Long id : resources) row(resource, id, true);
         // Owner fields are immutable even when the user happens to edit both courses.
@@ -58,6 +58,19 @@ public class CoursePermissionService {
 
     public void requireCourseWrite(Long courseId) {
         check(CourseResource.COURSE, courseId, null, false);
+    }
+
+    public void checkSourceDelete(Object courseIds) {
+        Long user = userId();
+        for (Long id : ids(courseIds)) {
+            Course course = root(id, true);
+            if ("2".equals(course.getType()) || "4".equals(course.getType())) {
+                if (!canConfigure(course, user))
+                    throw new CoursePermissionException(403, "仅创建人、负责人或管理员可删除训练课目或实践项目");
+            } else if (!canOperateCourse(course, user, teamMembers(course.getId(), true))) {
+                throw new CoursePermissionException(403, "无权删除课程");
+            }
+        }
     }
 
     /** Use inside the write transaction, immediately before final file binding. */
@@ -89,7 +102,79 @@ public class CoursePermissionService {
         result.setCanOperate(!courseId.equals(course.getId()) || canOperateCourse(course, userId, teamMembers));
         result.setCanConfigureAuthors(canConfigure(course, userId));
         result.setCanConfigureTeamMembers(canConfigureTeam(course, userId, teamMembers));
+        result.setCanDelete(canDeleteCourse(course, userId, teamMembers));
         return result;
+    }
+
+    /** List capabilities always describe the source course, not the scheme copy. */
+    public Map<Long, CoursePermissionVo> getListPermissions(Collection<Long> courseIds) {
+        if (courseIds == null || courseIds.isEmpty()) return Collections.emptyMap();
+        Long user = userId();
+        Set<Long> requested = new LinkedHashSet<>(courseIds);
+        requested.remove(null);
+        Map<Long, Course> courses = new HashMap<>();
+        Set<Long> visited = new HashSet<>();
+        Set<Long> pending = new LinkedHashSet<>(requested);
+        for (int depth = 0; depth < 8 && !pending.isEmpty(); depth++) {
+            List<Long> batch = new ArrayList<>(pending);
+            visited.addAll(pending);
+            pending.clear();
+            for (int offset = 0; offset < batch.size(); offset += 500) {
+                List<Long> part = batch.subList(offset, Math.min(offset + 500, batch.size()));
+                for (Map<String, Object> row : jdbc.queryForList(
+                        "SELECT * FROM t_csys_course WHERE sysflag=0 AND id IN (" + placeholders(part.size()) + ")", part.toArray())) {
+                    Course course = courseFromRow(number(row.get("id")), row);
+                    courses.put(course.getId(), course);
+                    if (course.getSourceId() != null && !visited.contains(course.getSourceId())) pending.add(course.getSourceId());
+                }
+            }
+        }
+        Map<Long, Course> roots = new LinkedHashMap<>();
+        for (Long id : requested) {
+            Course course = courses.get(id);
+            Set<Long> chain = new HashSet<>();
+            while (course != null && course.getSourceId() != null) {
+                if (!chain.add(course.getId())) { course = null; break; }
+                course = courses.get(course.getSourceId());
+            }
+            if (course != null) roots.put(id, course);
+        }
+        List<Long> rootIds = roots.values().stream().map(Course::getId).distinct().collect(Collectors.toList());
+        Map<Long, List<CourseTeamMember>> teams = new HashMap<>();
+        for (int offset = 0; offset < rootIds.size(); offset += 500) {
+            List<Long> part = rootIds.subList(offset, Math.min(offset + 500, rootIds.size()));
+            for (CourseTeamMember member : jdbc.query("SELECT id,course_id,user_id,user_name,sort FROM " + TEAM_TABLE
+                    + " WHERE sysflag=0 AND course_id IN (" + placeholders(part.size()) + ") ORDER BY sort ASC,id ASC",
+                    CoursePermissionService::readTeamMember, part.toArray())) {
+                teams.computeIfAbsent(member.getCourseId(), key -> new ArrayList<>()).add(member);
+            }
+        }
+        Map<Long, CoursePermissionVo> result = new LinkedHashMap<>();
+        for (Long id : requested) {
+            CoursePermissionVo permission = new CoursePermissionVo();
+            permission.setCourseId(id);
+            permission.setPermissionCourseId(id);
+            Course course = roots.get(id);
+            if (course != null) {
+                List<CourseTeamMember> members = teams.getOrDefault(course.getId(), Collections.emptyList());
+                permission.setPermissionCourseId(course.getId());
+                permission.setCanOperate(canOperateCourse(course, user, members));
+                permission.setCanDelete(canDeleteCourse(course, user, members));
+                permission.setCanConfigureAuthors(canConfigure(course, user));
+                permission.setCanConfigureTeamMembers(canConfigureTeam(course, user, members));
+            }
+            result.put(id, permission);
+        }
+        return result;
+    }
+
+    private static String placeholders(int count) {
+        return String.join(",", Collections.nCopies(count, "?"));
+    }
+
+    private boolean canDeleteCourse(Course course, Long user, List<CourseTeamMember> members) {
+        return "2".equals(course.getType()) || "4".equals(course.getType())
+                ? canConfigure(course, user) : canOperateCourse(course, user, members);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -176,7 +261,7 @@ public class CoursePermissionService {
         Long id = userId();
         Course course = root(courseId, true);
         if (!canConfigureTeam(course, id, teamMembers(course.getId(), true)))
-            throw new CoursePermissionException(403, "仅课程负责人、团队成员或课程管理员可维护团队；空名单时允许创建人初始化");
+            throw new CoursePermissionException(403, "仅课程创建人、负责人、团队成员或课程管理员可维护团队");
         return course;
     }
 
@@ -561,12 +646,17 @@ public class CoursePermissionService {
 
     private Course readCourse(Long id, boolean lock) {
         Map<String, Object> value = row(CourseResource.COURSE, required(id), lock);
+        return courseFromRow(id, value);
+    }
+
+    private static Course courseFromRow(Long id, Map<String, Object> value) {
         Course result = new Course();
         result.setId(id);
         result.setSourceId(number(value.get("source_id")));
         result.setAuthors(string(value.get("authors")));
         result.setAuthorIds(string(value.get("author_ids")));
         result.setCreator(string(value.get("creator")));
+        result.setType(string(value.get("type")));
         result.setSysflag(number(value.get("sysflag")).intValue());
         Object created = value.get("create_time");
         if (created instanceof java.sql.Timestamp) result.setCreateTime(((java.sql.Timestamp) created).toLocalDateTime());
@@ -588,20 +678,15 @@ public class CoursePermissionService {
                 || isCreator(course);
     }
 
-    /** 负责人/团队成员维护团队；空名单时允许创建人初始化，管理员规则保留。 */
+    /** 创建人、负责人和团队成员可维护团队，管理员规则保留。 */
     private boolean canConfigureTeam(Course course, Long id, List<CourseTeamMember> teamMembers) {
         return hasCurRole() || SecurityUtils.isAdmin(id) || canOperateCourse(course, id, teamMembers);
     }
 
-    /**
-     * 课程内容写权限 = 课程负责人 ∪ 课程团队成员；两者均为空时维持既有兜底（创建人可操作），
-     * 一旦配置了任一人员，创建人不再仅凭创建人身份维护内容或团队。
-     */
+    /** 课程内容写权限 = 创建人 ∪ 课程负责人 ∪ 课程团队成员，cur 管理员规则保留。 */
     private boolean canOperateCourse(Course course, Long id, List<CourseTeamMember> teamMembers) {
-        if (hasCurRole() || hasAuthor(course.getAuthorIds(), username()) || isTeamMember(teamMembers, id)) return true;
-        boolean noOwners = (course.getAuthorIds() == null || course.getAuthorIds().trim().isEmpty())
-                && teamMembers.isEmpty();
-        return noOwners && isCreator(course);
+        return hasCurRole() || SecurityUtils.isAdmin(id) || isCreator(course) || hasAuthor(course.getAuthorIds(), username())
+                || isTeamMember(teamMembers, id);
     }
 
     private static boolean isTeamMember(List<CourseTeamMember> teamMembers, Long id) {
@@ -621,7 +706,8 @@ public class CoursePermissionService {
     /** Role keys come from the existing authenticated login context, never request fields. */
     private static boolean hasCurRole() {
         LoginUser user = SecurityUtils.getLoginUser();
-        return user != null && user.getRoles() != null && user.getRoles().contains("cur");
+        return user != null && user.getRoles() != null
+                && (user.getRoles().contains("cur") || user.getRoles().contains("admin"));
     }
 
     public static boolean hasAuthor(String authorIds, String account) {

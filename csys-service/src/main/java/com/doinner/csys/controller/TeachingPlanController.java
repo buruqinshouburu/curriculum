@@ -50,6 +50,8 @@ import com.doinner.csys.domain.vo.TeachingPlanContentPurposeSaveVo;
 import com.doinner.csys.domain.vo.TeachingPlanQueryVo;
 import com.doinner.csys.domain.vo.TeachingPlanSaveVo;
 import com.doinner.csys.domain.vo.CourseQuoteMajorVo;
+import com.doinner.csys.domain.vo.CoursePermissionVo;
+import com.doinner.csys.permission.CoursePermissionService;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.service.TeachingPlanService;
@@ -61,6 +63,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 课程教学计划 Controller。
@@ -78,6 +82,9 @@ public class TeachingPlanController {
     @Resource
     private TeachingPlanModuleService teachingPlanModuleService;
 
+    @Resource
+    private CoursePermissionService coursePermissions;
+
     /**
      * 课程教学计划管理列表(分页)。
      * 以总库课程为主表，left join 教学计划表，支持课程名称/编号模糊，
@@ -87,7 +94,11 @@ public class TeachingPlanController {
     @GetMapping("/list")
     public DataTable<TeachingPlanListVo> list(TeachingPlanQueryVo query) {
         PageUtils.startPage();
-        return DataTable.success(teachingPlanService.selectTeachingPlanPage(query));
+        List<TeachingPlanListVo> rows = teachingPlanService.selectTeachingPlanPage(query);
+        Map<Long, CoursePermissionVo> permissions = coursePermissions.getListPermissions(
+                rows.stream().map(TeachingPlanListVo::getCourseId).collect(Collectors.toList()));
+        rows.forEach(row -> row.setPermissions(permissions.get(row.getCourseId())));
+        return DataTable.success(rows);
     }
 
     /**

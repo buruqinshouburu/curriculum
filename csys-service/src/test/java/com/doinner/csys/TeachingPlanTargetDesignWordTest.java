@@ -261,8 +261,8 @@ public class TeachingPlanTargetDesignWordTest {
                 unit(1L, "A unit", meta(11L, "Unconfigured point"))));
         byte[] bytes = generate(model);
         Element table = table(bytes, KNOWLEDGE_HEADER.get(0));
-        assertEquals(Arrays.asList("Z point", "A point", "Z point", "Unconfigured point"), column(table, 1));
-        assertEquals(Arrays.asList("First design", "First design", "Independent design", "-"), column(table, 2));
+        assertEquals(Arrays.asList("Z point", "Z point", "A point", "Unconfigured point"), column(table, 1));
+        assertEquals(Arrays.asList("First design", "Independent design", "First design", "-"), column(table, 2));
         Path output = Path.of(System.getProperty("teachingPlan.regression.output", "target/target-design-regression"));
         Files.createDirectories(output);
         Files.write(output.resolve("target-design-alignment-sample.docx"), bytes);
@@ -283,14 +283,14 @@ public class TeachingPlanTargetDesignWordTest {
     }
 
     @Test
-    void partialConfigurationAppendsOnlyMissingPointsAfterConfiguredRows() throws Exception {
+    void partialConfigurationKeepsMissingPointsAtTheirSourceTreePositions() throws Exception {
         CourseTeachingPlanModel model = model(design(1L, KNOWLEDGE, "Configured",
                 point(1L, "A unit", 11L, "Configured point")));
         model.setKnowledgeUnits(Arrays.asList(unit(2L, "Z unit", meta(22L, "Missing first"), meta(21L, "Missing second")),
                 unit(1L, "A unit", meta(11L, "Configured point"))));
         Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
-        assertEquals(Arrays.asList("Configured point", "Missing first", "Missing second"), column(table, 1));
-        assertEquals(Arrays.asList("Configured", "-", "-"), column(table, 2));
+        assertEquals(Arrays.asList("Missing first", "Missing second", "Configured point"), column(table, 1));
+        assertEquals(Arrays.asList("-", "-", "Configured"), column(table, 2));
     }
 
     @Test
@@ -317,14 +317,14 @@ public class TeachingPlanTargetDesignWordTest {
     }
 
     @Test
-    void ambiguousFullNamePathDoesNotSuppressAnyPlaceholder() throws Exception {
+    void ambiguousFullNamePathHidesSnapshotAndKeepsEverySourcePlaceholder() throws Exception {
         CourseTeachingPlanModel model = model(design(1L, KNOWLEDGE, "Snapshot",
                 point(9L, "Unit", 99L, "Point")));
         model.setKnowledgeUnits(Arrays.asList(unit(1L, "Unit", meta(11L, "Point")),
                 unit(2L, "Unit", meta(22L, "Point"))));
         Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
-        assertEquals(Arrays.asList("Snapshot", "-", "-"), column(table, 2));
-        assertEquals(Arrays.asList("", "", ""), merges(table, 0));
+        assertEquals(Arrays.asList("-", "-"), column(table, 2));
+        assertEquals(Arrays.asList("", ""), merges(table, 0));
     }
 
     @Test
@@ -332,10 +332,125 @@ public class TeachingPlanTargetDesignWordTest {
         CourseTeachingPlanModel model = model(design(1L, KNOWLEDGE, "Snapshot",
                 point(1L, "Old unit", 11L, "Old point"), point(99L, "Moved unit", 22L, "Moved point")));
         model.setKnowledgeUnits(Arrays.asList(unit(1L, "Current", meta(11L, "Current point")),
-                unit(2L, "Other", meta(11L, "Other point")), unit(3L, "Moved", meta(22L, "Moved"))));
+                unit(2L, "Other", meta(11L, "Other point")),
+                unit(3L, "Moved", meta(22L, "Moved"), meta(23L, "Unconfigured"))));
         Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
-        assertEquals(Arrays.asList("Old point", "Moved point", "Other point"), column(table, 1));
-        assertEquals(Arrays.asList("Snapshot", "Snapshot", "-"), column(table, 2));
+        assertEquals(Arrays.asList("Old point", "Other point", "Moved point", "Unconfigured"), column(table, 1));
+        assertEquals(Arrays.asList("Snapshot", "-", "Snapshot", "-"), column(table, 2));
+        assertEquals(Arrays.asList("Old unit", "Other", "Moved unit", ""), column(table, 0));
+        assertEquals(Arrays.asList("", "", "restart", "continue"), merges(table, 0));
+    }
+
+    @Test
+    void idMatchTakesPriorityOverAConflictingCompleteNamePath() throws Exception {
+        CourseTeachingPlanModel model = model(design(1L, KNOWLEDGE, "Snapshot",
+                point(1L, "Other", 11L, "Other point")));
+        model.setKnowledgeUnits(Arrays.asList(unit(1L, "Unit", meta(11L, "Point")),
+                unit(2L, "Other", meta(22L, "Other point"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Other point", "Other point"), column(table, 1));
+        assertEquals(Arrays.asList("Snapshot", "-"), column(table, 2));
+        assertEquals(Arrays.asList("", ""), merges(table, 0));
+    }
+
+    @Test
+    void ambiguousPointIdWithoutUniqueCompleteNamePathStaysUnconfigured() throws Exception {
+        CourseTeachingPlanModel model = model(design(1L, KNOWLEDGE, "Ambiguous",
+                point(null, null, 11L, "Point")));
+        model.setKnowledgeUnits(Arrays.asList(unit(1L, "Unit", meta(11L, "Point")),
+                unit(2L, "Other", meta(11L, "Point"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Point", "Point"), column(table, 1));
+        assertEquals(Arrays.asList("-", "-"), column(table, 2));
+    }
+
+    @Test
+    void unmatchedSnapshotsStayHiddenWithoutChangingSavedRecords() throws Exception {
+        TeachingPlanTargetDesign orphan = design(1L, KNOWLEDGE, "Orphan",
+                point(9L, "Removed unit", 99L, "Removed point"));
+        TeachingPlanTargetDesign incompletePath = design(2L, KNOWLEDGE, "Incomplete path",
+                point(null, null, null, "Point"));
+        TeachingPlanTargetDesign mixed = design(3L, KNOWLEDGE, "Matched",
+                point(9L, "Removed unit", 99L, "Removed point"),
+                point(2L, "Saved unit", 22L, "Saved point"));
+        mixed.setKnowledgePointsJson("saved JSON must not change");
+        List<TeachingPlanTargetDesign.KnowledgePointItem> snapshots = mixed.getKnowledgePoints();
+        CourseTeachingPlanModel model = model(orphan, incompletePath, mixed);
+        model.setKnowledgeUnits(Arrays.asList(unit(1L, "Unit", meta(11L, "Point")),
+                unit(2L, "Current unit", meta(22L, "Current point"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Point", "Saved point"), column(table, 1));
+        assertEquals(Arrays.asList("-", "Matched"), column(table, 2));
+        assertEquals(Arrays.asList(orphan, incompletePath, mixed), model.getTargetDesigns());
+        assertSame(snapshots, mixed.getKnowledgePoints());
+        assertEquals(2, snapshots.size());
+        assertEquals("Removed point", orphan.getKnowledgePoints().get(0).getKnowledgePointName());
+        assertEquals("Saved unit", snapshots.get(1).getKnowledgeUnitName());
+        assertEquals(2L, snapshots.get(1).getKnowledgeUnitId());
+        assertEquals("saved JSON must not change", mixed.getKnowledgePointsJson());
+    }
+
+    @Test
+    void absentSourceTreeNeverFallsBackToSavedSnapshots() throws Exception {
+        for (List<CourseKnowledgeUnitVo> units : Arrays.asList(null, Collections.<CourseKnowledgeUnitVo>emptyList())) {
+            TeachingPlanTargetDesign saved = design(1L, KNOWLEDGE, "Orphan",
+                    point(1L, "Unit", 11L, "Point"));
+            CourseTeachingPlanModel model = model(saved);
+            model.setKnowledgeUnits(units);
+            byte[] bytes = generate(model);
+            Element table = table(bytes, KNOWLEDGE_HEADER.get(0));
+            assertEquals(2, children(table, "tr").size());
+            assertEquals(Collections.nCopies(8, ""), texts(row(table, 1)));
+            assertTrue(parse(bytes).targetDesigns.isEmpty());
+            assertSame(saved, model.getTargetDesigns().get(0));
+        }
+    }
+
+    @Test
+    void snapshotNamesWinButSourceUnitControlsMerging() throws Exception {
+        TeachingPlanTargetDesign saved = design(1L, KNOWLEDGE, "Snapshot",
+                point(1L, "Saved unit", 11L, "Saved point"),
+                point(1L, null, 12L, null), point(1L, "  ", 13L, " \t"));
+        CourseTeachingPlanModel model = model(saved);
+        model.setKnowledgeUnits(Collections.singletonList(unit(1L, "Current unit",
+                meta(11L, "Current first"), meta(12L, "Current second"), meta(13L, "Current third"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Saved point", "Current second", "Current third"), column(table, 1));
+        assertEquals(Arrays.asList("Saved unit", "", ""), column(table, 0));
+        assertEquals(Arrays.asList("restart", "continue", "continue"), merges(table, 0));
+        assertNull(saved.getKnowledgePoints().get(1).getKnowledgePointName());
+        assertEquals(" \t", saved.getKnowledgePoints().get(2).getKnowledgePointName());
+    }
+
+    @Test
+    void sameSourceUnitMergesStaleAndMissingSnapshotUnitIdsWithPlaceholders() throws Exception {
+        TeachingPlanTargetDesign first = design(1L, KNOWLEDGE, "First",
+                point(900L, "Unit", 901L, "One"));
+        TeachingPlanTargetDesign second = design(2L, KNOWLEDGE, "Second",
+                point(null, "Unit", 12L, "Two"));
+        CourseTeachingPlanModel model = model(first, second);
+        model.setKnowledgeUnits(Collections.singletonList(unit(1L, "Unit",
+                meta(11L, "One"), meta(12L, "Two"), meta(13L, "Three"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("One", "Two", "Three"), column(table, 1));
+        assertEquals(Arrays.asList("First", "Second", "-"), column(table, 2));
+        assertEquals(Arrays.asList("Unit", "", ""), column(table, 0));
+        assertEquals(Arrays.asList("restart", "continue", "continue"), merges(table, 0));
+        assertEquals(900L, first.getKnowledgePoints().get(0).getKnowledgeUnitId());
+        assertNull(second.getKnowledgePoints().get(0).getKnowledgeUnitId());
+        for (int r = 1; r <= 3; r++) {
+            for (int c = 1; c < 8; c++) assertEquals("", merge(cell(row(table, r), c)));
+        }
+    }
+
+    @Test
+    void sameNamedSourceUnitsWithMissingIdsNeverMerge() throws Exception {
+        CourseTeachingPlanModel model = model();
+        model.setKnowledgeUnits(Arrays.asList(unit(null, "Unit", meta(11L, "One")),
+                unit(null, "Unit", meta(21L, "Two"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Unit", "Unit"), column(table, 0));
+        assertEquals(Arrays.asList("", ""), merges(table, 0));
     }
 
     @Test
@@ -357,15 +472,18 @@ public class TeachingPlanTargetDesignWordTest {
     }
 
     @Test
-    void knowledgeColumnsAndInputOrderMatchFrontend() throws Exception {
+    void knowledgeColumnsFollowSourceTreeDespiteReversedDesignAndSnapshotOrder() throws Exception {
         TeachingPlanTargetDesign first = design(9L, KNOWLEDGE, "First",
-                point(2L, "Z unit", 22L, "Z point"), point(1L, "A unit", 11L, "A point"));
+                point(1L, "A unit", 11L, "A point"), point(2L, "Z unit", 21L, "B point"));
         TeachingPlanTargetDesign second = design(1L, KNOWLEDGE, "Second",
-                point(2L, "Z unit", 21L, "B point"));
-        Element table = table(generate(model(first, second)), KNOWLEDGE_HEADER.get(0));
+                point(2L, "Z unit", 22L, "Z point"));
+        CourseTeachingPlanModel model = model(first, second);
+        model.setKnowledgeUnits(Arrays.asList(unit(2L, "Z unit", meta(22L, "Z point"), meta(21L, "B point")),
+                unit(1L, "A unit", meta(11L, "A point"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
         assertEquals(KNOWLEDGE_HEADER, texts(row(table, 0)));
-        assertEquals(Arrays.asList("Z point", "A point", "B point"), column(table, 1));
-        assertEquals(Arrays.asList("First", "First", "Second"), column(table, 2));
+        assertEquals(Arrays.asList("Z point", "B point", "A point"), column(table, 1));
+        assertEquals(Arrays.asList("Second", "First", "First"), column(table, 2));
         assertEquals(Arrays.asList("2.5", "2.5", "2.5"), column(table, 7));
     }
 
@@ -375,12 +493,14 @@ public class TeachingPlanTargetDesignWordTest {
                 point(2L, "Unit", 21L, "Point"), point(2L, "Unit", 21L, "Point"),
                 point(2L, "Unit", 22L, "Other"));
         TeachingPlanTargetDesign repeated = design(5L, KNOWLEDGE, "Repeated",
-                point(2L, "Unit", 23L, "Ignored"));
+                point(2L, "Unit", 22L, "Other"));
         TeachingPlanTargetDesign independent = design(6L, KNOWLEDGE, "Independent",
                 point(2L, "Unit", 21L, "Point"));
-        Element table = table(generate(model(first, repeated, independent)), KNOWLEDGE_HEADER.get(0));
-        assertEquals(Arrays.asList("Point", "Other", "Point"), column(table, 1));
-        assertEquals(Arrays.asList("First", "First", "Independent"), column(table, 2));
+        CourseTeachingPlanModel model = model(first, repeated, independent);
+        model.setKnowledgeUnits(Collections.singletonList(unit(2L, "Unit", meta(21L, "Point"), meta(22L, "Other"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Point", "Point", "Other"), column(table, 1));
+        assertEquals(Arrays.asList("First", "Independent", "First"), column(table, 2));
         assertEquals("restart", merge(cell(row(table, 1), 0)));
         assertEquals("continue", merge(cell(row(table, 3), 0)));
         for (int r = 1; r <= 3; r++) {
@@ -391,6 +511,18 @@ public class TeachingPlanTargetDesignWordTest {
     }
 
     @Test
+    void differentDesignIdsWithIdenticalContentRemainAdjacentAtTheSamePoint() throws Exception {
+        CourseTeachingPlanModel model = model(
+                design(1L, KNOWLEDGE, "Same design content", point(1L, "Unit", 11L, "Point")),
+                design(2L, KNOWLEDGE, "Same design content", point(1L, "Unit", 11L, "Point")));
+        model.setKnowledgeUnits(Collections.singletonList(unit(1L, "Unit", meta(11L, "Point"), meta(12L, "Next"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("Point", "Point", "Next"), column(table, 1));
+        assertEquals(Arrays.asList("Same design content", "Same design content", "-"), column(table, 2));
+        assertEquals(Arrays.asList("", "", ""), merges(table, 1));
+    }
+
+    @Test
     void unitMergeRequiresConsecutiveMatchingIdAndName() throws Exception {
         TeachingPlanTargetDesign first = design(1L, KNOWLEDGE, "First",
                 point(1L, "Shared", 11L, "One"), point(1L, "Shared", 12L, "Two"),
@@ -398,7 +530,11 @@ public class TeachingPlanTargetDesignWordTest {
                 point(1L, "Renamed", 14L, "Five"));
         TeachingPlanTargetDesign second = design(2L, KNOWLEDGE, "Second",
                 point(1L, "Renamed", 15L, "Six"));
-        Element table = table(generate(model(first, second)), KNOWLEDGE_HEADER.get(0));
+        CourseTeachingPlanModel model = model(first, second);
+        model.setKnowledgeUnits(Arrays.asList(unit(1L, "Shared", meta(11L, "One"), meta(12L, "Two")),
+                unit(2L, "Shared", meta(21L, "Three")), unit(1L, "Shared", meta(13L, "Four")),
+                unit(1L, "Renamed", meta(14L, "Five"), meta(15L, "Six"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
         assertEquals(Arrays.asList("restart", "continue", "", "", "restart", "continue"),
                 merges(table, 0));
         assertEquals(Arrays.asList("One", "Two", "Three", "Four", "Five", "Six"), column(table, 1));
@@ -419,9 +555,14 @@ public class TeachingPlanTargetDesignWordTest {
         legacy.setTeachingMethod("");
         legacy.setLearningMethod(null);
         legacy.setHours(BigDecimal.ZERO);
-        Element table = table(generate(model(legacy)), KNOWLEDGE_HEADER.get(0));
+        CourseTeachingPlanModel model = model(legacy);
+        model.setKnowledgeUnits(Collections.singletonList(unit(1L, "Unit", meta(11L, "Point"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
         assertEquals(Arrays.asList("Unit", "Point", "-", "Content only", "-", "-", "-", "0"),
                 texts(row(table, 1)));
+        legacy.setKnowledgePoints(Collections.singletonList(point(1L, null, 11L, null)));
+        assertEquals(texts(row(table, 1)), texts(row(table(generate(model), KNOWLEDGE_HEADER.get(0)), 1)),
+                "Incomplete snapshots retain the existing fallback to saved legacy row names");
     }
 
     @Test
@@ -437,6 +578,7 @@ public class TeachingPlanTargetDesignWordTest {
         CourseTeachingPlanModel.SchemeObjectiveGroup group = new CourseTeachingPlanModel.SchemeObjectiveGroup();
         group.setObjectives(Collections.singletonList(objective));
         CourseTeachingPlanModel model = model(knowledge, ability, quality);
+        model.setKnowledgeUnits(Collections.singletonList(unit(1L, "Unit", meta(11L, "Point"))));
         model.setSchemeObjectiveGroups(Collections.singletonList(group));
         byte[] bytes = generate(model);
         assertEquals("Associated objective", text(cell(row(table(bytes, KNOWLEDGE_HEADER.get(0)), 1), 2)));
@@ -468,12 +610,14 @@ public class TeachingPlanTargetDesignWordTest {
         TeachingPlanTargetDesign first = design(1L, KNOWLEDGE, "First",
                 point(1L, "Unit", 11L, "One"), point(1L, "Unit", 12L, "Two"));
         TeachingPlanTargetDesign second = design(2L, KNOWLEDGE, "Second", point(1L, "Unit", 11L, "One"));
-        byte[] bytes = generate(model(first, second, design(3L, ABILITY, "Ability"), design(4L, QUALITY, "Quality")));
+        CourseTeachingPlanModel model = model(first, second, design(3L, ABILITY, "Ability"), design(4L, QUALITY, "Quality"));
+        model.setKnowledgeUnits(Collections.singletonList(unit(1L, "Unit", meta(11L, "One"), meta(12L, "Two"))));
+        byte[] bytes = generate(model);
         TeachingPlanWordImporter.ParseResult parsed = parse(bytes);
         assertEquals(5, parsed.targetDesigns.size());
-        assertEquals(Arrays.asList("First", "First", "Second", "Ability", "Quality"),
+        assertEquals(Arrays.asList("First", "Second", "First", "Ability", "Quality"),
                 objectives(parsed.targetDesigns));
-        assertEquals("Two", parsed.targetDesigns.get(1).getKnowledgePointName());
+        assertEquals("Two", parsed.targetDesigns.get(2).getKnowledgePointName());
         assertEquals("Content", parsed.targetDesigns.get(2).getContentText());
         assertEquals("Link", parsed.targetDesigns.get(2).getTeachingLink());
         assertEquals("Method", parsed.targetDesigns.get(2).getTeachingMethod());

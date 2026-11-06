@@ -24,6 +24,7 @@ import com.doinner.csys.domain.vo.CourseKnowledgePointVo;
 import com.doinner.csys.domain.vo.CourseKnowledgeUnitVo;
 import com.doinner.csys.entity.csys.model.CourseTeachingPlanModel;
 import com.doinner.csys.utils.WordUtil;
+import com.doinner.csys.utils.AssessmentCriteriaCodec;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.TableWidthType;
@@ -39,6 +40,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -565,7 +567,7 @@ public class CourseTeachingPlanGenerator {
     }
 
     /**
-     * 与前端知识表一致：设计按原序逐点展开，末尾补未配置知识点，仅合并连续相同知识单元。
+     * 与前端知识表一致：按源知识树顺序展开，并按源知识单元分组合并。
      */
     private void targetDesignTable(CourseTeachingPlanModel model, List<TeachingPlanTargetDesign> designs,
                                    XWPFDocument doc) {
@@ -585,7 +587,7 @@ public class CourseTeachingPlanGenerator {
             KnowledgeDesignRow row = flat.get(i);
             TeachingPlanTargetDesign d = row.design;
             int r = i + 1;
-            boolean firstOfUnit = i == 0 || !sameKnowledgeUnit(flat.get(i - 1).point, row.point);
+            boolean firstOfUnit = i == 0 || !sameKnowledgeUnit(flat.get(i - 1), row);
             setCell(t, r, 0, firstOfUnit ? designCell(row.point.getKnowledgeUnitName()) : "", false);
             setCell(t, r, 1, designCell(row.point.getKnowledgePointName()), false);
             setCell(t, r, 2, designCell(designObjectiveText(model, d)), false);
@@ -601,6 +603,7 @@ public class CourseTeachingPlanGenerator {
     private List<KnowledgeDesignRow> flattenKnowledgeDesignRows(List<CourseKnowledgeUnitVo> units,
                                                                 List<TeachingPlanTargetDesign> designs) {
         Map<List<String>, TeachingPlanTargetDesign.KnowledgePointItem> metadata = new LinkedHashMap<>();
+        Map<TeachingPlanTargetDesign.KnowledgePointItem, List<String>> unitKeys = new HashMap<>();
         for (int u = 0; u < size(units); u++) {
             CourseKnowledgeUnitVo unit = units.get(u);
             if (unit == null) continue;
@@ -613,6 +616,8 @@ public class CourseTeachingPlanGenerator {
                 item.setKnowledgeUnitName(StringUtils.defaultIfEmpty(unit.getName(), "知识单元" + (u + 1)));
                 item.setKnowledgePointId(point.getId());
                 item.setKnowledgePointName(StringUtils.defaultIfEmpty(point.getName(), "知识点" + (p + 1)));
+                unitKeys.put(item, Arrays.asList(Objects.toString(unit.getId(), "unit-index-" + u),
+                        StringUtils.trimToEmpty(item.getKnowledgeUnitName())));
                 metadata.put(Arrays.asList(Objects.toString(unit.getId(), String.valueOf(u)),
                         Objects.toString(point.getId(), String.valueOf(p))), item);
             }
@@ -620,18 +625,24 @@ public class CourseTeachingPlanGenerator {
         List<KnowledgeDesignRow> flat = new ArrayList<>();
         List<TeachingPlanTargetDesign.KnowledgePointItem> currentPoints = new ArrayList<>(metadata.values());
         Set<Long> seenDesigns = new LinkedHashSet<>();
-        Set<TeachingPlanTargetDesign.KnowledgePointItem> configured = new LinkedHashSet<>();
+        Map<TeachingPlanTargetDesign.KnowledgePointItem, List<KnowledgeDesignRow>> configured = new LinkedHashMap<>();
         for (int i = 0; i < size(designs); i++) {
             TeachingPlanTargetDesign design = designs.get(i);
             if (design == null || (design.getId() != null && !seenDesigns.add(design.getId()))) continue;
             for (TeachingPlanTargetDesign.KnowledgePointItem point : resolveKnowledgePointItems(design)) {
                 TeachingPlanTargetDesign.KnowledgePointItem matched = findCurrentPoint(currentPoints, point);
-                if (matched != null) configured.add(matched);
-                flat.add(new KnowledgeDesignRow(point, design));
+                if (matched == null) continue;
+                point.setKnowledgeUnitName(StringUtils.defaultIfBlank(point.getKnowledgeUnitName(), matched.getKnowledgeUnitName()));
+                point.setKnowledgePointName(StringUtils.defaultIfBlank(point.getKnowledgePointName(), matched.getKnowledgePointName()));
+                configured.computeIfAbsent(matched, key -> new ArrayList<>())
+                        .add(new KnowledgeDesignRow(point, design, unitKeys.get(matched)));
             }
         }
-        metadata.values().stream().filter(point -> !configured.contains(point))
-                .forEach(point -> flat.add(new KnowledgeDesignRow(point, null)));
+        for (TeachingPlanTargetDesign.KnowledgePointItem point : currentPoints) {
+            List<KnowledgeDesignRow> configuredRows = configured.get(point);
+            if (configuredRows == null) flat.add(new KnowledgeDesignRow(point, null, unitKeys.get(point)));
+            else flat.addAll(configuredRows);
+        }
         return flat;
     }
 
@@ -675,10 +686,8 @@ public class CourseTeachingPlanGenerator {
         return byName.size() == 1 ? byName.get(0) : null;
     }
 
-    private boolean sameKnowledgeUnit(TeachingPlanTargetDesign.KnowledgePointItem left,
-                                      TeachingPlanTargetDesign.KnowledgePointItem right) {
-        return Objects.equals(left.getKnowledgeUnitId(), right.getKnowledgeUnitId())
-                && StringUtils.trimToEmpty(left.getKnowledgeUnitName()).equals(StringUtils.trimToEmpty(right.getKnowledgeUnitName()));
+    private boolean sameKnowledgeUnit(KnowledgeDesignRow left, KnowledgeDesignRow right) {
+        return Objects.equals(left.unitKey, right.unitKey);
     }
 
     private void mergeKnowledgeUnitColumn(XWPFTable t, List<KnowledgeDesignRow> flat) {
@@ -686,7 +695,7 @@ public class CourseTeachingPlanGenerator {
         while (i < flat.size()) {
             int start = i;
             i++;
-            while (i < flat.size() && sameKnowledgeUnit(flat.get(start).point, flat.get(i).point)) i++;
+            while (i < flat.size() && sameKnowledgeUnit(flat.get(start), flat.get(i))) i++;
             if (i - 1 > start) {
                 WordUtil.mergeCellsVertical(t, 0, start + 1, i);
             }
@@ -696,10 +705,13 @@ public class CourseTeachingPlanGenerator {
     private static class KnowledgeDesignRow {
         final TeachingPlanTargetDesign.KnowledgePointItem point;
         final TeachingPlanTargetDesign design;
+        final List<String> unitKey;
 
-        KnowledgeDesignRow(TeachingPlanTargetDesign.KnowledgePointItem point, TeachingPlanTargetDesign design) {
+        KnowledgeDesignRow(TeachingPlanTargetDesign.KnowledgePointItem point, TeachingPlanTargetDesign design,
+                           List<String> unitKey) {
             this.point = point;
             this.design = design;
+            this.unitKey = unitKey;
         }
     }
 
@@ -1043,9 +1055,12 @@ public class CourseTeachingPlanGenerator {
             for (TeachingPlanAssessment assessment : rows) {
                 setCell(t, r, 0, assessment.getAssessmentItem(), false);
                 setCell(t, r, 1, assessment.getMethod(), false);
-                setCell(t, r, 2, firstNonBlank(assessment.getMechanism(), assessment.getScoreSystem()), false);
+                String mechanism = AssessmentCriteriaCodec.mechanismLabel(
+                        AssessmentCriteriaCodec.effectiveMechanism(assessment), Collections.emptyMap());
+                setCell(t, r, 2, mechanism, false);
                 setCell(t, r, 3, formatHours(assessment.getWeight()), false);
-                setCell(t, r, 4, assessment.getStandard(), false);
+                setCell(t, r, 4, AssessmentCriteriaCodec.isGraded(mechanism)
+                        ? AssessmentCriteriaCodec.toWord(assessment.getStandard()) : assessment.getStandard(), false);
                 r++;
             }
         }
@@ -1089,10 +1104,12 @@ public class CourseTeachingPlanGenerator {
         setCell(t, r, 0, categoryName, true);
         setCell(t, r, 1, a.getAssessmentItem(), false);
         setCell(t, r, 2, a.getMethod(), false);
-        // 评定机制：优先 mechanism，其次 scoreSystem（百分制/五级制等）
-        setCell(t, r, 3, firstNonBlank(a.getMechanism(), a.getScoreSystem()), false);
+        String mechanism = AssessmentCriteriaCodec.mechanismLabel(
+                AssessmentCriteriaCodec.effectiveMechanism(a), Collections.emptyMap());
+        setCell(t, r, 3, mechanism, false);
         setCell(t, r, 4, formatHours(a.getWeight()), false);
-        setCell(t, r, 5, a.getStandard(), false);
+        setCell(t, r, 5, AssessmentCriteriaCodec.isGraded(mechanism)
+                ? AssessmentCriteriaCodec.toWord(a.getStandard()) : a.getStandard(), false);
     }
 
     /**
@@ -1307,12 +1324,13 @@ public class CourseTeachingPlanGenerator {
         return number;
     }
 
-    /** 教材表：教材性质 | 教材名称 | 第一作者 | 版次 | 出版（颁发）单位 | 出版（颁发）时间 | ISBN号（统一书号） | 出版方式 */
+    /** 教材表沿用原八列，末尾追加三个可选教材属性。 */
     private void textbookTable(List<TeachingPlanTextbook> books, XWPFDocument doc) {
-        int cols = 8;
+        int cols = 11;
         int rows = 1 + Math.max(size(books), 1);
         XWPFTable t = createTable(doc, rows, cols);
-        String[] headers = {"教材性质", "教材名称", "第一作者", "版次", "出版（颁发）单位", "出版（颁发）时间", "ISBN号（统一书号）", "出版方式"};
+        String[] headers = {"教材性质", "教材名称", "第一作者", "版次", "出版（颁发）单位", "出版（颁发）时间",
+                "ISBN号（统一书号）", "出版方式", "教材密级", "是否为政治理论教材", "教材来源"};
         for (int c = 0; c < cols; c++) {
             setCell(t, 0, c, headers[c], true);
         }
@@ -1328,6 +1346,9 @@ public class CourseTeachingPlanGenerator {
                 setCell(t, r, 5, b.getPublishTime(), false);
                 setCell(t, r, 6, b.getIsbn(), false);
                 setCell(t, r, 7, b.getPublishMethod(), false);
+                setCell(t, r, 8, b.getSecurityClassification(), false);
+                setCell(t, r, 9, b.getPoliticalTheoryTextbook(), false);
+                setCell(t, r, 10, b.getTextbookSource(), false);
             }
         } else {
             for (int c = 0; c < cols; c++) {

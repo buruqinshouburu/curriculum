@@ -114,6 +114,7 @@ public class CurriculumController {
     @GetMapping("/course/list")
     public DataTable<Course> listCourse(CourseVo course) {
         List<Course> list = courseService.selectCourseList(course);
+        fillCoursePermissions(list);
         return PageDataTable.success(list);
 
     }
@@ -124,13 +125,18 @@ public class CurriculumController {
     @GetMapping("/course/scheme/list")
     public DataSet<List<Course>> listSchemeCourse(CourseVo course) {
         List<Course> list = courseService.listSchemeCourse(course);
+        fillCoursePermissions(list);
         return DataSet.success(list);
 
     }
 
-    /**
-     * 获取课程详细信息
-     */
+    private void fillCoursePermissions(List<Course> list) {
+        Map<Long, CoursePermissionVo> permissions = coursePermissions.getListPermissions(
+                list.stream().map(Course::getId).collect(Collectors.toList()));
+        list.forEach(row -> row.setPermissions(permissions.get(row.getId())));
+    }
+
+    /** 获取课程详细信息 */
     @GetMapping(value = "/course/{id}")
     public DataSet<CourseVo> getCourse(@PathVariable("id") Long id) {
         return DataSet.success(courseService.selectCourseById(id));

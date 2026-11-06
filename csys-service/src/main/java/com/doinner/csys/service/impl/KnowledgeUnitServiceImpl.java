@@ -70,7 +70,7 @@ public class KnowledgeUnitServiceImpl implements IKnowledgeUnitService {
         if (units.isEmpty()) {
             return new ArrayList<>();
         }
-        units.sort(Comparator.comparing(CourseKnowledgeUnit::getSort));
+        units.sort(Comparator.comparing(CourseKnowledgeUnit::getSort, Comparator.nullsLast(Comparator.naturalOrder())));
         // 获取所有知识单元ID
         List<Long> unitIds = units.stream()
                 .map(CourseKnowledgeUnit::getId)

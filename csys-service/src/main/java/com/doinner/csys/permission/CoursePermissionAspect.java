@@ -61,7 +61,8 @@ public class CoursePermissionAspect {
         // Start the transaction BEFORE permission reads/locks, including self-invoking batch writers.
         try {
             return transaction.execute(status -> {
-                permissions.check(checkedResource, checkedIds, checkedRequest, true);
+                if (annotation.sourceDelete()) permissions.checkSourceDelete(checkedIds);
+                else permissions.check(checkedResource, checkedIds, checkedRequest, true);
                 if (checkedResource != CourseResource.COURSE)
                     permissions.validatePlanScope(checkedResource, checkedIds, input);
                 try {

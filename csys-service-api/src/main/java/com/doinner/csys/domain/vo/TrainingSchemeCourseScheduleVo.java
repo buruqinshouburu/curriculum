@@ -1,6 +1,7 @@
 package com.doinner.csys.domain.vo;
 
 import com.doinner.common.core.annotation.Excel;
+import com.doinner.csys.domain.CourseSchedule;
 import com.doinner.csys.domain.TrainingSchemeCourseSchedule;
 
 import java.util.List;
@@ -12,9 +13,12 @@ public class TrainingSchemeCourseScheduleVo extends TrainingSchemeCourseSchedule
 
     private String courseAttr;
     private String c_type;
+    /** 课程顶层原始时间小计，混合单位时不能据此换算学时。 */
     private String timeWeek;
-    /** 时间单位(用于确定 timeWeek 的具体单位) */
+    /** 课程首条安排的单位；各组实际单位见 courseScheduleList。 */
     private String unit;
+    /** 当前调用课程 courseId 的安排，按 id 升序；不读取 sourceId 对应的源课安排。 */
+    private List<CourseSchedule> courseScheduleList;
     /**
      * 预修课程(before_course_id)
      */
@@ -102,6 +106,14 @@ public class TrainingSchemeCourseScheduleVo extends TrainingSchemeCourseSchedule
 
     public void setUnit(String unit) {
         this.unit = unit;
+    }
+
+    public List<CourseSchedule> getCourseScheduleList() {
+        return courseScheduleList;
+    }
+
+    public void setCourseScheduleList(List<CourseSchedule> courseScheduleList) {
+        this.courseScheduleList = courseScheduleList;
     }
 
     public Double getTeachHoursAll() {

@@ -25,6 +25,8 @@ import com.doinner.system.domain.entity.SysUser;
 import com.doinner.system.domain.view.LoginUser;
 import com.doinner.system.service.DoinnerUserService;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.context.annotation.*;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -122,18 +124,47 @@ class CoursePermissionIntegrationTest {
     void cleanup() { SecurityContextHolder.remove(); context.close(); }
 
     @Test
-    void exactIdsAndNoCreatorOrAdminContentBypass() {
+    void exactIdsAndCreatorAccessWithoutAdminContentBypass() {
         assertFalse(CoursePermissionService.hasAuthor("11,22", "1"));
         assertTrue(CoursePermissionService.hasAuthor(" 11,22 ", "11"));
         login(1, "admin");
         assertStatus(403, () -> writer.editCourse(1L));
         login(5, "creator");
-        assertStatus(403, () -> writer.editCourse(1L));
+        writer.editCourse(1L);
         assertTrue(permissions.getPermission(1L).isCanConfigureAuthors());
-        assertFalse(permissions.getPermission(1L).isCanOperate());
+        assertTrue(permissions.getPermission(1L).isCanOperate());
         login(11, "writer");
         writer.editCourse(1L);
         assertEquals("modified", name(1));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "creator.account,true",
+            "owner.account,true",
+            "team.account,true",
+            "stranger,false",
+            "Shared Display Name,false",
+            "owner,false",
+            "CREATOR.ACCOUNT,false",
+            "11,false"
+    })
+    void operationPermissionIsCreatorOrOwnerOrTeamByCasAccount(String account, boolean allowed) {
+        jdbc.update("UPDATE t_csys_course SET creator='creator.account',author_ids='owner.account',authors='Shared Display Name' WHERE id=1");
+        jdbc.update("INSERT INTO t_csys_course_team_member(course_id,user_id,user_name,sort) VALUES(1,'team.account','Shared Display Name',1)");
+        login(901, account);
+        CoursePermissionVo result = permissions.getPermission(1L);
+        assertEquals(allowed, result.isCanOperate());
+        assertEquals(allowed, result.isCanConfigureTeamMembers());
+        if (allowed) {
+            permissions.requireCourseWriteLocked(1L);
+            writer.editCourse(1L);
+            assertEquals("modified", name(1));
+        } else {
+            assertStatus(403, () -> permissions.requireCourseWriteLocked(1L));
+            assertStatus(403, () -> writer.editCourse(1L));
+            assertEquals("source", name(1));
+        }
     }
 
     @Test
@@ -240,12 +271,12 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
-    void assigningAuthorsRemovesCreatorFallbackAndClearingRestoresIt() {
+    void assigningAndClearingAuthorsKeepCreatorAccess() {
         login(5, "creator");
         assertTrue(permissions.getPermission(4L).isCanOperate());
         CourseAuthorsSaveVo input = new CourseAuthorsSaveVo(); setAuthorAccounts(input, "22");
-        assertFalse(permissions.saveAuthors(4L, input).isCanOperate());
-        assertStatus(403, () -> writer.editCourse(4L));
+        assertTrue(permissions.saveAuthors(4L, input).isCanOperate());
+        writer.editCourse(4L);
         login(22, "writer22"); writer.editCourse(4L);
         login(5, "creator"); setAuthorAccounts(input, "");
         assertTrue(permissions.saveAuthors(4L, input).isCanOperate());
@@ -255,7 +286,7 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
-    void missingCreatorOrInvalidAuthorIdsDoNotGrantCreatorFallback() {
+    void missingCreatorFailsClosedAndInvalidAuthorsDoNotRemoveCreatorAccess() {
         login(5, "creator");
         jdbc.update("UPDATE t_csys_course SET creator=NULL WHERE id=4");
         assertStatus(403, () -> writer.editCourse(4L));
@@ -264,9 +295,10 @@ class CoursePermissionIntegrationTest {
         assertStatus(403, () -> writer.editCourse(4L));
         login(5, "creator");
         jdbc.update("UPDATE t_csys_course SET creator='creator',author_ids='invalid' WHERE id=4");
+        writer.editCourse(4L);
+        login(77, "stranger");
         assertStatus(403, () -> writer.editCourse(4L));
         jdbc.update("UPDATE t_csys_course SET author_ids=NULL WHERE id=4");
-        login(77, "stranger");
         CourseVo forged = new CourseVo(); forged.setId(4L); forged.setCreator("creator");
         assertStatus(403, () -> curriculum(permissions).updateCourse(forged));
     }
@@ -308,14 +340,15 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
-    void creatorsConfigureValidatedNamesAndEditOnlyWhenAuthorsAreEmpty() {
+    void creatorsConfigureValidatedNamesAndKeepAccessWithAuthors() {
         login(5, "creator");
         CourseAuthorsSaveVo input = new CourseAuthorsSaveVo(); setAuthorAccounts(input, "22, 22,11");
         CoursePermissionVo result = permissions.saveAuthors(1L, input);
         assertEquals("22,11", result.getAuthorIds());
         assertEquals("name22,name11", result.getAuthors());
         assertEquals("22,11", jdbc.queryForObject("SELECT author_ids FROM t_csys_course WHERE id=3", String.class));
-        assertFalse(result.isCanOperate());
+        assertTrue(result.isCanOperate());
+        writer.editCourse(1L);
         setAuthorAccounts(input, ""); assertTrue(permissions.saveAuthors(1L, input).isCanOperate());
         writer.editCourse(1L);
         login(11, "writer"); assertStatus(403, () -> writer.editCourse(1L));
@@ -625,24 +658,25 @@ class CoursePermissionIntegrationTest {
     }
 
     @Test
-    void creatorOnlyInitializesAnEmptyTeamAndCannotGrantSelfAccessAfterAssignment() {
+    void creatorKeepsCourseAndTeamAccessAfterAssignment() {
         login(5, "creator");
         assertTrue(permissions.getPermission(4L).isCanOperate());
         CourseTeamMemberSaveVo save = new CourseTeamMemberSaveVo();
         setTeamAccounts(save, Collections.singletonList("66"));
         permissions.saveTeamMembers(4L, save);
-        assertFalse(permissions.getPermission(4L).isCanOperate());
-        assertFalse(permissions.getPermission(4L).isCanConfigureTeamMembers());
-        assertStatus(403, () -> permissions.addTeamMembers(4L, save));
-        assertStatus(403, () -> writer.editCourse(4L));
+        assertTrue(permissions.getPermission(4L).isCanOperate());
+        assertTrue(permissions.getPermission(4L).isCanConfigureTeamMembers());
+        permissions.addTeamMembers(4L, save);
+        writer.editCourse(4L);
         login(66, "member66");
         writer.editCourse(4L);
         setTeamAccounts(save, Collections.emptyList());
         permissions.saveTeamMembers(4L, save);
         login(5, "creator");
         assertTrue(permissions.getPermission(4L).isCanOperate());
-        assertFalse(permissions.getPermission(1L).isCanConfigureTeamMembers());
-        assertStatus(403, () -> permissions.addTeamMembers(1L, save));
+        assertTrue(permissions.getPermission(1L).isCanConfigureTeamMembers());
+        setTeamAccounts(save, Collections.singletonList("66"));
+        assertEquals("66", permissions.addTeamMembers(1L, save).getTeamMemberIds());
     }
 
     @Test

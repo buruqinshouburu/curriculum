@@ -15,4 +15,6 @@ public @interface CoursePermission {
     boolean transactional() default true;
     /** Shared course CRUD: only source rows are covered; invoked rows keep scheme rules. */
     boolean sourceCoursesOnly() default false;
+    /** Source practice records require creator, owner or administrator for deletion. */
+    boolean sourceDelete() default false;
 }

@@ -34,6 +34,7 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.StandardMajor;
 import com.doinner.csys.domain.TeachingPlan;
 import com.doinner.csys.domain.TeachingPlanAssessment;
+import com.doinner.csys.utils.AssessmentCriteriaCodec;
 import com.doinner.csys.domain.TeachingPlanCondition;
 import com.doinner.csys.domain.TeachingPlanContent;
 import com.doinner.csys.domain.TeachingPlanObjective;
@@ -172,6 +173,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     private static final String DICT_TEXTBOOK_NATURE = "sys_textbook_nature";
     /** 出版方式字典 type */
     private static final String DICT_PUBLICATION_METHOD = "sys_publication_method";
+    private static final String DICT_TEXTBOOK_SECURITY = "sys_textbook_security_classification";
+    private static final String DICT_TEXTBOOK_POLITICAL_THEORY = "sys_textbook_political_theory";
+    private static final String DICT_TEXTBOOK_SOURCE = "sys_textbook_source";
     /** 条件类型字典 type */
     private static final String DICT_CONDITION_TYPE = "sys_condition_type";
     /** 开课学期字典 type */
@@ -481,6 +485,12 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     @Override
     public TeachingPlanDetailVo getDetail(Long courseId, Long teachingPlanId) {
         // 课程相关字段一律实时取 t_csys_course / 被引用侧聚合（含 enabledTerm=course.version）；plan 仅贡献 teachingPlanId/scoreRule
+        if (teachingPlanId == null && courseId != null) {
+            TeachingPlan existing = teachingPlanMapper.selectBySourceCourseId(courseId);
+            if (existing != null) {
+                teachingPlanId = existing.getId();
+            }
+        }
         TeachingPlanDetailVo detail = teachingPlanId != null
                 ? teachingPlanMapper.selectDetailByPlanId(teachingPlanId)
                 : teachingPlanMapper.selectDetailByCourseId(courseId);
@@ -500,9 +510,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             // 源课程：用于公共基础判定 + 适用专业「通识通用」规则（适用对象已由 SQL 取源课程值）
             Long srcCourseId = courseId != null ? courseId : detail.getCourseId();
             CourseVo srcCourse = srcCourseId == null ? null : courseMapper.selectCourseById(srcCourseId);
-            // 公共基础标记：按源课 course_Module 原 id 判定（detail.courseModule 已是名称）
-            detail.setPublicFoundation(srcCourse != null
-                    && isPublicFoundationCourseModuleValue(srcCourse.getCourseModule()));
+            // 与目标保存使用同一分类规则，避免详情省略 schemeId 后保存却要求必传。
+            detail.setPublicFoundation(teachingPlanModuleService.isPublicFoundationCourse(srcCourseId));
             // 适用专业：普通课程(type1/3)聚合课程模块「全部」为公共基础、或实践训练课目(type2)课目模块(location)值∈{1,2,3,9}
             // 时固定「通识通用」；否则取聚合适用专业。rawModule 为 detail 聚合的被引用课程 c2 多值串(因不同方案引用模块可能不同)
             detail.setMajorName(resolveApplicableMajor(srcCourse, rawModule, detail.getMajorName()));
@@ -1705,16 +1714,19 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
             a.setAssessmentItem(translateDictJoined(a.getAssessmentItem(), itemMap));
             a.setMethod(translateDictJoined(a.getMethod(), methodMap));
-            a.setMechanism(translateDictJoined(a.getMechanism(), mechanismMap));
+            a.setMechanism(AssessmentCriteriaCodec.mechanismLabel(a.getMechanism(), mechanismMap));
             // 成绩评定制也可能存字典 value，写入评定机制列前一并翻译
-            a.setScoreSystem(translateDictJoined(a.getScoreSystem(), mechanismMap));
-            // 评价标准多值存逗号串：按 sys_evaluation_standard 译 label 后仍用 , 拼接
-            a.setStandard(translateDictJoined(a.getStandard(), standardMap, ","));
+            a.setScoreSystem(AssessmentCriteriaCodec.mechanismLabel(a.getScoreSystem(), mechanismMap));
+            // JSON 内的字典值、标点与空白属于教师原文，不能按旧逗号串拆分。
+            if (AssessmentCriteriaCodec.isGraded(AssessmentCriteriaCodec.effectiveMechanism(a))
+                    && !AssessmentCriteriaCodec.isJson(a.getStandard())) {
+                a.setStandard(AssessmentCriteriaCodec.translateLegacy(a.getStandard(), standardMap));
+            }
         }
     }
 
     /**
-     * 教材表：教材性质/出版方式 字典编码译为 label。
+     * 教材表的字典编码译为 label，包括三个可选教材属性。
      * 已是 label 或未命中字典时保留原文。
      */
     private void translateTextbookDictFields(List<TeachingPlanTextbook> textbooks) {
@@ -1723,12 +1735,18 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         }
         Map<String, String> natureMap = dictValueToLabelMap(DICT_TEXTBOOK_NATURE);
         Map<String, String> publishMap = dictValueToLabelMap(DICT_PUBLICATION_METHOD);
+        Map<String, String> securityMap = dictValueToLabelMap(DICT_TEXTBOOK_SECURITY);
+        Map<String, String> politicalTheoryMap = dictValueToLabelMap(DICT_TEXTBOOK_POLITICAL_THEORY);
+        Map<String, String> sourceMap = dictValueToLabelMap(DICT_TEXTBOOK_SOURCE);
         for (TeachingPlanTextbook b : textbooks) {
             if (b == null) {
                 continue;
             }
             b.setMaterialNature(translateDictJoined(b.getMaterialNature(), natureMap));
             b.setPublishMethod(translateDictJoined(b.getPublishMethod(), publishMap));
+            b.setSecurityClassification(translateDictJoined(b.getSecurityClassification(), securityMap));
+            b.setPoliticalTheoryTextbook(translateDictJoined(b.getPoliticalTheoryTextbook(), politicalTheoryMap));
+            b.setTextbookSource(translateDictJoined(b.getTextbookSource(), sourceMap));
         }
     }
 
@@ -2419,6 +2437,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 DICT_ASSESSMENT_ITEM, DICT_ASSESSMENT_METHOD, DICT_ASSESSMENT_MECHANISM, DICT_EVALUATION_STANDARD,
                 DICT_PLAN_OUTCOME_TYPE,
                 DICT_TEXTBOOK_NATURE, DICT_PUBLICATION_METHOD, DICT_CONDITION_TYPE,
+                DICT_TEXTBOOK_SECURITY, DICT_TEXTBOOK_POLITICAL_THEORY, DICT_TEXTBOOK_SOURCE,
                 DICT_PLAN_TRAINING_MODULE, DICT_PLAN_IMPLEMENTATION_STEP
         };
         for (String type : dictTypes) {
@@ -2783,6 +2802,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             for (TeachingPlanTargetDesign d : parsed.targetDesigns) {
                 d.setId(null);
                 d.setPlanId(planId);
+                if ("2".equals(d.getDesignTypeCode()) || "3".equals(d.getDesignTypeCode())
+                        || "能力目标".equals(d.getDesignTypeCode()) || "素质目标".equals(d.getDesignTypeCode())) {
+                    d.setContentIds(resolveImportedDesignContentIds(d.getContentText(), parsed.contents));
+                }
                 if (ObjectUtils.isNotEmpty(d.getKnowledgePoints())) {
                     try {
                         d.setKnowledgePointsJson(IMPORT_OBJECT_MAPPER.writeValueAsString(d.getKnowledgePoints()));
@@ -2842,7 +2865,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     a.setAssessmentItem(reverseImportDict(a.getAssessmentItem(), DICT_ASSESSMENT_ITEM));
                     a.setMethod(reverseImportDict(a.getMethod(), DICT_ASSESSMENT_METHOD));
                     a.setMechanism(reverseImportDict(a.getMechanism(), DICT_ASSESSMENT_MECHANISM));
-                    a.setStandard(reverseImportDict(a.getStandard(), DICT_EVALUATION_STANDARD));
+                    String mechanism = AssessmentCriteriaCodec.mechanismLabel(
+                            AssessmentCriteriaCodec.effectiveMechanism(a), dictValueToLabelMap(DICT_ASSESSMENT_MECHANISM));
+                    if (AssessmentCriteriaCodec.isGraded(mechanism)) {
+                        a.setStandard(reverseImportDict(a.getStandard(), DICT_EVALUATION_STANDARD));
+                    }
                 }
                 if (a.getWeight() != null && (a.getWeight().compareTo(BigDecimal.ZERO) < 0
                         || a.getWeight().compareTo(BigDecimal.ONE) > 0)) {
@@ -2937,6 +2964,71 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
             result.addCount("condition", parsed.conditions.size());
         }
+    }
+
+    private String resolveImportedDesignContentIds(String raw, List<TeachingPlanContent> contents) {
+        if (StringUtils.isBlank(raw) || ObjectUtils.isEmpty(contents)) {
+            return "[]";
+        }
+        String text = normalizeImportedContentSnapshot(raw);
+        // A whole-course marker cannot coexist with restored chapter selections.
+        if (Arrays.asList(text.split("\n")).contains("整门课程")) {
+            return "[]";
+        }
+        Map<String, Set<Long>> candidates = new HashMap<>();
+        for (TeachingPlanContent content : contents) {
+            for (String snapshot : Arrays.asList(content.getTitle(), content.getContent())) {
+                String name = normalizeImportedContentSnapshot(snapshot);
+                if (!name.isEmpty()) {
+                    candidates.computeIfAbsent(name, key -> new HashSet<>()).add(content.getId());
+                }
+            }
+        }
+        List<String> names = new ArrayList<>(candidates.keySet());
+        names.sort((left, right) -> Integer.compare(right.length(), left.length()));
+        String[] lines = text.split("\n", -1);
+        int[] offsets = new int[lines.length + 1];
+        for (int i = 0; i < lines.length; i++) {
+            offsets[i + 1] = offsets[i] + lines[i].length() + 1;
+        }
+        int[] scores = new int[offsets.length];
+        List<Set<Long>> bindings = new ArrayList<>(Collections.nCopies(offsets.length, Collections.emptySet()));
+        // Internal newlines count toward coverage so complete multiline aliases beat their fragments.
+        for (int i = lines.length - 1; i >= 0; i--) {
+            scores[i] = scores[i + 1];
+            Set<Long> ids = new LinkedHashSet<>(bindings.get(i + 1));
+            for (String name : names) {
+                int end = offsets[i] + name.length();
+                if (!text.startsWith(name, offsets[i])
+                        || (end < text.length() && text.charAt(end) != '\n')) {
+                    continue;
+                }
+                int next = Arrays.binarySearch(offsets, end + 1);
+                int score = name.length() + scores[next];
+                if (score < scores[i]) {
+                    continue;
+                }
+                Set<Long> selectedIds = new LinkedHashSet<>();
+                Set<Long> matches = candidates.get(name);
+                if (matches.size() == 1 && !matches.contains(null)) {
+                    selectedIds.addAll(matches);
+                }
+                selectedIds.addAll(bindings.get(next));
+                if (score > scores[i]) {
+                    scores[i] = score;
+                    ids = selectedIds;
+                } else {
+                    // Only associations shared by every equally covered parse are safe.
+                    ids.retainAll(selectedIds);
+                }
+            }
+            bindings.set(i, ids);
+        }
+        return IMPORT_OBJECT_MAPPER.valueToTree(bindings.get(0)).toString();
+    }
+
+    private String normalizeImportedContentSnapshot(String text) {
+        return StringUtils.defaultString(text).lines().map(String::trim).collect(Collectors.joining("\n")).trim();
     }
 
     /**
@@ -3218,6 +3310,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
     }
 
     private String reverseImportDict(String label, String dictType) {
+        if (DICT_EVALUATION_STANDARD.equals(dictType) && AssessmentCriteriaCodec.isJson(label)) {
+            return label;
+        }
         if (StringUtils.isBlank(label)) {
             return label;
         }
@@ -3237,6 +3332,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             labelToValue.putIfAbsent(value, value);
         }
         String trimmed = label.trim();
+        if (DICT_EVALUATION_STANDARD.equals(dictType)) {
+            return AssessmentCriteriaCodec.translateLegacy(label, labelToValue);
+        }
         if (labelToValue.containsKey(trimmed)) {
             return labelToValue.get(trimmed);
         }

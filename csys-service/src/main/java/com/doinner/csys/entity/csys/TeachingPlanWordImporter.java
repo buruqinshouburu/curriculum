@@ -16,6 +16,7 @@ import com.doinner.csys.domain.TeachingPlanTrainingPurpose;
 import com.doinner.csys.domain.vo.TeachingPlanImportIssueVo;
 import com.doinner.csys.domain.vo.TeachingPlanSchemeVo;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
+import com.doinner.csys.utils.AssessmentCriteriaCodec;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.BodyElementType;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
@@ -931,7 +932,7 @@ public class TeachingPlanWordImporter {
                 a.setAssessmentItem(cell(row, 1));
                 a.setAssessedContent(cell(row, 2));
                 a.setWeight(parseDecimal(cell(row, 3)));
-                a.setStandard(cell(row, 4));
+                a.setStandard(rawCell(row, 4));
                 a.setAssessmentCategory(5);
             } else if (hasCategoryColumn) {
                 if ("终结性考核".equals(c0) || "过程性考核".equals(c0)) {
@@ -943,7 +944,7 @@ public class TeachingPlanWordImporter {
                 a.setMethod(cell(row, 2));
                 splitMechanism(cell(row, 3), a);
                 a.setWeight(parseDecimal(cell(row, 4)));
-                a.setStandard(cell(row, 5));
+                a.setStandard(rawCell(row, 5));
             } else {
                 // 实验课程、实践训练课目的表格没有终结性/过程性分类列，
                 // 根据已识别的 Word 文档类型补齐对应的考核类别。
@@ -952,7 +953,7 @@ public class TeachingPlanWordImporter {
                 a.setMethod(cell(row, 1));
                 splitMechanism(cell(row, 2), a);
                 a.setWeight(parseDecimal(cell(row, 3)));
-                a.setStandard(cell(row, 4));
+                a.setStandard(rawCell(row, 4));
             }
             // 模板会预置成果类型空行；仅有类型、没有任何用户填写内容时不落库。
             if (isOutcome && StringUtils.isBlank(a.getAssessmentItem())
@@ -962,6 +963,12 @@ public class TeachingPlanWordImporter {
             }
             if (!isOutcome && StringUtils.isBlank(a.getAssessmentItem())) {
                 continue;
+            }
+            if (!isOutcome) {
+                a.setStandard(AssessmentCriteriaCodec.fromWord(a.getStandard(),
+                        AssessmentCriteriaCodec.effectiveMechanism(a), ctx.dictLabelToValue));
+                a.setMechanism(AssessmentCriteriaCodec.mechanismFromWord(a.getMechanism(), ctx.dictLabelToValue));
+                a.setScoreSystem(AssessmentCriteriaCodec.mechanismFromWord(a.getScoreSystem(), ctx.dictLabelToValue));
             }
             a.setSort(result.assessments.size() + 1);
             result.assessments.add(a);
@@ -1024,6 +1031,9 @@ public class TeachingPlanWordImporter {
             b.setPublishTime(cell(row, 5));
             b.setIsbn(cell(row, 6));
             b.setPublishMethod(reverseDict(cell(row, 7), "sys_publication_method", ctx));
+            b.setSecurityClassification(reverseDict(cell(row, 8), "sys_textbook_security_classification", ctx));
+            b.setPoliticalTheoryTextbook(reverseDict(cell(row, 9), "sys_textbook_political_theory", ctx));
+            b.setTextbookSource(reverseDict(cell(row, 10), "sys_textbook_source", ctx));
             if (StringUtils.isBlank(b.getName()) && StringUtils.isBlank(b.getMaterialNature())) {
                 continue;
             }
@@ -1415,7 +1425,13 @@ public class TeachingPlanWordImporter {
             List<XWPFTableCell> tcs = row.getTableCells();
             for (int c = 0; c < tcs.size(); c++) {
                 XWPFTableCell cell = tcs.get(c);
-                String text = norm(cell.getText());
+                String header = grid.isEmpty() ? "" : joinHeader(grid.get(0));
+                // The course table merges its first two header cells; standard is still the last data cell.
+                boolean assessmentStandard = c == tcs.size() - 1
+                        && (header.contains("评价标准") || header.contains("评价准则"));
+                String text = assessmentStandard
+                        ? cell.getParagraphs().stream().map(XWPFParagraph::getText).collect(Collectors.joining("\n"))
+                        : norm(cell.getText());
                 // 纵向合并：空且 vMerge continue → 取上行
                 if (StringUtils.isBlank(text) && lastRow != null && c < lastRow.size() && isVMergeContinue(cell)) {
                     text = lastRow.get(c);
@@ -1466,11 +1482,15 @@ public class TeachingPlanWordImporter {
     }
 
     private String cell(List<String> row, int idx) {
+        return rawCell(row, idx).trim();
+    }
+
+    private String rawCell(List<String> row, int idx) {
         if (row == null || idx < 0 || idx >= row.size()) {
             return "";
         }
         String v = row.get(idx);
-        return v == null ? "" : v.trim();
+        return v == null ? "" : v;
     }
 
     private boolean isAllBlank(List<String> row) {

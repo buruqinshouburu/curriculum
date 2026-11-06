@@ -13,6 +13,9 @@
         <result column="publish_time" property="publishTime" jdbcType="VARCHAR"/>
         <result column="isbn" property="isbn" jdbcType="VARCHAR"/>
         <result column="publish_method" property="publishMethod" jdbcType="VARCHAR"/>
+        <result column="security_classification" property="securityClassification" jdbcType="VARCHAR"/>
+        <result column="political_theory_textbook" property="politicalTheoryTextbook" jdbcType="VARCHAR"/>
+        <result column="textbook_source" property="textbookSource" jdbcType="VARCHAR"/>
         <result column="sort" property="sort" jdbcType="INTEGER"/>
         <result column="creator" property="creator" jdbcType="VARCHAR"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
@@ -24,18 +27,51 @@
 
     <sql id="Base_Column_List">
         id, plan_id, material_nature, name, first_author, edition, publisher, publish_time, isbn,
-        publish_method, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        publish_method, security_classification, political_theory_textbook, textbook_source,
+        sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
     </sql>
+
+    <resultMap id="ExportResultMap" type="com.doinner.csys.domain.vo.TeachingPlanTextbookExportVo">
+        <result column="college_name" property="collegeName"/>
+        <result column="course_name" property="courseName"/>
+        <result column="course_code" property="courseCode"/>
+        <result column="course_attr" property="courseAttr"/>
+        <result column="name" property="name"/>
+        <result column="material_nature" property="materialNature"/>
+        <result column="publish_method" property="publishMethod"/>
+        <result column="first_author" property="firstAuthor"/>
+        <result column="edition" property="edition"/>
+        <result column="publisher" property="publisher"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="isbn" property="isbn"/>
+        <result column="textbook_source" property="textbookSource"/>
+    </resultMap>
+
+    <select id="selectForExport" resultMap="ExportResultMap">
+        SELECT dept.dept_name AS college_name, course.name AS course_name, course.code AS course_code,
+               course.course_attr, textbook.name, textbook.material_nature, textbook.publish_method,
+               textbook.first_author, textbook.edition, textbook.publisher, textbook.publish_time,
+               textbook.isbn, textbook.textbook_source
+        FROM t_csys_teaching_plan_textbook textbook
+        INNER JOIN t_csys_teaching_plan plan ON plan.id = textbook.plan_id
+            AND plan.sysflag = 0 AND plan.current_flag = 1
+        INNER JOIN t_csys_course course ON course.id = plan.source_course_id AND course.sysflag = 0
+        LEFT JOIN sys_dept dept ON dept.dept_id = course.college_id
+        WHERE textbook.sysflag = 0 AND plan.id = #{planId}
+        ORDER BY course.college_id, course.code, course.id, plan.plan_type, textbook.sort, textbook.id
+    </select>
 
     <insert id="insertBatch" parameterType="java.util.List">
         INSERT INTO t_csys_teaching_plan_textbook (
             plan_id, material_nature, name, first_author, edition, publisher, publish_time, isbn,
-            publish_method, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+            publish_method, security_classification, political_theory_textbook, textbook_source,
+            sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
                 #{item.planId}, #{item.materialNature}, #{item.name}, #{item.firstAuthor}, #{item.edition},
-                #{item.publisher}, #{item.publishTime}, #{item.isbn}, #{item.publishMethod}, #{item.sort},
+                #{item.publisher}, #{item.publishTime}, #{item.isbn}, #{item.publishMethod},
+                #{item.securityClassification}, #{item.politicalTheoryTextbook}, #{item.textbookSource}, #{item.sort},
                 #{item.creator}, #{item.createTime}, #{item.lastModifier}, #{item.lastModifiedTime},
                 #{item.remark}, #{item.sysflag}
             )
@@ -68,6 +104,9 @@
             <if test="publishTime != null">publish_time,</if>
             <if test="isbn != null">isbn,</if>
             <if test="publishMethod != null">publish_method,</if>
+            <if test="securityClassification != null">security_classification,</if>
+            <if test="politicalTheoryTextbook != null">political_theory_textbook,</if>
+            <if test="textbookSource != null">textbook_source,</if>
             <if test="sort != null">sort,</if>
             <if test="creator != null">creator,</if>
             <if test="createTime != null">create_time,</if>
@@ -86,6 +125,9 @@
             <if test="publishTime != null">#{publishTime},</if>
             <if test="isbn != null">#{isbn},</if>
             <if test="publishMethod != null">#{publishMethod},</if>
+            <if test="securityClassification != null">#{securityClassification},</if>
+            <if test="politicalTheoryTextbook != null">#{politicalTheoryTextbook},</if>
+            <if test="textbookSource != null">#{textbookSource},</if>
             <if test="sort != null">#{sort},</if>
             <if test="creator != null">#{creator},</if>
             <if test="createTime != null">#{createTime},</if>
@@ -108,6 +150,9 @@
             <if test="publishTime != null">publish_time = #{publishTime},</if>
             <if test="isbn != null">isbn = #{isbn},</if>
             <if test="publishMethod != null">publish_method = #{publishMethod},</if>
+            <if test="securityClassification != null">security_classification = #{securityClassification},</if>
+            <if test="politicalTheoryTextbook != null">political_theory_textbook = #{politicalTheoryTextbook},</if>
+            <if test="textbookSource != null">textbook_source = #{textbookSource},</if>
             <if test="sort != null">sort = #{sort},</if>
             <if test="lastModifier != null">last_modifier = #{lastModifier},</if>
             <if test="lastModifiedTime != null">last_modified_time = #{lastModifiedTime},</if>
@@ -118,7 +163,7 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT id, plan_id, material_nature, name, first_author, edition, publisher, publish_time, isbn, publish_method, sort, creator, create_time, last_modifier, last_modified_time, remark, sysflag
+        SELECT <include refid="Base_Column_List"/>
         FROM t_csys_teaching_plan_textbook
         WHERE id = #{id}
           AND sysflag = 0

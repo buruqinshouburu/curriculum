@@ -58,6 +58,15 @@ public class TeachingPlanTextbook extends AbstractDoinnerLogicalDelBaseEntity {
      */
     private String publishMethod;
 
+    /** 教材密级（sys_textbook_security_classification），可选。 */
+    private String securityClassification;
+
+    /** 是否为政治理论教材（sys_textbook_political_theory），可选。 */
+    private String politicalTheoryTextbook;
+
+    /** 教材来源（sys_textbook_source），可选。 */
+    private String textbookSource;
+
     /**
      * 排序
      */
@@ -141,6 +150,30 @@ public class TeachingPlanTextbook extends AbstractDoinnerLogicalDelBaseEntity {
 
     public void setPublishMethod(String publishMethod) {
         this.publishMethod = publishMethod;
+    }
+
+    public String getSecurityClassification() {
+        return securityClassification;
+    }
+
+    public void setSecurityClassification(String securityClassification) {
+        this.securityClassification = securityClassification;
+    }
+
+    public String getPoliticalTheoryTextbook() {
+        return politicalTheoryTextbook;
+    }
+
+    public void setPoliticalTheoryTextbook(String politicalTheoryTextbook) {
+        this.politicalTheoryTextbook = politicalTheoryTextbook;
+    }
+
+    public String getTextbookSource() {
+        return textbookSource;
+    }
+
+    public void setTextbookSource(String textbookSource) {
+        this.textbookSource = textbookSource;
     }
 
     public Integer getSort() {

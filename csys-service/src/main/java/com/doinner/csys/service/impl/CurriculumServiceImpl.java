@@ -16,6 +16,7 @@ import com.doinner.csys.domain.*;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.io.utils.ExcelUtils;
 import com.doinner.csys.service.CurriculumService;
+import com.doinner.csys.utils.CourseCreditRules;
 import com.doinner.csys.utils.GenerateCourseCodeUtils;
 import com.doinner.csys.utils.TreeBuilderUtils;
 import com.doinner.csys.utils.UserUtils;
@@ -47,8 +48,6 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -547,6 +546,18 @@ public class CurriculumServiceImpl implements CurriculumService {
         return getCourseCode_new(course);
     }
 
+    private void assignImportedCourseCode(CourseVo course) {
+        if (course.getCollegeId() == null || StringUtils.isBlank(course.getVersion())
+                || course.getVersion().length() < 2) {
+            throw new IllegalArgumentException("导入失败：" + course.getName() + "的版本或组织实施单位无效");
+        }
+        String code = generateCourseCodeIfReady(course);
+        if (StringUtils.isBlank(code)) {
+            throw new IllegalArgumentException("导入失败：" + course.getName() + "缺少生成编号所需的适用对象或组织实施单位");
+        }
+        course.setCode(code);
+    }
+
     private boolean checkCourseRepetition(CourseVo course) {
         if (course.getTemplateType() == 2 || ObjectUtils.isNotEmpty(course.getSourceId())) {
             //调用的课程不进行名称查重
@@ -581,6 +592,7 @@ public class CurriculumServiceImpl implements CurriculumService {
         // 新增不做执笔人或关联数据校验；已有课程必须使用修改入口。
         if (course.getId() != null)
             throw new CoursePermissionException(400, "新增课程不能携带已有课程ID，请使用修改接口");
+        CourseCreditRules.normalize(course);
         course.setCreator(null);
         course.setCreateTime(null);
         course.setSysflag(0);
@@ -1146,7 +1158,11 @@ public class CurriculumServiceImpl implements CurriculumService {
 
         //查看版本（**）+培训层次(*)+开课单位(**)是否有修改 修改的话更新课程编号
         updateCourseCode(dbCourse,course);
-        updateInvokeCourse(course);
+        // 保留既有传播内容，源库计分规则不追溯重算已调用课程。
+        CourseVo invokedUpdate = new CourseVo();
+        BeanUtils.copyProperties(course, invokedUpdate);
+        CourseCreditRules.normalize(course, dbCourse);
+        updateInvokeCourse(invokedUpdate);
         TrainingSchemeRefCourse query = new TrainingSchemeRefCourse();
         query.setCourseId(dbCourse.getId());
 //        List<TrainingSchemeRefCourse> trainingSchemeRefCourses = courseRefCourseMapper.selectTrainingSchemeRefCourseList(query);
@@ -1268,6 +1284,7 @@ public class CurriculumServiceImpl implements CurriculumService {
     public CourseVo saveCourse(CourseVo course) {
         coursePermissions.preserveCourseOwners(course);
         coursePermissions.validateCourseContent(course);
+        CourseCreditRules.normalize(course, courseMapper.selectCourseById(course.getId()));
         //课程本身
         UserUtils.reflash(course);
         courseMapper.updateCourse(course);
@@ -1434,7 +1451,7 @@ public class CurriculumServiceImpl implements CurriculumService {
      */
     @Override
     @Transactional(rollbackFor = {Exception.class})
-    @CoursePermission(value = "#p0", sourceCoursesOnly = true)
+    @CoursePermission(value = "#p0", sourceCoursesOnly = true, sourceDelete = true)
     public int deleteCourseByIds(List<Long> ids) {
         List<Course> courses = courseMapper.selectCoursesByIds(ids);
         for (Course dbCourse : courses) {
@@ -2197,9 +2214,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                     courseVo.setSysflag(0);
                     courseVo.setStatus(0);
                     courseVo.setCourseAttr(excelVo.getCourseAttr());
-                    Double totalHour = (excelVo.getTeachHours() == null ? 0 : excelVo.getTeachHours() )+ (excelVo.getPracticeHours() == null ? 0 : excelVo.getPracticeHours());
-                    courseVo.setHours(totalHour);
-                    courseVo.setCredit(new BigDecimal(totalHour/16).setScale(2, RoundingMode.HALF_UP).doubleValue());
+                    CourseCreditRules.normalize(courseVo);
                     courseVo.setCode(getCourseCode_new(courseVo));
                     courseVo.setSubMajorId(subMajorId);
                     // checkCourseRepetition(courseVo);
@@ -2329,7 +2344,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                     // 处理 多个字典合成一列的
                     //dealSemesterScheduleAndSpringAutumnName(excelVo.getSemesterScheduleAndSpringAutumnName(), courseVo, semesterMap, springAutumnMap);
                     courseVo.setTemplateType(templateType);
-                    courseVo.setCredit(excelVo.getTimeWeek());
+                    CourseCreditRules.normalize(courseVo);
                     UserUtils.reflash(courseVo);
                     //checkCourseRepetition(courseVo);
                     // if (!checkCourseRepetition(courseVo)) {
@@ -2337,6 +2352,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                     //     continue;
                     // }
                     courseVo.setLocation(excelVo.getSubjectModule());
+                    assignImportedCourseCode(courseVo);
                     courseMapper.insertCourse(courseVo);
                     CourseSchedule schedule = new CourseSchedule();
                     BeanUtils.copyProperties(courseVo, schedule);
@@ -2412,7 +2428,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                     courseVo.setMajorId(majorId);
                     courseVo.setCategoryId(categoryId);
                     courseVo.setTemplateType(templateType);
-                    courseVo.setCredit(excelVo.getTimeWeek());
+                    CourseCreditRules.normalize(courseVo);
                     courseVo.setSubMajorId(subMajorId);
                     // 处理 多个字典合成一列的
                     //dealSemesterScheduleAndSpringAutumnName(excelVo.getSemesterScheduleAndSpringAutumnName(), courseVo, semesterMap, springAutumnMap);
@@ -2420,6 +2436,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                     // if (!checkCourseRepetition(courseVo)) {
                     //     courseNameBuilder.append(courseVo.getName()).append(",");
                     // }
+                    assignImportedCourseCode(courseVo);
                     courseMapper.insertCourse(courseVo);
                     CourseSchedule schedule = new CourseSchedule();
                     BeanUtils.copyProperties(courseVo, schedule);

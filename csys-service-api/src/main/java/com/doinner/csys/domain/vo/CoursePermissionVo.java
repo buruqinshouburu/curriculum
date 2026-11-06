@@ -11,6 +11,9 @@ public class CoursePermissionVo {
     private String authors;
     private String authorIds;
     private boolean canOperate;
+    private boolean canDelete;
+    public boolean isCanDelete() { return canDelete; }
+    public void setCanDelete(boolean canDelete) { this.canDelete = canDelete; }
     private boolean canConfigureAuthors;
     /** 课程团队成员明细（调用课程返回总库成员） */
     private List<CourseTeamMember> teamMembers = new ArrayList<>();

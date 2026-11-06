@@ -10,6 +10,10 @@ import java.math.BigDecimal;
  */
 public class TeachingPlanListVo {
 
+    private CoursePermissionVo permissions;
+    public CoursePermissionVo getPermissions() { return permissions; }
+    public void setPermissions(CoursePermissionVo permissions) { this.permissions = permissions; }
+
     // ============ 总库课程信息 ============
 
     /** 总库课程id (t_csys_course.id) */

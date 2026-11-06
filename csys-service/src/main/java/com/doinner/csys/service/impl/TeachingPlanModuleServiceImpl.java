@@ -84,6 +84,7 @@ import com.doinner.csys.entity.csys.model.DictContent;
 import com.doinner.csys.entity.csys.po.CourseKnowledgeUnit;
 import com.doinner.csys.service.TeachingPlanModuleService;
 import com.doinner.csys.utils.CurDictUtils;
+import com.doinner.csys.utils.AssessmentCriteriaCodec;
 import com.doinner.csys.utils.MultiValueUtils;
 import com.doinner.csys.utils.UserUtils;
 import com.doinner.csys.permission.CoursePermission;
@@ -2909,6 +2910,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             assessment.setMethod(null);
             assessment.setMechanism(null);
             assessment.setScoreSystem(null);
+        } else {
+            AssessmentCriteriaCodec.validate(assessment, CurDictUtils.getDictData("sys_assessment_mechanism"));
         }
     }
 
