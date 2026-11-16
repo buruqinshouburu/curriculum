@@ -3,7 +3,37 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.doinner.csys.dao.CourseMapper">
+    <!-- Static include properties name the calling mapper's parameters, never user SQL. -->
+    <sql id="invokedDirectionFilter">
+        and (locate(concat(',', #{${directionParameter}}, ','), concat(',', c.invocation_sub_major_ids, ',')) > 0
+          or (c.invocation_sub_major_ids is null and c.sub_Major_Id = #{${directionParameter}}) or (
+            c.invocation_sub_major_ids is null and c.sub_Major_Id is null
+            and (c.major_Id is null or not (
+                coalesce(c.type, '') in ('2', '4') or coalesce(c.course_Module, '') = '69a7f33c2dc370362ef3ee70'
+                or (coalesce(c.course_Module, '') = '6a50c7bdc55a5223d91a753a'
+                    and coalesce(c.course_Module_Children, '') in ('6a50c85bc55a5223d91a753d', '6a50c864c55a5223d91a753e'))
+            ) or exists (select 1 from t_csys_std_major direction
+                         where direction.id = #{${directionParameter}} and direction.parent_id = c.major_Id))
+            and not exists (
+                select 1 from t_csys_course scoped
+                inner join t_csys_training_scheme_ref_course scoped_ref on scoped_ref.course_id = scoped.id
+                where scoped_ref.scheme_id = ${schemeExpression}
+                  and scoped.source_id = c.source_id
+                  and (locate(concat(',', #{${directionParameter}}, ','), concat(',', scoped.invocation_sub_major_ids, ',')) > 0
+                       or (scoped.invocation_sub_major_ids is null and scoped.sub_Major_Id = #{${directionParameter}}))
+                  and (scoped.major_Id = c.major_Id or (scoped.major_Id is null and c.major_Id is null))
+                  and (scoped.course_Module = c.course_Module or (scoped.course_Module is null and c.course_Module is null))
+                  and (scoped.course_Module_Children = c.course_Module_Children
+                       or (scoped.course_Module_Children is null and c.course_Module_Children is null))
+                  and (scoped.location = c.location or (scoped.location is null and c.location is null))
+                  and (scoped.program_Level = c.program_Level or (scoped.program_Level is null and c.program_Level is null))
+            )
+        ))
+    </sql>
     <resultMap type="com.doinner.csys.domain.Course" id="CourseResult">
+        <result property="majorIds" column="major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
+        <result property="subMajorIds" column="sub_major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
+        <result property="invocationSubMajorIds" column="invocation_sub_major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
         <result property="id" column="id"/>
         <result property="name" column="name"/>
         <result property="code" column="code"/>
@@ -61,6 +91,7 @@
         <result property="enableFlag" column="enable_flag"/>
         <result property="buildStatus" column="build_status"/>
         <result property="educationLevel" column="education_level"/>
+        <result property="quoteEducationLevel" column="quote_education_level"/>
         <result property="buildStatus" column="build_status"/>
         <result property="hasWork" column="has_work"/>
         <result property="collegeName" column="collegeName"/>
@@ -73,6 +104,9 @@
 
     </resultMap>
     <resultMap type="com.doinner.csys.domain.vo.CourseVo" id="CourseVoResult">
+        <result property="majorIds" column="major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
+        <result property="subMajorIds" column="sub_major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
+        <result property="invocationSubMajorIds" column="invocation_sub_major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
         <result property="id" column="id"/>
         <result property="name" column="name"/>
         <result property="code" column="code"/>
@@ -215,6 +249,9 @@
                open_Year,
                major_Id,
                sub_Major_Id,
+               major_ids,
+               sub_major_ids,
+               invocation_sub_major_ids,
                category_Id,
                exa_Method,
                program_Level,
@@ -283,6 +320,9 @@
                c.open_Year,
                c.major_Id,
                c.sub_Major_Id,
+               c.major_ids,
+               c.sub_major_ids,
+               c.invocation_sub_major_ids,
                c.category_Id,
                c.exa_Method,
                c.program_Level,
@@ -297,7 +337,15 @@
                c.education_level,
                c.build_status,
                c.has_Work,
-               c.academic_terms_number
+               c.academic_terms_number,
+               (
+                   SELECT GROUP_CONCAT(DISTINCT NULLIF(ts.education_level, '') SEPARATOR '、')
+                   FROM t_csys_training_scheme_ref_course trc
+                   INNER JOIN t_csys_training_scheme ts ON ts.id = trc.scheme_id AND ts.sysflag = 0
+                   INNER JOIN t_csys_course selected_course ON selected_course.id = trc.course_id
+                       AND selected_course.sysflag = 0
+                   WHERE (selected_course.id = c.id OR selected_course.source_id = c.id)
+               ) AS quote_education_level
         from t_csys_course c
         <where>
             c.sysflag = 0
@@ -407,10 +455,12 @@
                 and c.spring_Autumn = #{springAutumn}
             </if>
             <if test="majorId != null">
-                and c.major_Id = #{majorId}
+                and (c.major_Id = #{majorId} or find_in_set(#{majorId}, c.major_ids) > 0)
             </if>
             <if test="subMajorId != null">
-                and c.sub_Major_Id = #{subMajorId}
+                and (locate(concat(',', #{subMajorId}, ','), concat(',', c.invocation_sub_major_ids, ',')) > 0
+                     or (c.invocation_sub_major_ids is null
+                         and (c.sub_Major_Id = #{subMajorId} or find_in_set(#{subMajorId}, c.sub_major_ids) > 0)))
             </if>
             <if test="categoryId != null">
                 and c.category_Id = #{categoryId}
@@ -538,6 +588,9 @@
         c.open_Year,
         c.major_Id,
         c.sub_Major_Id,
+        c.major_ids,
+        c.sub_major_ids,
+        c.invocation_sub_major_ids,
         c.category_Id,
         c.exa_Method,
         c.program_Level,
@@ -619,6 +672,9 @@
         c.open_Year,
         c.major_Id,
         c.sub_Major_Id,
+        c.major_ids,
+        c.sub_major_ids,
+        c.invocation_sub_major_ids,
         c.category_Id,
         c.exa_Method,
         c.program_Level,
@@ -784,6 +840,9 @@
             <if test="majorId != null">
                 major_Id,
             </if>
+            <if test="majorIds != null">major_ids,</if>
+            <if test="subMajorIds != null">sub_major_ids,</if>
+            <if test="invocationSubMajorIds != null">invocation_sub_major_ids,</if>
             <if test="subMajorId != null">
                 sub_Major_Id,
             </if>
@@ -954,6 +1013,9 @@
             <if test="majorId != null">
                 #{majorId},
             </if>
+            <if test="majorIds != null">#{majorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},</if>
+            <if test="subMajorIds != null">#{subMajorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},</if>
+            <if test="invocationSubMajorIds != null">#{invocationSubMajorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},</if>
             <if test="subMajorId != null">
                 #{subMajorId},
             </if>
@@ -1139,13 +1201,16 @@
             <if test="openYear != null">
                 open_Year = #{openYear},
             </if>
-            <if test="majorId != null">
-                major_Id = #{majorId},
+            <if test="majorId != null or majorIds != null">
+                major_Id = case when source_id is null then #{majorId} else coalesce(#{majorId}, major_Id) end,
             </if>
-            <if test="subMajorId != null">
-                sub_Major_Id = #{subMajorId},
+            <if test="subMajorId != null or subMajorIds != null">
+                sub_Major_Id = case when source_id is null then #{subMajorId} else coalesce(#{subMajorId}, sub_Major_Id) end,
             </if>
-            <if test="categoryId != null">
+            <if test="majorIds != null">major_ids = #{majorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},</if>
+            <if test="subMajorIds != null">sub_major_ids = #{subMajorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},</if>
+            <if test="invocationSubMajorIds != null">invocation_sub_major_ids = #{invocationSubMajorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},</if>
+            <if test="categoryId != null or majorIds != null">
                 category_Id = #{categoryId},
             </if>
             <if test="programLevel != null">
@@ -1328,6 +1393,9 @@
     </delete>
 
     <resultMap type="com.doinner.csys.domain.vo.CourseVo" id="CourseAndRelevanceResult">
+        <result property="majorIds" column="major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
+        <result property="subMajorIds" column="sub_major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
+        <result property="invocationSubMajorIds" column="invocation_sub_major_ids" typeHandler="com.doinner.csys.handler.CourseMajorIdsTypeHandler"/>
         <result property="id" column="id"/>
         <result property="name" column="name"/>
         <result property="code" column="code"/>
@@ -1538,6 +1606,9 @@
         tc.open_Year open_Year,
         tc.major_Id major_Id,
         tc.sub_Major_Id sub_Major_Id,
+        tc.major_ids,
+        tc.sub_major_ids,
+        tc.invocation_sub_major_ids,
         tc.category_Id category_Id,
         tc.exa_Method exa_Method,
         tc.program_Level program_Level,
@@ -1697,10 +1768,12 @@
                 and tc.open_Year = #{openYear}
             </if>
             <if test="majorId != null">
-                and tc.major_Id = #{majorId}
+                and (tc.major_Id = #{majorId} or find_in_set(#{majorId}, tc.major_ids) > 0)
             </if>
             <if test="subMajorId != null">
-                and tc.sub_Major_Id = #{subMajorId}
+                and (locate(concat(',', #{subMajorId}, ','), concat(',', tc.invocation_sub_major_ids, ',')) > 0
+                     or (tc.invocation_sub_major_ids is null
+                         and (tc.sub_Major_Id = #{subMajorId} or find_in_set(#{subMajorId}, tc.sub_major_ids) > 0)))
             </if>
             <if test="categoryId != null">
                 and tc.category_Id = #{categoryId}
@@ -1757,6 +1830,9 @@
                tc.open_Year              open_Year,
                tc.major_Id               major_Id,
                tc.sub_Major_Id           sub_Major_Id,
+               tc.major_ids,
+               tc.sub_major_ids,
+               tc.invocation_sub_major_ids,
                tc.category_Id            category_Id,
                tc.exa_Method             exa_Method,
                tc.program_Level          program_Level,
@@ -2186,6 +2262,7 @@
         `status`, analysis_status, course_Module,
         course_Module_Children, semester_Schedule,
         spring_Autumn, open_Year, major_Id,
+        major_ids, sub_major_ids, invocation_sub_major_ids,
         category_Id, exa_Method, program_Level,
         time_Week, unit, sub_Major_Id, source_id,
         template_type, version, bind_status,
@@ -2205,6 +2282,7 @@
             #{course.status}, #{course.analysisStatus}, #{course.courseModule},
             #{course.courseModuleChildren}, #{course.semesterSchedule},
             #{course.springAutumn}, #{course.openYear}, #{course.majorId},
+            #{course.majorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler}, #{course.subMajorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler}, #{course.invocationSubMajorIds,typeHandler=com.doinner.csys.handler.CourseMajorIdsTypeHandler},
             #{course.categoryId}, #{course.exaMethod}, #{course.programLevel},
             #{course.timeWeek}, #{course.unit}, #{course.subMajorId}, #{course.sourceId},
             #{course.templateType}, #{course.version}, #{course.bindStatus},
@@ -2424,6 +2502,9 @@
         c.open_Year,
         c.major_Id,
         c.sub_Major_Id,
+        c.major_ids,
+        c.sub_major_ids,
+        c.invocation_sub_major_ids,
         c.category_Id,
         c.exa_Method,
         c.program_Level,
@@ -2561,7 +2642,10 @@
                 and c.major_Id = #{majorId}
             </if>
             <if test="subMajorId != null">
-                and c.sub_Major_Id = #{subMajorId}
+                <include refid="invokedDirectionFilter">
+                    <property name="directionParameter" value="subMajorId"/>
+                    <property name="schemeExpression" value="schemeRefCourse.scheme_id"/>
+                </include>
             </if>
             <if test="categoryId != null">
                 and c.category_Id = #{categoryId}

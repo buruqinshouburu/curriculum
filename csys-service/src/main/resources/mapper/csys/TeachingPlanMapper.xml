@@ -308,6 +308,15 @@
         <where>
             course.source_id IS NULL
             AND course.sysflag = 0
+            <!-- 与列表文件展示一致：当前有效计划有文件标识或文件名称即为已生成。 -->
+            <choose>
+                <when test="generatedStatus != null and generatedStatus == 1">
+                    AND (COALESCE(plan.file_id, '') != '' OR COALESCE(plan.file_name, '') != '')
+                </when>
+                <when test="generatedStatus != null and generatedStatus == 0">
+                    AND COALESCE(plan.file_id, '') = '' AND COALESCE(plan.file_name, '') = ''
+                </when>
+            </choose>
             <if test="courseName != null and courseName != ''">
                 AND course.name LIKE CONCAT('%', #{courseName}, '%')
             </if>

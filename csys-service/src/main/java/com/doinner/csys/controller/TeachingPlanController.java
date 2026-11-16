@@ -16,6 +16,7 @@ import com.doinner.csys.domain.TeachingPlanPracticeItemDetail;
 import com.doinner.csys.domain.TeachingPlanProcessStep;
 import com.doinner.csys.domain.TeachingPlanRef;
 import com.doinner.csys.domain.TeachingPlanTargetDesign;
+import com.doinner.csys.domain.vo.TeachingPlanKnowledgeBatchSaveVo;
 import com.doinner.csys.domain.TeachingPlanTaskBackground;
 import com.doinner.csys.domain.TeachingPlanTaskBackgroundRef;
 import com.doinner.csys.domain.TeachingPlanTextbook;
@@ -664,6 +665,12 @@ public class TeachingPlanController {
     public Message updateTargetDesign(@RequestBody TeachingPlanTargetDesign design) {
         teachingPlanModuleService.updateTargetDesign(design);
         return Message.success();
+    }
+
+    @ApiOperation("批量保存知识目标达成设计")
+    @PostMapping("/targetDesign/batchSave")
+    public DataSet<List<Long>> saveKnowledgeDesignsBatch(@RequestBody TeachingPlanKnowledgeBatchSaveVo request) {
+        return DataSet.success(teachingPlanModuleService.saveKnowledgeDesignsBatch(request.getPlanId(), request.getRows()));
     }
 
     @ApiOperation("删除目标达成设计")

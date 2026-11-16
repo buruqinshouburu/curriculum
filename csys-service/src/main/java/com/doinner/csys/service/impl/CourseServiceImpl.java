@@ -9,6 +9,7 @@ import com.doinner.csys.domain.CourseSchedule;
 import com.doinner.csys.domain.CourseInvokeDeleteLog;
 import com.doinner.csys.domain.CourseRefGraduation;
 import com.doinner.csys.domain.StandardGraduation;
+import com.doinner.csys.domain.StandardMajor;
 import com.doinner.csys.domain.TrainingSchemeCourseSchedule;
 import com.doinner.csys.domain.TrainingSchemeRefCourse;
 import com.doinner.csys.domain.vo.*;
@@ -19,6 +20,7 @@ import com.doinner.csys.io.service.ExportService;
 import com.doinner.csys.service.CourseService;
 import com.doinner.csys.service.TrainingService;
 import com.doinner.csys.utils.UserUtils;
+import com.doinner.csys.utils.CourseInvocationScope;
 import com.doinner.csys.permission.CoursePermission;
 import com.doinner.csys.permission.CoursePermissionService;
 import com.doinner.kg.domain.Dictionary;
@@ -67,6 +69,9 @@ public class CourseServiceImpl implements CourseService {
     private RemoteKgService remoteKgService;
     @Resource
     private StandardGraduationMapper standardGraduationMapper;
+
+    @Resource
+    private StandardMajorMapper standardMajorMapper;
 
     @Resource
     private CourseInvokeDeleteLogMapper courseInvokeDeleteLogMapper;
@@ -210,28 +215,27 @@ public class CourseServiceImpl implements CourseService {
     @Transactional
     public Message courseInvoke(CourseTemplateVo courseTemplateVo) {
         coursePermissions.lockKnowledgeSources(courseTemplateVo.getIds());
+        TrainingSchemeVo trainingSchemeVo = trainingSchemeMapper.selectTrainingSchemeById(courseTemplateVo.getTrainingSchemeId());
+        List<Course> sources = courseMapper.selectCoursesByIds(courseTemplateVo.getIds());
         //查询该培养方案是否已经调用该课程
         List<TrainingSchemeRefCourse> trainingSchemeRefCourses = trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoId(courseTemplateVo.getTrainingSchemeId());
         List<Long> hasInvokeCourseIds = trainingSchemeRefCourses.stream().map(t -> t.getCourseId()).collect(Collectors.toList());
         List<Long> quoteCourseIds=courseTemplateVo.getIds();
         if(ObjectUtils.isNotEmpty(hasInvokeCourseIds)){
             List<Course> hasInvokeCourses = courseMapper.selectCoursesByIds(hasInvokeCourseIds);
-            String targetCourseModule = courseTemplateVo.getCourseModule();
-            String targetCourseModuleChildren = courseTemplateVo.getCourseModuleChildren();
-            Long targetSubMajorId = courseTemplateVo.getSubMajorId();
-            //过滤已经调用过的课程：课程模块为专业课程时同一专业方向(subMajor)下同一门课只能调用一次，
+            //专业课程及军士任职基础/任职岗位按专业方向去重，
             //否则同一课程模块(及子模块)下同一门课只能调用一次
-            quoteCourseIds = quoteCourseIds.stream()
-                    .filter(courseId -> !isCourseAlreadyInvoked(courseId, hasInvokeCourses, targetCourseModule, targetCourseModuleChildren, targetSubMajorId))
-                    .collect(Collectors.toList());
+            quoteCourseIds = sources.stream()
+                    .filter(source -> !isCourseAlreadyInvoked(source.getId(), hasInvokeCourses,
+                            invocationTarget(courseTemplateVo, trainingSchemeVo, source)))
+                    .map(Course::getId).collect(Collectors.toList());
             if(ObjectUtils.isEmpty(quoteCourseIds)){
                 return Message.error("所选课程均已被调用");
             }
         }
         //查询未被调用的课程
-        List<Course> quoteCourseList = courseMapper.selectCoursesByIds(quoteCourseIds);
-        //查询培养方案
-        TrainingSchemeVo trainingSchemeVo = trainingSchemeMapper.selectTrainingSchemeById(courseTemplateVo.getTrainingSchemeId());
+        Set<Long> includedIds = new HashSet<>(quoteCourseIds);
+        List<Course> quoteCourseList = sources.stream().filter(source -> includedIds.contains(source.getId())).collect(Collectors.toList());
 
         /**复制课程*/
         List<Course> new_courseList =new ArrayList<>();
@@ -285,32 +289,35 @@ public class CourseServiceImpl implements CourseService {
 
     /**
      * 判断源课程在当前调用范围下是否已被该培养方案调用。
-     * 课程模块为专业课程时按专业方向(subMajorId)判断同一门课是否已调用，
+     * 专业课程沿用专业方向规则；军士任职基础/任职岗位按模块、子模块和方向去重。
      * 其余课程模块按课程模块(courseModule)及子模块(courseModuleChildren)判断同一门课是否已调用。
      *
      * @param sourceCourseId           本次待调用的源课程id
      * @param invokedCourses           该培养方案下已调用的课程集合
-     * @param targetCourseModule       目标课程模块
-     * @param targetCourseModuleChildren 目标课程子模块
-     * @param targetSubMajorId         目标专业方向
+     * @param target                  目标模块与专业调用范围
      * @return 已调用返回true，否则false
      */
-    private boolean isCourseAlreadyInvoked(Long sourceCourseId, List<Course> invokedCourses,
-                                           String targetCourseModule, String targetCourseModuleChildren,
-                                           Long targetSubMajorId) {
+    private boolean isCourseAlreadyInvoked(Long sourceCourseId, List<Course> invokedCourses, CourseTemplateVo target) {
+        String targetCourseModule = target.getCourseModule();
+        String targetCourseModuleChildren = target.getCourseModuleChildren();
+        Long targetSubMajorId = target.getSubMajorId();
+        Long targetMajorId = target.getMajorId();
         boolean professional = DictContent.MAJOR_COURSES_SCHEDULE.equals(targetCourseModule);
+        boolean sergeantDirection = DictContent.MILITARY_VOCATIONAL_EDUCATION.equals(targetCourseModule)
+                && (DictContent.POSITION_FOUNDATION.equals(targetCourseModuleChildren)
+                || DictContent.DUTY_POSITION.equals(targetCourseModuleChildren));
         for (Course invoked : invokedCourses) {
             if (!Objects.equals(invoked.getSourceId(), sourceCourseId)) {
                 continue;
             }
-            if (professional) {
-                //专业课程按专业方向去重，subMajorId 为空时无法判定同一专业方向，不视为重复
-                if (targetSubMajorId != null && targetSubMajorId.equals(invoked.getSubMajorId())) {
-                    return true;
-                }
-            } else if (Objects.equals(invoked.getCourseModule(), targetCourseModule)
-                    && Objects.equals(invoked.getCourseModuleChildren(), targetCourseModuleChildren)) {
-                //非专业课程按课程模块及子模块去重
+            boolean practical = "2".equals(invoked.getType()) || "4".equals(invoked.getType());
+            boolean directionScoped = professional || sergeantDirection || practical;
+            if ((practical && targetCourseModule == null || Objects.equals(invoked.getCourseModule(), targetCourseModule))
+                    && (practical && targetCourseModuleChildren == null || Objects.equals(invoked.getCourseModuleChildren(), targetCourseModuleChildren))
+                    && (target.getLocation() == null || Objects.equals(invoked.getLocation(), target.getLocation()))
+                    && (target.getProgramLevel() == null || Objects.equals(invoked.getProgramLevel(), target.getProgramLevel()))
+                    && (!directionScoped || (Objects.equals(invoked.getMajorId(), targetMajorId)
+                    && CourseInvocationScope.containsDirection(invoked, targetSubMajorId)))) {
                 return true;
             }
         }
@@ -382,17 +389,25 @@ public class CourseServiceImpl implements CourseService {
 
     @NotNull
     private Course copyCourse(TrainingSchemeVo trainingSchemeVo, Course c, CourseTemplateVo courseTemplateVo) {
+        courseTemplateVo = invocationTarget(courseTemplateVo, trainingSchemeVo, c);
         Course course = new Course();
         BeanUtils.copyProperties(c, course);
+        course.setInvocationSubMajorIds(null);
         course.setSourceId(c.getId());
         course.setMajorId(c.getMajorId() == null ? trainingSchemeVo.getMajorId() : c.getMajorId());
         course.setCategoryId(trainingSchemeVo.getCategoryId() == null ? c.getCategoryId():trainingSchemeVo.getCategoryId());
+        if (DictContent.DISCIPLINE_CORE_COURSES_SCHEDULE.equals(c.getCourseModule())
+                || (DictContent.MAJOR_COURSES_SCHEDULE.equals(c.getCourseModule()) && "3".equals(c.getCourseAttr()))) {
+            // Applicability belongs to the source course, not the invoking scheme's discipline.
+            course.setCategoryId(c.getCategoryId());
+        }
         course.setVersion(trainingSchemeVo.getVersion());
         course.setTemplateType(2);
         course.setBindStatus(2);
         course.setId(null);
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getCourseModule())){
             course.setCourseModule(courseTemplateVo.getCourseModule());
+            course.setCourseModuleChildren(courseTemplateVo.getCourseModuleChildren());
         }
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getCourseModuleChildren())){
             course.setCourseModuleChildren(courseTemplateVo.getCourseModuleChildren());
@@ -400,7 +415,7 @@ public class CourseServiceImpl implements CourseService {
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getMajorId())){
             course.setMajorId(courseTemplateVo.getMajorId());
         }
-        if(ObjectUtils.isNotEmpty(courseTemplateVo.getSubMajorId())){
+        if (CourseInvocationScope.isDirectionScoped(course) || courseTemplateVo.getSubMajorId() != null) {
             course.setSubMajorId(courseTemplateVo.getSubMajorId());
         }
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getLocation())){
@@ -409,8 +424,40 @@ public class CourseServiceImpl implements CourseService {
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getProgramLevel())){
             course.setProgramLevel(courseTemplateVo.getProgramLevel());
         }
+        if (course.getMajorId() != null && (course.getType() == null
+                || "1".equals(course.getType()) || "3".equals(course.getType()))) {
+            // Invocation scope belongs to the selected tree node, not the source course's applicability.
+            course.setCategoryId(trainingSchemeVo.getCategoryId() == null ? c.getCategoryId() : trainingSchemeVo.getCategoryId());
+            course.setSubMajorId(courseTemplateVo.getSubMajorId());
+            course.setMajorIds(Collections.singletonList(course.getMajorId()));
+            List<StandardMajor> directions = standardMajorMapper.selectStandardMajorByParentId(course.getMajorId());
+            course.setSubMajorIds(course.getSubMajorId() == null
+                    ? directions.stream().map(StandardMajor::getId).collect(Collectors.toList())
+                    : Collections.singletonList(course.getSubMajorId()));
+            StandardMajor major = standardMajorMapper.selectStandardMajorById(course.getMajorId());
+            if (major != null && major.getCategoryId() != null) course.setCategoryId(major.getCategoryId());
+            course.setMajorName(major == null ? null : major.getName());
+            course.setSubMajorNames(directions.stream().filter(item -> course.getSubMajorIds().contains(item.getId()))
+                    .map(StandardMajor::getName).filter(Objects::nonNull).collect(Collectors.toList()));
+            course.setSubMajorName(String.join("、", course.getSubMajorNames()));
+        }
         UserUtils.clearAndRefreshObj(course);
         return course;
+    }
+
+    private CourseTemplateVo invocationTarget(CourseTemplateVo request, TrainingSchemeVo scheme, Course source) {
+        CourseTemplateVo target = new CourseTemplateVo();
+        BeanUtils.copyProperties(request, target);
+        if (target.getMajorId() == null) {
+            target.setMajorId(scheme.getMajorId() != null ? scheme.getMajorId() : source.getMajorId());
+        }
+        if (StringUtils.isBlank(target.getCourseModule())) {
+            target.setCourseModule(source.getCourseModule());
+            target.setCourseModuleChildren(source.getCourseModuleChildren());
+        }
+        if (target.getLocation() == null) target.setLocation(source.getLocation());
+        if (target.getProgramLevel() == null) target.setProgramLevel(source.getProgramLevel());
+        return target;
     }
 
     /**

@@ -144,7 +144,10 @@
                 and tcs.creator = #{creator}
             </if>
             <if test="subMajorId!=null and subMajorId!=''">
-                and (c.sub_Major_Id=#{subMajorId} or c.sub_Major_Id is null)
+                <include refid="com.doinner.csys.dao.CourseMapper.invokedDirectionFilter">
+                    <property name="directionParameter" value="subMajorId"/>
+                    <property name="schemeExpression" value="tcs.scheme_id"/>
+                </include>
             </if>
         </where>
     </select>

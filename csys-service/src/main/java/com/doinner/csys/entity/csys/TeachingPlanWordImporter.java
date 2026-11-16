@@ -697,7 +697,8 @@ public class TeachingPlanWordImporter {
         Integer currentSeq = null;
         for (int r = 1; r < grid.size(); r++) {
             List<String> row = grid.get(r);
-            if (isAllBlank(row) || (!numbered && isPlaceholderDesignRow(row, 2))) {
+            // 单元学时会回填到占位行，不能据此认定知识点已配置设计。
+            if (isAllBlank(row) || (!numbered && isPlaceholderDesignRow(row.subList(0, Math.min(7, row.size())), 2))) {
                 continue;
             }
             Integer seqNum = numbered ? parseInt(cell(row, 0)) : null;

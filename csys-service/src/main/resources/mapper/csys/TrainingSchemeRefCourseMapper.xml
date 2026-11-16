@@ -167,7 +167,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             and c.credit=#{trainingCourseVo.credit}
         </if>
         <if test="trainingCourseVo.subMajorId !=null">
-            and c.sub_major_id=#{trainingCourseVo.subMajorId}
+            <include refid="com.doinner.csys.dao.CourseMapper.invokedDirectionFilter">
+                <property name="directionParameter" value="trainingCourseVo.subMajorId"/>
+                <property name="schemeExpression" value="tsrc.scheme_id"/>
+            </include>
         </if>
         <if test="trainingCourseVo.courseModuleChildren !=null">
             and c.course_Module_Children=#{trainingCourseVo.courseModuleChildren}

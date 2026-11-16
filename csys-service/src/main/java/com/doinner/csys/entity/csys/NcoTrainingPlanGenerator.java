@@ -260,7 +260,11 @@ public class NcoTrainingPlanGenerator extends TrainingPlanGenerator {
             for (Map.Entry<String, List<TrainingSchemeCourseModel>> entry : subModuleMap.entrySet()) {
                 String displayName = NCO_SUB_MODULE_ORDER.getOrDefault(entry.getKey(), entry.getValue().get(0).getCourseModeChildrenName());
                 String title = index + "." + displayName + "课程教学安排";
-                generateNcoCourseTable(document, title, displayName, entry.getValue());
+                Map<String, List<TrainingSchemeCourseModel>> directions = entry.getValue().stream().collect(
+                        Collectors.groupingBy(c -> c.getSubMajorName() == null ? "" : c.getSubMajorName(),
+                                LinkedHashMap::new, Collectors.toList()));
+                directions.forEach((direction, courses) -> generateNcoCourseTable(document,
+                        direction.isEmpty() ? title : title + "（" + direction + "）", displayName, courses));
                 WordUtil.createParagraph(document, "", null); // 空行
                 index++;
             }
@@ -276,6 +280,10 @@ public class NcoTrainingPlanGenerator extends TrainingPlanGenerator {
         WordUtil.createHeading(document, "（二）实践训练安排", 2);
         if (model.getTrainingSubjectCourses() != null && !model.getTrainingSubjectCourses().isEmpty()) {
             practicalProjectCourseTable(document, "实践训练课目与安排", model.getTrainingSubjectCourses());
+            WordUtil.createParagraph(document, "", null);
+        }
+        if (model.getPracticalProjectCourse() != null && !model.getPracticalProjectCourse().isEmpty()) {
+            trainingSubjectCoursesTable(document, "实践项目与安排", model.getPracticalProjectCourse());
             WordUtil.createParagraph(document, "", null);
         }
     }

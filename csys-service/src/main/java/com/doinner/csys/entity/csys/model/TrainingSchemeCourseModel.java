@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TrainingSchemeCourseModel {
+    private Long courseId;
     private String name;
     private Double hours;
     private Double credits;
@@ -60,6 +61,14 @@ public class TrainingSchemeCourseModel {
      * 考核方式
      */
     private String exaMethod;
+
+    public Long getCourseId() {
+        return courseId;
+    }
+
+    public void setCourseId(Long courseId) {
+        this.courseId = courseId;
+    }
 
     public String getName() {
         return name;

@@ -29,8 +29,17 @@ $taskSourcepath = @(
     (Join-Path $taskRepo 'csys-service-api/src/main/java')
 ) -join ';'
 $taskSources = @(
+    (Join-Path $taskRepo 'csys-service/src/test/java/com/doinner/csys/CourseScheduleDependencyTest.java')
+    (Join-Path $taskRepo 'csys-service-api/src/main/java/com/doinner/csys/domain/Course.java')
     (Join-Path $taskRepo 'csys-service-api/src/main/java/com/doinner/csys/domain/vo/TrainingSchemeCourseScheduleVo.java')
     (Join-Path $taskRepo 'csys-service/src/main/java/com/doinner/csys/service/impl/TrainingServiceImpl.java')
+    (Join-Path $taskRepo 'csys-service/src/main/java/com/doinner/csys/service/impl/CurriculumServiceImpl.java')
+    (Join-Path $taskRepo 'csys-service/src/main/java/com/doinner/csys/service/impl/CourseServiceImpl.java')
+    (Join-Path $taskRepo 'csys-service/src/main/java/com/doinner/csys/handler/CourseMajorIdsTypeHandler.java')
+    (Join-Path $taskRepo 'csys-service/src/test/java/com/doinner/csys/CourseMajorSelectionTest.java')
+    (Join-Path $taskRepo 'csys-service/src/test/java/com/doinner/csys/CourseInvocationScopeTest.java')
+    (Join-Path $taskRepo 'csys-service/src/test/java/com/doinner/csys/SourceCourseScheduleSyncTest.java')
+    (Join-Path $taskRepo 'csys-service/src/test/java/com/doinner/csys/CourseCreditRulesTest.java')
     (Join-Path $taskRepo 'csys-service/src/test/java/com/doinner/csys/TrainingScheduleContractTest.java')
 )
 New-Item -ItemType Directory -Force -Path $taskOutput | Out-Null
@@ -43,7 +52,14 @@ $taskCompileFile = Join-Path $taskOutput 'compile.args'
 & javac "@$taskCompileFile"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $taskRun = @('-cp', (& $taskQuote $taskClasspath), 'org.junit.platform.console.ConsoleLauncher',
-    '--select-class', 'com.doinner.csys.TrainingScheduleContractTest', '--disable-ansi-colors', '--details=summary')
+    '--select-class', 'com.doinner.csys.CourseScheduleDependencyTest',
+    '--select-class', 'com.doinner.csys.TrainingScheduleContractTest',
+    '--select-class', 'com.doinner.csys.SourceCourseScheduleSyncTest',
+    '--select-class', 'com.doinner.csys.CourseMajorSelectionTest',
+    '--select-class', 'com.doinner.csys.CourseInvocationScopeTest',
+    '--select-method', (& $taskQuote 'com.doinner.csys.CourseCreditRulesTest#sourceUpdateNormalizesUsingStoredTypeAndOptionalAttributeWhenOmitted'),
+    '--select-method', (& $taskQuote 'com.doinner.csys.CourseCreditRulesTest#libraryNormalizationDoesNotAddChangesToExistingInvocationPropagation'),
+    '--disable-ansi-colors', '--details=summary')
 $taskLogConfig = Join-Path $taskRepo 'csys-service/target/backend-rule-regression/logback-tests.xml'
 if (Test-Path -LiteralPath $taskLogConfig) {
     $taskRun = @(& $taskQuote "-Dlogback.configurationFile=$taskLogConfig") + $taskRun

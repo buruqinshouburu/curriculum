@@ -7,15 +7,19 @@ import com.doinner.csys.domain.StandardGraduation;
 import com.doinner.csys.domain.TeachingProgrammeInstanceExtract;
 import com.doinner.csys.domain.vo.TrainingSchemeCourseScheduleVo;
 import com.doinner.csys.domain.vo.TrainingSchemeVo;
+import com.doinner.csys.utils.CourseInvocationScope;
 import com.google.common.util.concurrent.AtomicDouble;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.BeanUtils;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -227,7 +231,12 @@ public class TrainingPlanModel {
         AtomicDouble projectTime = new AtomicDouble(0);
         AtomicDouble requireTime = new AtomicDouble(0);
         AtomicDouble optionalTime = new AtomicDouble(0);
+        Set<Long> countedCourseIds = new HashSet<>();
         for (TrainingSchemeCourseModel course : courseModelList) {
+            // Direction rows repeat an invocation for presentation, not scheme totals.
+            if (course.getCourseId() != null && !countedCourseIds.add(course.getCourseId())) {
+                continue;
+            }
             double hours = course.getHours() == null ? 0 : course.getHours();
             double credits = course.getCredits()==null?0:course.getCredits();
             double timeWeek = course.getTimeWeek()==null?0:course.getTimeWeek();
@@ -277,9 +286,30 @@ public class TrainingPlanModel {
         setTrainingTarget(standardCultivationTargetList,trainingSchemeVo);
         setStandardGraduations(standardGraduations);
         //设置课程
-        setCourseModel(courses, trainingSchemeCourseScheduleVos);
+        setCourseModel(expandDirectionCourses(courses, trainingSchemeVo), trainingSchemeCourseScheduleVos);
         //根据课程设置学分
         //setDurationAndCredits();
+    }
+
+    private List<Course> expandDirectionCourses(List<Course> courses, TrainingSchemeVo scheme) {
+        if (ObjectUtils.isEmpty(scheme.getSubMajorIds())) {
+            return courses;
+        }
+        List<Course> scoped = courses.stream().filter(course -> course.getInvocationSubMajorIds() != null
+                || CourseInvocationScope.isDirectionScoped(course) && (CourseInvocationScope.hasExplicitDirections(course)
+                || (Integer.valueOf(2).equals(course.getTemplateType()) && course.getMajorId() != null)))
+                .collect(Collectors.toList());
+        List<Course> result = courses.stream().filter(course -> !scoped.contains(course)).collect(Collectors.toList());
+        for (Long directionId : scheme.getSubMajorIds().stream().filter(Objects::nonNull).distinct().collect(Collectors.toList())) {
+            for (Course course : CourseInvocationScope.forDirection(scoped, directionId, scheme.getMajorId())) {
+                // Export-only copies keep the invocation ID so its existing schedule is reused.
+                Course directionCourse = new Course();
+                BeanUtils.copyProperties(course, directionCourse);
+                directionCourse.setSubMajorId(directionId);
+                result.add(directionCourse);
+            }
+        }
+        return result;
     }
 
     private void setCourseModel(List<Course> courseList, List<TrainingSchemeCourseScheduleVo> trainingSchemeCourseScheduleVos) {
@@ -361,7 +391,12 @@ public class TrainingPlanModel {
 
     private void setCourse(List<TrainingSchemeCourseModel> courseModeList, Course course, List<TrainingSchemeCourseScheduleVo> trainingSchemeCourseScheduleVos) {
         TrainingSchemeCourseModel courseModel = new TrainingSchemeCourseModel();
+        courseModel.setCourseId(course.getId());
         courseModel.setName(course.getName());
+        if (DictContent.DISCIPLINE_CORE_COURSES_SCHEDULE.equals(course.getCourseModule())
+                && course.getSubMajorNames() != null && !course.getSubMajorNames().isEmpty()) {
+            courseModel.setName(course.getName() + "（" + String.join("、", course.getSubMajorNames()) + "）");
+        }
         courseModel.setExaMethod(course.getExaMethod());
         courseModel.setMajorId(course.getMajorId());
         //专业方向：透传 subMajorId，后续在 translateDict 中查询专业方向名称
@@ -395,6 +430,8 @@ public class TrainingPlanModel {
         Map<Integer, Double> termHoursMap = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(trainingSchemeCourseScheduleVos)) {
             for (TrainingSchemeCourseScheduleVo courseSchedule : trainingSchemeCourseScheduleVos) {
+                if (courseSchedule.getSubMajorId() != null && course.getSubMajorId() != null
+                        && !Objects.equals(courseSchedule.getSubMajorId(), course.getSubMajorId())) continue;
                 if (ObjectUtils.isNotEmpty(courseSchedule.getTeachHours())) {
                     teachHours += courseSchedule.getTeachHours();
                 }

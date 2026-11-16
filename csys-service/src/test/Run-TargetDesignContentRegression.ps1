@@ -16,6 +16,7 @@ $classpath = (@(
     (Join-Path $repo 'csys-service/target/assessment-regression')
     (Join-Path $repo 'csys-service/target/backend-rule-regression')
     (Join-Path $repo 'csys-service/target/objective-regression')
+    (Join-Path $env:USERPROFILE '.m2/repository/com/h2database/h2/2.2.224/h2-2.2.224.jar')
     (Join-Path $cache 'api-check')
 ) + $dependencies) -join ';'
 $sourcepath = @(
@@ -23,6 +24,7 @@ $sourcepath = @(
     (Join-Path $repo 'csys-service-api/src/main/java')
 ) -join ';'
 $sources = @(
+    'csys-service/src/main/java/com/doinner/csys/controller/TeachingPlanController.java'
     'csys-service/src/main/java/com/doinner/csys/service/impl/TeachingPlanServiceImpl.java'
     'csys-service/src/main/java/com/doinner/csys/service/impl/TeachingPlanModuleServiceImpl.java'
     'csys-service/src/main/java/com/doinner/csys/entity/csys/TeachingPlanWordImporter.java'
@@ -31,8 +33,9 @@ $sources = @(
     'csys-service-api/src/main/java/com/doinner/csys/domain/TeachingPlanTargetDesign.java'
     'csys-service-api/src/main/java/com/doinner/csys/domain/TeachingPlanTextbook.java'
     'csys-service/src/test/java/com/doinner/csys/TeachingPlanTargetDesignContentImportTest.java'
+    'csys-service/src/test/java/com/doinner/csys/TeachingPlanKnowledgeBatchTest.java'
 )
-$tests = @('com.doinner.csys.TeachingPlanTargetDesignContentImportTest')
+$tests = @('com.doinner.csys.TeachingPlanTargetDesignContentImportTest', 'com.doinner.csys.TeachingPlanKnowledgeBatchTest')
 if ($IncludeWordRegression) {
     $sources += 'csys-service/src/test/java/com/doinner/csys/TeachingPlanTargetDesignWordTest.java'
     $tests += 'com.doinner.csys.TeachingPlanTargetDesignWordTest'

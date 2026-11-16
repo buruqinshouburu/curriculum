@@ -17,6 +17,9 @@ import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -138,6 +141,44 @@ class TrainingScheduleContractTest {
         return (List<CourseSchedule>) properties.getPropertyValue("courseScheduleList");
     }
 
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"1", "2", "3", "4", "5"})
+    void fourYearPracticalDetailGeneratesOnlyTermEightRegardlessOfSeason(String season) {
+        List<TrainingSchemeCourseSchedule> rows = generate("2", schedule("6", season, 12.0, 4.0));
+        assertEquals(1, rows.size());
+        assertEquals(8, rows.get(0).getTerm());
+        assertEquals(12.0, rows.get(0).getTeachHours());
+        assertEquals(4.0, rows.get(0).getPracticeHours());
+    }
+
+    @Test
+    void fourYearNonPracticalDetailKeepsLegacyExpansion() {
+        List<TrainingSchemeCourseSchedule> rows = generate("1", schedule("6", "5", 12.0, 4.0));
+        assertEquals(8, rows.size());
+        for (int i = 0; i < 8; i++) assertEquals(i + 1, rows.get(i).getTerm());
+    }
+
+    @Test
+    void fourYearPracticalDefinitionGeneratesOneRowEvenWithMixedDetailYears() {
+        CourseSchedule first = schedule("2", "5", 12.0, null);
+        CourseSchedule second = schedule("6", null, 4.0, 8.0);
+        List<TrainingSchemeCourseSchedule> rows = generate("2", first, second);
+        assertEquals(1, rows.size());
+        assertEquals(8, rows.get(0).getTerm());
+        assertEquals(16.0, rows.get(0).getTeachHours());
+        assertEquals(8.0, rows.get(0).getPracticeHours());
+        assertEquals("2", first.getSemesterSchedule());
+        assertNull(second.getSpringAutumn());
+    }
+
+    @Test
+    void practicalNormalYearStillUsesDetailYearAndSeason() {
+        List<TrainingSchemeCourseSchedule> rows = generate("2", schedule("2", "1", null, null));
+        assertEquals(1, rows.size());
+        assertEquals(3, rows.get(0).getTerm());
+    }
+
     private CourseSchedule schedule(String year, String season, Double lecture, Double practice) {
         CourseSchedule row = new CourseSchedule();
         row.setSemesterSchedule(year);
@@ -149,6 +190,11 @@ class TrainingScheduleContractTest {
 
     @SuppressWarnings("unchecked")
     private List<TrainingSchemeCourseSchedule> generate(CourseSchedule... details) {
+        return generate(null, details);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<TrainingSchemeCourseSchedule> generate(String type, CourseSchedule... details) {
         SecurityContextHolder.setUserId("77");
         SecurityContextHolder.setUserName("schedule.test");
         TrainingServiceImpl service = new TrainingServiceImpl();
@@ -160,6 +206,7 @@ class TrainingScheduleContractTest {
             return result.size();
         });
         Course course = new Course();
+        course.setType(type);
         course.setId(70031L);
         course.setCourseModuleChildren("1");
         course.setHours(999.0);
@@ -190,6 +237,10 @@ class TrainingScheduleContractTest {
         jdbc.execute("INSERT INTO t_csys_training_scheme_course_schedule VALUES"
                 + "(101,7601,70031,'1',1,999,16,0,1),(102,7601,70031,'1',1,999,8,0,1)");
         Configuration configuration = new Configuration(new Environment("schedule-test", new JdbcTransactionFactory(), source));
+        try (InputStream xml = getClass().getResourceAsStream("/mapper/csys/CourseMapper.xml")) {
+            assertNotNull(xml);
+            new XMLMapperBuilder(xml, configuration, "CourseMapper.xml", configuration.getSqlFragments()).parse();
+        }
         try (InputStream xml = getClass().getResourceAsStream("/mapper/csys/TrainingSchemeCourseScheduleMapper.xml")) {
             assertNotNull(xml);
             new XMLMapperBuilder(xml, configuration, "TrainingSchemeCourseScheduleMapper.xml", configuration.getSqlFragments()).parse();

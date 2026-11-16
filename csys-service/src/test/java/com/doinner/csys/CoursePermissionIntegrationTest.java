@@ -486,6 +486,8 @@ class CoursePermissionIntegrationTest {
             if (field.getType().isInterface()) ReflectionTestUtils.setField(target, field.getName(), mock(field.getType()));
         }
         ReflectionTestUtils.setField(target, "coursePermissions", permissionService);
+        ReflectionTestUtils.setField(target, "courseMajorSelectionService",
+                mock(com.doinner.csys.service.CourseMajorSelectionService.class));
         AspectJProxyFactory factory = new AspectJProxyFactory(target);
         factory.setProxyTargetClass(true); factory.addAspect(context.getBean(CoursePermissionAspect.class));
         return factory.getProxy();

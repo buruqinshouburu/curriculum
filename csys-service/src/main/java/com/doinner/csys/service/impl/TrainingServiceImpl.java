@@ -23,6 +23,7 @@ import com.doinner.csys.entity.csys.po.SchemeRefMajor;
 import com.doinner.csys.service.CommonService;
 import com.doinner.csys.service.StandardService;
 import com.doinner.csys.service.TrainingService;
+import com.doinner.csys.service.CourseMajorSelectionService;
 import com.doinner.csys.utils.*;
 import com.doinner.file.api.domain.FileInfo;
 import com.doinner.file.api.domain.vo.FileInfoVO;
@@ -56,6 +57,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class TrainingServiceImpl implements TrainingService {
+    @Resource
+    private CourseMajorSelectionService courseMajorSelectionService;
     private static final Logger log = LoggerFactory.getLogger(TrainingServiceImpl.class);
     @Resource
     private TrainingSchemeMapper trainingSchemeMapper;
@@ -262,6 +265,17 @@ public class TrainingServiceImpl implements TrainingService {
                 // 接口刷新为新格式(每行一个 1-5 的学年)；刷新前此处仍按原规则展开，保证历史课程排课正确。
                 List<CourseSchedule> courseScheduleList = c.getCourseScheduleList();
                 if (ObjectUtils.isNotEmpty(courseScheduleList)) {
+                    if ("2".equals(c.getType()) && courseScheduleList.stream()
+                            .anyMatch(cs -> "6".equals(cs.getSemesterSchedule()))) {
+                        CourseSchedule finalTerm = new CourseSchedule();
+                        finalTerm.setTeachHours(courseScheduleList.stream().map(CourseSchedule::getTeachHours)
+                                .filter(Objects::nonNull).reduce(Double::sum).orElse(null));
+                        finalTerm.setPracticeHours(courseScheduleList.stream().map(CourseSchedule::getPracticeHours)
+                                .filter(Objects::nonNull).reduce(Double::sum).orElse(null));
+                        finalTerm.setSpringAutumn("2");
+                        createCourseSchedule(trainingSchemeVo, c, finalTerm, termArr, trainingSchemeCourseSchedules, 4);
+                        return;
+                    }
                     courseScheduleList.forEach(cs -> {
                         if (ObjectUtils.isNotEmpty(cs.getSemesterSchedule()) && ObjectUtils.isNotEmpty(cs.getSpringAutumn())) {
                             if ("6".equals(cs.getSemesterSchedule())) {
@@ -1460,6 +1474,7 @@ public class TrainingServiceImpl implements TrainingService {
             courses.addAll(courseMapper.selectCoursesByIds(trainingSchemeCourseVos.stream().map(tc -> tc.getId()).collect(Collectors.toList())));
         }
         //根据专业查找培养目标
+        courseMajorSelectionService.resolveNames(courses);
         List<StandardCultivationTarget> standardCultivationTargetList = new ArrayList<>();
         List<StandardCultivationTarget> standardCultivationTargets = standardCultivationTargetMapper.selectCultivationTargetBySchemeId(schemeId);
         //取第一个
@@ -1537,7 +1552,8 @@ public class TrainingServiceImpl implements TrainingService {
             //查询课程全部信息
             if(ObjectUtils.isNotEmpty(trainingSchemeCourseVos)) {
                 List<Course> courses = courseMapper.selectCoursesByIds(trainingSchemeCourseVos.stream().map(tc -> tc.getId()).collect(Collectors.toList()));
-                List<Course> filterCourse = courses.stream().filter(c -> ObjectUtils.isEmpty(c.getSubMajorId()) || c.getSubMajorId() == subMajorId).collect(Collectors.toList());
+                TrainingSchemeVo scheme = trainingSchemeMapper.selectTrainingSchemeById(schemeId);
+                List<Course> filterCourse = CourseInvocationScope.forDirection(courses, subMajorId, scheme.getMajorId());
                 for (Course course : filterCourse) {
                     TrainingCourseExportVo trainingCourseExportVo = new TrainingCourseExportVo();
                     BeanUtils.copyProperties(course, trainingCourseExportVo);
@@ -1633,28 +1649,21 @@ public class TrainingServiceImpl implements TrainingService {
             // 处理每个子模块组，补全 courseModeChildrenName/childrenModelSort
             ncoModelMap.forEach(this::processCourseGroup);
         }
-        //处理专业课程教学安排 专业方向转换
-        List<TrainingSchemeCourseModel> majorCourses = trainingPlanModel.getMajorCourses();
-        if (ObjectUtils.isNotEmpty(majorCourses)) {
-            List<StandardMajor> standardMajors = standardMajorMapper.selectStandardMajorByIds(majorCourses.stream().map(m -> m.getSubmajorId()).collect(Collectors.toList()));
+        List<TrainingSchemeCourseModel> directionCourses = new ArrayList<>();
+        directionCourses.addAll(trainingPlanModel.getMajorCourses());
+        directionCourses.addAll(trainingPlanModel.getNcoCourses());
+        directionCourses.addAll(trainingPlanModel.getTrainingSubjectCourses());
+        directionCourses.addAll(trainingPlanModel.getPracticalProjectCourse());
+        List<Long> directionIds = directionCourses.stream().map(TrainingSchemeCourseModel::getSubmajorId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        if (ObjectUtils.isNotEmpty(directionIds)) {
+            List<StandardMajor> standardMajors = standardMajorMapper.selectStandardMajorByIds(directionIds);
             Map<Long, String> majorMap = standardMajors.stream().collect(Collectors.toMap(StandardMajor::getId, StandardMajor::getName));
-            majorCourses.forEach(m -> m.setSubMajorName(majorMap.get(m.getSubmajorId())));
+            directionCourses.forEach(m -> m.setSubMajorName(majorMap.get(m.getSubmajorId())));
         }
         //处理实践项目与安排 支撑课程转换 项目层级
         List<TrainingSchemeCourseModel> practicalProjectCourse = trainingPlanModel.getPracticalProjectCourse();
         if (ObjectUtils.isNotEmpty(practicalProjectCourse)) {
-            //处理专业方向：根据 subMajorId 查询专业方向名称
-            List<Long> subMajorIds = practicalProjectCourse.stream()
-                    .map(TrainingSchemeCourseModel::getSubmajorId)
-                    .filter(ObjectUtils::isNotEmpty)
-                    .distinct()
-                    .collect(Collectors.toList());
-            if (ObjectUtils.isNotEmpty(subMajorIds)) {
-                List<StandardMajor> standardMajors = standardMajorMapper.selectStandardMajorByIds(subMajorIds);
-                Map<Long, String> subMajorMap = standardMajors.stream()
-                        .collect(Collectors.toMap(StandardMajor::getId, StandardMajor::getName, (a, b) -> a));
-                practicalProjectCourse.forEach(p -> p.setSubMajorName(subMajorMap.get(p.getSubmajorId())));
-            }
             practicalProjectCourse.forEach(p -> {
                 //处理支撑课程
                 String supportingCourseIds = p.getSupportingCourseIds();

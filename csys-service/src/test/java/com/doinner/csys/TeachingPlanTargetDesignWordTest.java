@@ -67,6 +67,25 @@ public class TeachingPlanTargetDesignWordTest {
             "\u6559\u5b66\u5185\u5bb9", "\u6559\u5b66\u73af\u8282", "\u6559\u6cd5", "\u5b66\u6cd5", "\u5b66\u65f6");
 
     @Test
+    void hoursMergeExactlyLikeUnitsAndUseFirstNonNullValueIncludingZero() throws Exception {
+        TeachingPlanTargetDesign later = design(2L, KNOWLEDGE, "Later", point(1L, "Unit", 13L, "Three"));
+        later.setHours(new BigDecimal("8"));
+        TeachingPlanTargetDesign first = design(1L, KNOWLEDGE, "First", point(900L, "Unit", 901L, "Two"));
+        first.setHours(BigDecimal.ZERO);
+        CourseTeachingPlanModel model = model(later, first);
+        model.setKnowledgeUnits(Arrays.asList(unit(1L, "Unit", meta(11L, "Empty"), meta(12L, "Two"), meta(13L, "Three")),
+                unit(2L, "Unit", meta(21L, "Other"))));
+        Element table = table(generate(model), KNOWLEDGE_HEADER.get(0));
+        assertEquals(Arrays.asList("0", "", "", "-"), column(table, 7));
+        assertEquals(merges(table, 0), merges(table, 7));
+        assertEquals(BigDecimal.ZERO, first.getHours());
+        assertEquals(new BigDecimal("8"), later.getHours());
+        List<TeachingPlanTargetDesign> imported = parse(generate(model)).targetDesigns;
+        assertEquals(Arrays.asList("First", "Later"), objectives(imported));
+        assertTrue(imported.stream().allMatch(design -> BigDecimal.ZERO.compareTo(design.getHours()) == 0));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void serviceBuildModelLoadsFrontendKnowledgeTreeAndDictionaryLabelsOnlyForCourseTemplate() throws Exception {
         TeachingPlanServiceImpl service = new TeachingPlanServiceImpl();
@@ -277,8 +296,10 @@ public class TeachingPlanTargetDesignWordTest {
         assertEquals(Arrays.asList("Z point", "A point", "B point"), column(table, 1));
         assertEquals(Arrays.asList("Z unit", "", "A unit"), column(table, 0));
         assertEquals(Arrays.asList("restart", "continue", ""), merges(table, 0));
+        assertEquals(Arrays.asList("-", "", "-"), column(table, 7));
+        assertEquals(merges(table, 0), merges(table, 7));
         for (int r = 1; r <= 3; r++) {
-            for (int c = 2; c < 8; c++) assertEquals("-", text(cell(row(table, r), c)));
+            for (int c = 2; c < 7; c++) assertEquals("-", text(cell(row(table, r), c)));
         }
     }
 
@@ -439,7 +460,7 @@ public class TeachingPlanTargetDesignWordTest {
         assertEquals(900L, first.getKnowledgePoints().get(0).getKnowledgeUnitId());
         assertNull(second.getKnowledgePoints().get(0).getKnowledgeUnitId());
         for (int r = 1; r <= 3; r++) {
-            for (int c = 1; c < 8; c++) assertEquals("", merge(cell(row(table, r), c)));
+            for (int c = 1; c < 7; c++) assertEquals("", merge(cell(row(table, r), c)));
         }
     }
 
@@ -484,7 +505,8 @@ public class TeachingPlanTargetDesignWordTest {
         assertEquals(KNOWLEDGE_HEADER, texts(row(table, 0)));
         assertEquals(Arrays.asList("Z point", "B point", "A point"), column(table, 1));
         assertEquals(Arrays.asList("Second", "First", "First"), column(table, 2));
-        assertEquals(Arrays.asList("2.5", "2.5", "2.5"), column(table, 7));
+        assertEquals(Arrays.asList("2.5", "", "2.5"), column(table, 7));
+        assertEquals(merges(table, 0), merges(table, 7));
     }
 
     @Test
@@ -504,8 +526,8 @@ public class TeachingPlanTargetDesignWordTest {
         assertEquals("restart", merge(cell(row(table, 1), 0)));
         assertEquals("continue", merge(cell(row(table, 3), 0)));
         for (int r = 1; r <= 3; r++) {
-            for (int c = 1; c < 8; c++) {
-                assertEquals("", merge(cell(row(table, r), c)), "Only the unit column may merge");
+            for (int c = 1; c < 7; c++) {
+                assertEquals("", merge(cell(row(table, r), c)), "Only unit and hours columns may merge");
             }
         }
     }
@@ -539,7 +561,7 @@ public class TeachingPlanTargetDesignWordTest {
                 merges(table, 0));
         assertEquals(Arrays.asList("One", "Two", "Three", "Four", "Five", "Six"), column(table, 1));
         for (int r = 1; r <= 6; r++) {
-            for (int c = 1; c < 8; c++) assertEquals("", merge(cell(row(table, r), c)));
+            for (int c = 1; c < 7; c++) assertEquals("", merge(cell(row(table, r), c)));
         }
     }
 

@@ -1644,7 +1644,10 @@
         <include refid="selectTrainingSchemeCourses"/>
         where src.scheme_id = #{id}
         <if test="subMajorId !=null and subMajorId != ''">
-            and (c.sub_major_id =#{subMajorId} or  c.sub_major_id is null)
+            <include refid="com.doinner.csys.dao.CourseMapper.invokedDirectionFilter">
+                <property name="directionParameter" value="subMajorId"/>
+                <property name="schemeExpression" value="src.scheme_id"/>
+            </include>
         </if>
     </select>
 </mapper>

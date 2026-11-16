@@ -669,7 +669,10 @@ TrainingPlanGenerator {
         practicalProjectCourseHeader(table,cellWidth);
         int dataRowStart = 1;
 
-        Map<String, List<TrainingSchemeCourseModel>> courseMap = courses.stream().collect(Collectors.groupingBy(c -> c.getTrainingCourseModelName() == null ? "" : c.getTrainingCourseModelName()));
+        Map<String, List<TrainingSchemeCourseModel>> courseMap = courses.stream().collect(Collectors.groupingBy(
+                c -> (c.getSubMajorName() == null ? "" : c.getSubMajorName() + " / ")
+                        + (c.getTrainingCourseModelName() == null ? "" : c.getTrainingCourseModelName()),
+                LinkedHashMap::new, Collectors.toList()));
         // 处理每一门课程，确定其所属模块
         AtomicInteger moduleRowStart = new AtomicInteger(dataRowStart);
         CountModel countModel = new CountModel();

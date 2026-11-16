@@ -183,6 +183,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
     private TeachingPlanTargetDesignMapper teachingPlanTargetDesignMapper;
 
     @Resource
+    private CoursePermissionService targetDesignPermissions;
+
+    @Resource
     private TeachingPlanPracticeItemMapper teachingPlanPracticeItemMapper;
 
     @Resource
@@ -2571,6 +2574,45 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         prepareTargetDesignForWrite(design);
         UserUtils.reflash(design);
         teachingPlanTargetDesignMapper.updateById(design);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    @CoursePermission(resource = PLAN, value = "#p0")
+    public List<Long> saveKnowledgeDesignsBatch(Long planId, List<TeachingPlanTargetDesign> rows) {
+        if (planId == null || rows == null || rows.isEmpty()) {
+            throw new IllegalArgumentException("planId 和 rows 不能为空");
+        }
+        Set<Long> ids = new HashSet<>();
+        for (TeachingPlanTargetDesign row : rows) {
+            if (row == null || !"1".equals(row.getDesignTypeCode())
+                    || (row.getPlanId() != null && !planId.equals(row.getPlanId()))) {
+                throw new IllegalArgumentException("仅支持当前教学计划的知识目标设计");
+            }
+            row.setPlanId(planId);
+            if (row.getId() != null) {
+                TeachingPlanTargetDesign existing = teachingPlanTargetDesignMapper.selectById(row.getId());
+                if (!ids.add(row.getId()) || existing == null || !planId.equals(existing.getPlanId())
+                        || !"1".equals(existing.getDesignTypeCode())) {
+                    throw new IllegalArgumentException("设计ID重复、不存在或不属于当前计划知识目标");
+                }
+                targetDesignPermissions.validateRequest(TARGET_DESIGN, row);
+            }
+            targetDesignPermissions.validatePlanScope(PLAN, planId, row);
+            targetDesignPermissions.requireSamePlan(OBJECTIVE, row.getObjectiveId(), planId);
+            prepareTargetDesignForWrite(row);
+        }
+        List<Long> savedIds = new ArrayList<>();
+        for (TeachingPlanTargetDesign row : rows) {
+            UserUtils.reflash(row);
+            int affected = row.getId() == null ? teachingPlanTargetDesignMapper.insert(row)
+                    : teachingPlanTargetDesignMapper.updateById(row);
+            if (affected != 1 || row.getId() == null) {
+                throw new IllegalStateException("知识目标设计保存失败");
+            }
+            savedIds.add(row.getId());
+        }
+        return savedIds;
     }
 
     @Override

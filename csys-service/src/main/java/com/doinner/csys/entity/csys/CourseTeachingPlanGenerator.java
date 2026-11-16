@@ -595,7 +595,7 @@ public class CourseTeachingPlanGenerator {
             setCell(t, r, 4, designCell(d == null ? null : d.getTeachingLink()), false);
             setCell(t, r, 5, designCell(d == null ? null : d.getTeachingMethod()), false);
             setCell(t, r, 6, designCell(d == null ? null : d.getLearningMethod()), false);
-            setCell(t, r, 7, designCell(d == null ? null : formatHours(d.getHours())), false);
+            setCell(t, r, 7, "", false);
         }
         mergeKnowledgeUnitColumn(t, flat);
     }
@@ -691,13 +691,21 @@ public class CourseTeachingPlanGenerator {
     }
 
     private void mergeKnowledgeUnitColumn(XWPFTable t, List<KnowledgeDesignRow> flat) {
+        Map<List<String>, BigDecimal> unitHours = new LinkedHashMap<>();
+        for (KnowledgeDesignRow row : flat) {
+            if (row.design != null && row.design.getHours() != null) {
+                unitHours.putIfAbsent(row.unitKey, row.design.getHours());
+            }
+        }
         int i = 0;
         while (i < flat.size()) {
             int start = i;
             i++;
             while (i < flat.size() && sameKnowledgeUnit(flat.get(start), flat.get(i))) i++;
+            setCell(t, start + 1, 7, designCell(formatHours(unitHours.get(flat.get(start).unitKey))), false);
             if (i - 1 > start) {
                 WordUtil.mergeCellsVertical(t, 0, start + 1, i);
+                WordUtil.mergeCellsVertical(t, 7, start + 1, i);
             }
         }
     }

@@ -16,6 +16,8 @@ import com.doinner.csys.domain.*;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.io.utils.ExcelUtils;
 import com.doinner.csys.service.CurriculumService;
+import com.doinner.csys.service.CourseMajorSelectionService;
+import com.doinner.csys.service.TrainingService;
 import com.doinner.csys.utils.CourseCreditRules;
 import com.doinner.csys.utils.GenerateCourseCodeUtils;
 import com.doinner.csys.utils.TreeBuilderUtils;
@@ -149,6 +151,13 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Resource
     private CourseScheduleMapper courseScheduleMapper;
 
+    @Resource
+    @org.springframework.context.annotation.Lazy
+    private TrainingService trainingService;
+
+    @Autowired
+    private CourseMajorSelectionService courseMajorSelectionService;
+
     @Value("${kg.dictionary.courseModuleType:69a7f3162dc370362ef3ee6d}")
     private String kgCourseModuleType;
 
@@ -198,6 +207,7 @@ public class CurriculumServiceImpl implements CurriculumService {
                 courseVo.setSubMajorName(standardMajor.getName());
             }
         }
+        courseMajorSelectionService.resolveNames(Collections.singletonList(courseVo));
         List<CourseTarget> courseTargets = courseTargetMapper.selectCourseTargetByCourseId(courseVo.getId());
         courseVo.setCourseTargetList(courseTargets);
         if (CollectionUtils.isNotEmpty(courseVo.getCourseTargetList())) {
@@ -398,6 +408,7 @@ public class CurriculumServiceImpl implements CurriculumService {
             if (c.getSubMajorId() != null){
                 c.setSubMajorName(majorIdToNameMap.get(c.getSubMajorId()));
             }
+            CourseMajorSelectionService.applyNames(c, majorIdToNameMap);
             List<CourseTarget> courseTargets = courseTargetMapper.selectCourseTargetByCourseId(c.getId());
             c.setCourseTargetList(courseTargets);
             c.setCourseScheduleList(courseScheduleMapper.selectByCourseId(c.getId()));
@@ -425,7 +436,7 @@ public class CurriculumServiceImpl implements CurriculumService {
             }
         }
         List<Course> courses = courseMapper.selectSchemeCourseList(course);
-        // 补专业方向名称(SQL 不 join 名称表, 此处按 subMajorId 内存补全, 避免拖慢查询)
+        // 批量补全方向名称，调用范围与源适用范围分别解析。
         if (ObjectUtils.isNotEmpty(courses)) {
             Map<Long, String> majorIdToNameMap = standardMajorMapper.selectStandardMajorList(null).stream()
                     .collect(Collectors.toMap(StandardMajor::getId, StandardMajor::getName, (a, b) -> a));
@@ -436,11 +447,12 @@ public class CurriculumServiceImpl implements CurriculumService {
                     c.setSubMajorName(majorIdToNameMap.get(c.getSubMajorId()));
                 }
                 if (c.getMajorId() != null) {
-                    c.setMajorName(majorIdToNameMap.get(c.getSubMajorId()));
+                    c.setMajorName(majorIdToNameMap.get(c.getMajorId()));
                 }
                 if(c.getCategoryId() != null){
                     c.setCategoryName(categoryIdNameMap.get(c.getCategoryId()));
                 }
+                CourseMajorSelectionService.applyNames(c, majorIdToNameMap);
             }
         }
         return courses;
@@ -589,6 +601,8 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Override
     @Transactional(rollbackFor = {Exception.class})
     public CourseVo insertCourse(CourseVo course) {
+        courseMajorSelectionService.validate(course);
+        courseMajorSelectionService.validateInvocation(course, null, Collections.emptyList());
         // 新增不做执笔人或关联数据校验；已有课程必须使用修改入口。
         if (course.getId() != null)
             throw new CoursePermissionException(400, "新增课程不能携带已有课程ID，请使用修改接口");
@@ -1144,6 +1158,7 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Transactional(rollbackFor = {Exception.class})
     @CoursePermission(value = "#p0.id", sourceCoursesOnly = true)
     public CourseVo updateCourse(CourseVo course) {
+        courseMajorSelectionService.validate(course);
         coursePermissions.preserveCourseOwners(course);
         coursePermissions.validateCourseContent(course);
 //        if (course.getCollegeId() != null){
@@ -1155,6 +1170,8 @@ public class CurriculumServiceImpl implements CurriculumService {
         // }
         ;
         CourseVo dbCourse = courseMapper.selectCourseById(course.getId());
+
+        validateInvocationSelection(course, dbCourse);
 
         //查看版本（**）+培训层次(*)+开课单位(**)是否有修改 修改的话更新课程编号
         updateCourseCode(dbCourse,course);
@@ -1175,9 +1192,116 @@ public class CurriculumServiceImpl implements CurriculumService {
         UserUtils.reflash(course);
         courseMapper.updateCourse(course);
         this.insertRelevance(course);
-        courseScheduleMapper.delete(course.getId());
-        insertCourseSchedule(course.getId(),course.getCourseScheduleList());
+        if (course.hasCourseScheduleList() && course.getCourseScheduleList() != null) {
+            courseScheduleMapper.delete(course.getId());
+            insertCourseSchedule(course.getId(), course.getCourseScheduleList());
+            String scheduleType = course.getType() != null ? course.getType() : dbCourse.getType();
+            if (dbCourse.getSourceId() == null && ("1".equals(scheduleType) || "3".equals(scheduleType))) {
+                overwriteInvokedCourseSchedules(course, dbCourse);
+            }
+            if ("2".equals(scheduleType) && course.getCourseScheduleList().stream()
+                    .anyMatch(row -> "6".equals(row.getSemesterSchedule()))) {
+                moveConfiguredSchedulesToFinalTerm(course.getId());
+                if (dbCourse.getSourceId() == null) {
+                    for (Course invoked : courseMapper.selectCourseBySourceId(course.getId())) {
+                        if ("2".equals(invoked.getType())) {
+                            normalizeFourYearPracticalDetails(invoked.getId());
+                            moveConfiguredSchedulesToFinalTerm(invoked.getId());
+                        }
+                    }
+                }
+            }
+        }
         return course;
+    }
+
+    private void moveConfiguredSchedulesToFinalTerm(Long courseId) {
+        TrainingSchemeCourseSchedule query = new TrainingSchemeCourseSchedule();
+        query.setCourseId(courseId);
+        Map<Long, List<TrainingSchemeCourseSchedule>> rowsByScheme = trainingSchemeCourseScheduleMapper
+                .selectTrainingSchemeCourseScheduleList(query).stream()
+                .collect(Collectors.groupingBy(TrainingSchemeCourseSchedule::getSchemeId, LinkedHashMap::new, Collectors.toList()));
+        for (List<TrainingSchemeCourseSchedule> rows : rowsByScheme.values()) {
+            rows.sort(Comparator.comparing(TrainingSchemeCourseSchedule::getId));
+            TrainingSchemeCourseSchedule keep = rows.get(0);
+            TrainingSchemeCourseSchedule update = new TrainingSchemeCourseSchedule();
+            update.setId(keep.getId());
+            update.setTerm(8);
+            // Merge allocated hours, not whole-course hours or credits, when terms collapse.
+            update.setTeachHours(rows.stream().map(TrainingSchemeCourseSchedule::getTeachHours)
+                    .filter(Objects::nonNull).reduce(Double::sum).orElse(null));
+            update.setPracticeHours(rows.stream().map(TrainingSchemeCourseSchedule::getPracticeHours)
+                    .filter(Objects::nonNull).reduce(Double::sum).orElse(null));
+            update.setTheoryHours(rows.stream().map(TrainingSchemeCourseSchedule::getTheoryHours)
+                    .filter(Objects::nonNull).reduce(Double::sum).orElse(null));
+            update.setChecked(rows.stream().map(TrainingSchemeCourseSchedule::getChecked)
+                    .filter(Objects::nonNull).max(Integer::compareTo).orElse(null));
+            trainingSchemeCourseScheduleMapper.updateTrainingSchemeCourseSchedule(update);
+            if (rows.size() > 1) {
+                trainingSchemeCourseScheduleMapper.deleteTrainingSchemeCourseScheduleByIds(rows.subList(1, rows.size()).stream()
+                        .map(TrainingSchemeCourseSchedule::getId).toArray(Long[]::new));
+            }
+        }
+    }
+
+    private void normalizeFourYearPracticalDetails(Long courseId) {
+        List<CourseSchedule> existing = courseScheduleMapper.selectByCourseId(courseId);
+        if (CollectionUtils.isEmpty(existing)) return;
+        courseScheduleMapper.delete(courseId);
+        for (CourseSchedule row : existing) {
+            row.setId(null);
+            row.setCourseId(courseId);
+            row.setSemesterSchedule("6");
+            row.setSpringAutumn("2");
+            courseScheduleMapper.insert(row);
+        }
+    }
+
+    private void overwriteInvokedCourseSchedules(CourseVo source, CourseVo stored) {
+        for (Course invoked : courseMapper.selectCourseBySourceId(source.getId())) {
+            if (!"1".equals(invoked.getType()) && !"3".equals(invoked.getType())) {
+                continue;
+            }
+            Course hoursUpdate = new Course();
+            hoursUpdate.setId(invoked.getId());
+            // updateCourse always writes the child module, even when the value is null.
+            hoursUpdate.setCourseModuleChildren(invoked.getCourseModuleChildren());
+            hoursUpdate.setHours(source.getHours() != null ? source.getHours() : stored.getHours());
+            hoursUpdate.setTeachHours(source.getTeachHours() != null ? source.getTeachHours() : stored.getTeachHours());
+            hoursUpdate.setPracticeHours(source.getPracticeHours() != null ? source.getPracticeHours() : stored.getPracticeHours());
+            if (hoursUpdate.getHours() != null || hoursUpdate.getTeachHours() != null || hoursUpdate.getPracticeHours() != null) {
+                courseMapper.updateCourse(hoursUpdate);
+            }
+            invoked.setHours(hoursUpdate.getHours());
+            List<CourseSchedule> details = new ArrayList<>();
+            if (source.getCourseScheduleList() != null) {
+                for (CourseSchedule row : source.getCourseScheduleList()) {
+                    CourseSchedule detail = new CourseSchedule();
+                    detail.setSemesterSchedule(row.getSemesterSchedule());
+                    detail.setSpringAutumn(row.getSpringAutumn());
+                    detail.setTeachHours(row.getTeachHours());
+                    detail.setPracticeHours(row.getPracticeHours());
+                    details.add(detail);
+                }
+            }
+            courseScheduleMapper.delete(invoked.getId());
+            insertCourseSchedule(invoked.getId(), details);
+            invoked.setCourseScheduleList(details);
+
+            TrainingSchemeRefCourse query = new TrainingSchemeRefCourse();
+            query.setCourseId(invoked.getId());
+            List<TrainingSchemeRefCourse> references = courseRefCourseMapper.selectTrainingSchemeRefCourseList(query);
+            // Delete once per copy: the same copy can belong to more than one scheme.
+            trainingSchemeCourseScheduleMapper.deleteByCourseIds(Collections.singletonList(invoked.getId()));
+            Set<Long> schemeIds = new HashSet<>();
+            for (TrainingSchemeRefCourse reference : references) {
+                if (schemeIds.add(reference.getSchemeId())) {
+                    TrainingSchemeVo scheme = new TrainingSchemeVo();
+                    scheme.setId(reference.getSchemeId());
+                    trainingService.setCourseSchedule(scheme, Collections.singletonList(invoked));
+                }
+            }
+        }
     }
 
     /**
@@ -1217,6 +1341,32 @@ public class CurriculumServiceImpl implements CurriculumService {
 
     private void updateInvokeCourse(CourseVo newCourse) {
         courseMapper.updateInvokeCourse(newCourse);
+    }
+
+    private void validateInvocationSelection(CourseVo course, CourseVo stored) {
+        if (course.getInvocationSubMajorIds() == null) return;
+        TrainingSchemeRefCourse query = new TrainingSchemeRefCourse();
+        query.setCourseId(course.getId());
+        List<TrainingSchemeVo> schemes = trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseList(query)
+                .stream().map(ref -> trainingSchemeMapper.selectTrainingSchemeById(ref.getSchemeId()))
+                .collect(Collectors.toList());
+        courseMajorSelectionService.validateInvocation(course, stored, schemes);
+        Course effective = new Course();
+        BeanUtils.copyProperties(stored, effective);
+        effective.setInvocationSubMajorIds(course.getInvocationSubMajorIds());
+        if (course.getMajorId() != null) effective.setMajorId(course.getMajorId());
+        if (course.getCourseModule() != null) effective.setCourseModule(course.getCourseModule());
+        effective.setCourseModuleChildren(course.getCourseModuleChildren());
+        if (course.getLocation() != null) effective.setLocation(course.getLocation());
+        if (course.getProgramLevel() != null) effective.setProgramLevel(course.getProgramLevel());
+        // shortcut: concurrent sibling edits need source-first locking and current reads, not a source lock after the copy lock.
+        for (TrainingSchemeVo scheme : schemes) {
+            List<Long> ids = trainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoId(scheme.getId())
+                    .stream().map(TrainingSchemeRefCourse::getCourseId).distinct().collect(Collectors.toList());
+            if (!ids.isEmpty()) {
+                courseMajorSelectionService.validateInvocationOverlap(effective, stored, courseMapper.selectCoursesByIds(ids));
+            }
+        }
     }
 
     private void updateCourseCode(CourseVo sourceCourse, CourseVo newCourse) {
@@ -1284,7 +1434,9 @@ public class CurriculumServiceImpl implements CurriculumService {
     public CourseVo saveCourse(CourseVo course) {
         coursePermissions.preserveCourseOwners(course);
         coursePermissions.validateCourseContent(course);
-        CourseCreditRules.normalize(course, courseMapper.selectCourseById(course.getId()));
+        CourseVo stored = courseMapper.selectCourseById(course.getId());
+        validateInvocationSelection(course, stored);
+        CourseCreditRules.normalize(course, stored);
         //课程本身
         UserUtils.reflash(course);
         courseMapper.updateCourse(course);
@@ -2716,6 +2868,7 @@ public class CurriculumServiceImpl implements CurriculumService {
     private static Course copyCourse(CourseTemplateVo courseTemplateVo, Course c) {
         Course course = new Course();
         BeanUtils.copyProperties(c, course);
+        course.setInvocationSubMajorIds(null);
         course.setSourceId(c.getId());
         course.setMajorId(courseTemplateVo.getMajorId());
         course.setCollegeId(courseTemplateVo.getCollegeId());
@@ -2850,16 +3003,30 @@ public class CurriculumServiceImpl implements CurriculumService {
             }
             //统计训练课目与实践项目的总学时、总学分
             AtomicDouble trainingWeeks = new AtomicDouble(0);
+            AtomicDouble trainingHours = new AtomicDouble(0);
             AtomicDouble trainingCredits = new AtomicDouble(0);
             AtomicDouble practicalWeeks = new AtomicDouble(0);
+            AtomicDouble practicalHours = new AtomicDouble(0);
             AtomicDouble practicalCredits = new AtomicDouble(0);
-            courses.stream().filter(c -> c.getType().equals("2")).forEach(courseVo -> {
-                trainingWeeks.addAndGet(courseVo.getTimeWeek() == null ? 0 : courseVo.getTimeWeek());
-                trainingCredits.addAndGet(courseVo.getCredit() == null ? 0 : courseVo.getCredit());
-            });
-            courses.stream().filter(c -> c.getType().equals("4")).forEach(courseVo -> {
-                practicalWeeks.addAndGet(courseVo.getTimeWeek() == null ? 0 : courseVo.getTimeWeek());
-                practicalCredits.addAndGet(courseVo.getCredit() == null ? 0 : courseVo.getCredit());
+            courses.stream().filter(c -> "2".equals(c.getType()) || "4".equals(c.getType())).forEach(courseVo -> {
+                boolean training = "2".equals(courseVo.getType());
+                AtomicDouble weeks = training ? trainingWeeks : practicalWeeks;
+                AtomicDouble hours = training ? trainingHours : practicalHours;
+                AtomicDouble credits = training ? trainingCredits : practicalCredits;
+                List<CourseSchedule> details = courseVo.getCourseScheduleList();
+                if (CollectionUtils.isNotEmpty(details)) {
+                    // The header subtotal can mix weeks and hours; only detail units are authoritative.
+                    for (CourseSchedule detail : details) {
+                        double duration = detail.getTimeWeek() == null ? 0 : detail.getTimeWeek();
+                        if ("1".equals(detail.getUnit())) weeks.addAndGet(duration);
+                        if ("2".equals(detail.getUnit())) hours.addAndGet(duration);
+                    }
+                } else {
+                    double duration = courseVo.getTimeWeek() == null ? 0 : courseVo.getTimeWeek();
+                    if ("1".equals(courseVo.getUnit())) weeks.addAndGet(duration);
+                    if ("2".equals(courseVo.getUnit())) hours.addAndGet(duration);
+                }
+                credits.addAndGet(courseVo.getCredit() == null ? 0 : courseVo.getCredit());
             });
             //返回课程相关统计
             data.put("courseNum", courses.stream().filter(c -> c.getType().equals("1") || c.getType().equals("3")).count());
@@ -2867,11 +3034,13 @@ public class CurriculumServiceImpl implements CurriculumService {
 //            data.put("courseKnowLedgePointNum", pointNum.get());
             //返回训练课目相关统计
             data.put("trainingNum", courses.stream().filter(c -> c.getType().equals("2")).count());
-            data.put("trainingHours", trainingWeeks.get());
+            data.put("trainingHours", trainingHours.get());
+            data.put("trainingWeeks", trainingWeeks.get());
             data.put("trainingCredits", trainingCredits.get());
             //返回实践训练相关统计
             data.put("practicalNum", courses.stream().filter(c -> c.getType().equals("4")).count());
-            data.put("practicalHours", practicalWeeks.get());
+            data.put("practicalHours", practicalHours.get());
+            data.put("practicalWeeks", practicalWeeks.get());
             data.put("practicalCredits", practicalCredits.get());
         }
         return data;

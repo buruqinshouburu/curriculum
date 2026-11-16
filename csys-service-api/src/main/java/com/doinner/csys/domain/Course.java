@@ -238,6 +238,23 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
 
     // 专业id
     private Long majorId;
+    private List<Long> majorIds;
+    private List<Long> subMajorIds;
+    /** Invocation scope only; null retains the legacy scalar/whole-major scope. */
+    private List<Long> invocationSubMajorIds;
+    private List<String> invocationSubMajorNames;
+    private List<String> subMajorNames;
+
+    public List<Long> getMajorIds() { return majorIds; }
+    public void setMajorIds(List<Long> majorIds) { this.majorIds = majorIds; }
+    public List<Long> getSubMajorIds() { return subMajorIds; }
+    public List<Long> getInvocationSubMajorIds() { return invocationSubMajorIds; }
+    public void setInvocationSubMajorIds(List<Long> invocationSubMajorIds) { this.invocationSubMajorIds = invocationSubMajorIds; }
+    public List<String> getInvocationSubMajorNames() { return invocationSubMajorNames; }
+    public void setInvocationSubMajorNames(List<String> invocationSubMajorNames) { this.invocationSubMajorNames = invocationSubMajorNames; }
+    public void setSubMajorIds(List<Long> subMajorIds) { this.subMajorIds = subMajorIds; }
+    public List<String> getSubMajorNames() { return subMajorNames; }
+    public void setSubMajorNames(List<String> subMajorNames) { this.subMajorNames = subMajorNames; }
     private String majorName;
 
     // 专业方向
@@ -292,6 +309,9 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
      */
     private String educationLevel;
 
+    /** 培养方案引用该课程时汇总的适用对象，非持久化字段。 */
+    private String quoteEducationLevel;
+
     private Integer buildStatus;
 
     private Integer hasWork;
@@ -306,6 +326,9 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
 
     // 课程对 学年安排 学期安排 实践学时 讲授学时对象  一对多
     private List<CourseSchedule> courseScheduleList = new ArrayList<>();
+    private transient boolean courseScheduleListProvided;
+
+    public boolean hasCourseScheduleList() { return courseScheduleListProvided; }
 
 
     public List<CourseTarget> getCourseTargetList() {
@@ -759,6 +782,14 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
         this.educationLevel = educationLevel;
     }
 
+    public String getQuoteEducationLevel() {
+        return quoteEducationLevel;
+    }
+
+    public void setQuoteEducationLevel(String quoteEducationLevel) {
+        this.quoteEducationLevel = quoteEducationLevel;
+    }
+
     public Integer getBuildStatus() {
         return buildStatus;
     }
@@ -796,6 +827,7 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
     }
 
     public void setCourseScheduleList(List<CourseSchedule> courseScheduleList) {
+        this.courseScheduleListProvided = true;
         this.courseScheduleList = courseScheduleList;
     }
 

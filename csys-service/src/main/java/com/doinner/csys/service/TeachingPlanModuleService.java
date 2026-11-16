@@ -49,6 +49,8 @@ import java.util.List;
  */
 public interface TeachingPlanModuleService {
 
+    List<Long> saveKnowledgeDesignsBatch(Long planId, List<TeachingPlanTargetDesign> rows);
+
     /** 专业列表（与 quoteMajor 同源）；status 按 plan+major 目标绑定情况 */
     List<TeachingPlanMajorVo> listMajor(Long teachingPlanId, Long courseId);
 

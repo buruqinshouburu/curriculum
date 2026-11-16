@@ -39,6 +39,17 @@ public class TeachingPlanQueryVo {
      */
     private Integer quoted;
 
+    /** 教学计划文件状态：0=未生成，1=已生成，空=全部；不使用审批状态字段。 */
+    private Integer generatedStatus;
+
+    public Integer getGeneratedStatus() {
+        return generatedStatus;
+    }
+
+    public void setGeneratedStatus(Integer generatedStatus) {
+        this.generatedStatus = generatedStatus;
+    }
+
     public String getCourseName() {
         return courseName;
     }

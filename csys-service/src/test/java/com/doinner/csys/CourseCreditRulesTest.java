@@ -54,6 +54,8 @@ class CourseCreditRulesTest {
                 ReflectionTestUtils.setField(service, field.getName(), mock(field.getType()));
         }
         permissions = mock(CoursePermissionService.class);
+        ReflectionTestUtils.setField(service, "courseMajorSelectionService",
+                mock(com.doinner.csys.service.CourseMajorSelectionService.class));
         ReflectionTestUtils.setField(service, "coursePermissions", permissions);
         courses = (CourseMapper) ReflectionTestUtils.getField(service, "courseMapper");
         schedules = (CourseScheduleMapper) ReflectionTestUtils.getField(service, "courseScheduleMapper");
