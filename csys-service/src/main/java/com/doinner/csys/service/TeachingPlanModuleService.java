@@ -240,6 +240,8 @@ public interface TeachingPlanModuleService {
      */
     boolean isPublicFoundationCourse(Long sourceCourseId);
 
+    java.util.Map<Long, Long> objectiveGraduationCourses(Long sourceCourseId, Long schemeId);
+
     /**
      * 实践训练课目(type2)是否属通识通用：聚合被引用课程的 location 多值串
      * 拆分后每一项均∈{1,2,3,9}（空聚合回退源课自身 location）。

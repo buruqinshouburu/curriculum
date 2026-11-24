@@ -242,14 +242,17 @@ public class TeachingPlanTargetDesignWordTest {
     }
 
     @Test
-    void absentPublicFlagUsesSameSourceCourseModuleHelperAsDetailApi() throws Exception {
+    void absentDetailFlagUsesSourceUnifiedFlagNotCourseModule() throws Exception {
         List<TeachingPlanTargetDesign> designs = Arrays.asList(
                 scopedDesign(1L, KNOWLEDGE, null, "Null scheme", 1),
                 scopedDesign(2L, KNOWLEDGE, 99L, "Unknown scheme", 2));
         for (TeachingPlanDetailVo detail : Arrays.asList(null, new TeachingPlanDetailVo())) {
             CourseTeachingPlanModel model = buildServiceModel(designs, detail, "\u516c\u5171\u57fa\u7840", 1,
                     Collections.emptyList());
-            assertEquals(objectives(designs), column(table(generate(model), KNOWLEDGE_HEADER.get(0)), 2));
+            assertEquals(Collections.singletonList("-"), column(table(generate(model), KNOWLEDGE_HEADER.get(0)), 2));
+            CourseTeachingPlanModel unified = buildServiceModel(designs, detail, "\u516c\u5171\u57fa\u7840", 1,
+                    Collections.emptyList(), Collections.emptyMap(), 1);
+            assertEquals(objectives(designs), column(table(generate(unified), KNOWLEDGE_HEADER.get(0)), 2));
         }
     }
 
@@ -702,6 +705,14 @@ public class TeachingPlanTargetDesignWordTest {
                                                             TeachingPlanDetailVo detail, String courseModule,
                                                             int planType, List<TeachingPlanSchemeVo> schemes,
                                                             Map<String, JSONArray> dictionaries) {
+        return buildServiceModel(designs, detail, courseModule, planType, schemes, dictionaries, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static CourseTeachingPlanModel buildServiceModel(List<TeachingPlanTargetDesign> designs,
+                                                            TeachingPlanDetailVo detail, String courseModule,
+                                                            int planType, List<TeachingPlanSchemeVo> schemes,
+                                                            Map<String, JSONArray> dictionaries, Integer unified) {
         TeachingPlanServiceImpl service = new TeachingPlanServiceImpl();
         TeachingPlanModuleService modules = mock(TeachingPlanModuleService.class);
         IKnowledgeUnitService knowledge = mock(IKnowledgeUnitService.class);
@@ -727,6 +738,7 @@ public class TeachingPlanTargetDesignWordTest {
             course.setName("Scheme scope regression");
             course.setType("1");
             course.setCourseModule(courseModule);
+            course.setUnifiedCourse(unified);
             TeachingPlan plan = new TeachingPlan();
             plan.setId(101L);
             plan.setSourceCourseId(8L);

@@ -45,6 +45,25 @@ public class TeachingPlanObjectiveWordTest {
         assertObjectiveRoundTrip(true);
     }
 
+    @Test
+    void oneSchemeObjectiveExportDoesNotShowSchemeDimension() throws Exception {
+        TeachingPlanObjective objective = objective(11L, "Single scheme objective", "1");
+        objective.setSchemeId(10L);
+        CourseTeachingPlanModel.SchemeObjectiveGroup group = new CourseTeachingPlanModel.SchemeObjectiveGroup();
+        group.setSchemeId(10L);
+        group.setSchemeTitle("专业类A");
+        group.setObjectives(Collections.singletonList(objective));
+        group.setObjectiveRefMap(Collections.emptyMap());
+        CourseTeachingPlanModel model = new CourseTeachingPlanModel();
+        model.setDocType(1);
+        model.setSchemeObjectiveGroups(Collections.singletonList(group));
+        try (InputStream input = new CourseTeachingPlanGenerator().generate(model);
+             XWPFDocument document = new XWPFDocument(input)) {
+            assertTrue(document.getParagraphs().stream()
+                    .noneMatch(p -> "专业类A".equals(p.getText())));
+        }
+    }
+
     private void assertObjectiveRoundTrip(boolean publicFoundation) throws Exception {
         TeachingPlanObjective first = objective(11L, "Existing objective", "0.4");
         TeachingPlanObjective second = objective(100L, "Appended objective", "0.6");
@@ -80,7 +99,9 @@ public class TeachingPlanObjectiveWordTest {
         context.expectedDocType = 1;
         TeachingPlanSchemeVo scheme = new TeachingPlanSchemeVo();
         scheme.setSchemeId(10L);
-        context.schemes = Collections.singletonList(scheme);
+        TeachingPlanSchemeVo other = new TeachingPlanSchemeVo();
+        other.setSchemeId(20L);
+        context.schemes = Arrays.asList(other, scheme);
         TeachingPlanWordImporter.putDict(context.dictLabelToValue, "sys_plan_target_type",
                 "\u77e5\u8bc6\u76ee\u6807", "knowledge");
         try (InputStream input = new CourseTeachingPlanGenerator().generate(model)) {
@@ -133,6 +154,8 @@ public class TeachingPlanObjectiveWordTest {
         System.out.println("PASS schemeObjectivesRoundTripWithSameTypeAndIndependentRefs");
         test.foundationObjectivesRoundTripWithNullSchemeAndIndependentRefs();
         System.out.println("PASS foundationObjectivesRoundTripWithNullSchemeAndIndependentRefs");
-        System.out.println("Tests passed: 3");
+        test.oneSchemeObjectiveExportDoesNotShowSchemeDimension();
+        System.out.println("PASS oneSchemeObjectiveExportDoesNotShowSchemeDimension");
+        System.out.println("Tests passed: 4");
     }
 }

@@ -482,6 +482,8 @@ class CoursePermissionIntegrationTest {
 
     private CurriculumServiceImpl curriculum(CoursePermissionService permissionService) {
         CurriculumServiceImpl target = new CurriculumServiceImpl();
+        ReflectionTestUtils.setField(target, "courseImportAuthorVerifier",
+                mock(com.doinner.csys.service.CourseImportAuthorVerifier.class));
         for (java.lang.reflect.Field field : CurriculumServiceImpl.class.getDeclaredFields()) {
             if (field.getType().isInterface()) ReflectionTestUtils.setField(target, field.getName(), mock(field.getType()));
         }

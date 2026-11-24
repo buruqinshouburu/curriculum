@@ -5,7 +5,7 @@
 <mapper namespace="com.doinner.csys.dao.CourseMapper">
     <!-- Static include properties name the calling mapper's parameters, never user SQL. -->
     <sql id="invokedDirectionFilter">
-        and (locate(concat(',', #{${directionParameter}}, ','), concat(',', c.invocation_sub_major_ids, ',')) > 0
+        and (c.type = '2' or locate(concat(',', #{${directionParameter}}, ','), concat(',', c.invocation_sub_major_ids, ',')) > 0
           or (c.invocation_sub_major_ids is null and c.sub_Major_Id = #{${directionParameter}}) or (
             c.invocation_sub_major_ids is null and c.sub_Major_Id is null
             and (c.major_Id is null or not (
@@ -56,6 +56,7 @@
         <result property="credit" column="credit"/>
         <result property="courseProp" column="course_prop"/>
         <result property="courseType" column="course_type"/>
+        <result property="unifiedCourse" column="unified_course"/>
         <result property="courseAttr" column="course_attr"/>
         <result property="location" column="location"/>
         <result property="openTerm" column="open_term"/>
@@ -129,6 +130,7 @@
         <result property="credit" column="credit"/>
         <result property="courseProp" column="course_prop"/>
         <result property="courseType" column="course_type"/>
+        <result property="unifiedCourse" column="unified_course"/>
         <result property="courseAttr" column="course_attr"/>
         <result property="location" column="location"/>
         <result property="openTerm" column="open_term"/>
@@ -227,7 +229,7 @@
                credit,
                course_prop,
                course_type,
-               course_attr,
+               unified_course, course_attr,
                location,
                open_term,
                summary,
@@ -298,7 +300,7 @@
                c.credit,
                c.course_prop,
                c.course_type,
-               c.course_attr,
+               c.unified_course, c.course_attr,
                c.location,
                c.open_term,
                c.summary,
@@ -349,6 +351,12 @@
         from t_csys_course c
         <where>
             c.sysflag = 0
+            <if test="excludedIds != null and excludedIds.size() > 0">
+                and c.id not in
+                <foreach collection="excludedIds" item="excludedId" open="(" separator="," close=")">
+                    #{excludedId}
+                </foreach>
+            </if>
             <if test="id != null">
                 and c.id = #{id}
             </if>
@@ -411,6 +419,9 @@
             </if>
             <if test="courseType != null">
                 and c.course_type = #{courseType}
+            </if>
+            <if test="unifiedCourse != null">
+                and coalesce(c.unified_course, 0) = #{unifiedCourse}
             </if>
             <if test="courseAttr != null">
                 and c.course_attr = #{courseAttr}
@@ -566,7 +577,7 @@
         c.credit,
         c.course_prop,
         c.course_type,
-        c.course_attr,
+        c.unified_course, c.course_attr,
         c.location,
         c.open_term,
         c.summary,
@@ -650,7 +661,7 @@
         c.credit,
         c.course_prop,
         c.course_type,
-        c.course_attr,
+        c.unified_course, c.course_attr,
         c.location,
         c.open_term,
         c.summary,
@@ -780,6 +791,7 @@
             <if test="courseType != null">
                 course_type,
             </if>
+            <if test="unifiedCourse != null">unified_course,</if>
             <if test="courseAttr != null">
                 course_attr,
             </if>
@@ -956,6 +968,7 @@
             <if test="courseType != null">
                 #{courseType},
             </if>
+            <if test="unifiedCourse != null">#{unifiedCourse},</if>
             <if test="courseAttr != null">
                 #{courseAttr},
             </if>
@@ -1149,6 +1162,7 @@
             <if test="courseType != null">
                 course_type = #{courseType},
             </if>
+            <if test="unifiedCourse != null">unified_course = #{unifiedCourse},</if>
             <if test="courseAttr != null">
                 course_attr = #{courseAttr},
             </if>
@@ -1418,6 +1432,7 @@
         <result property="credit" column="credit"/>
         <result property="courseProp" column="course_prop"/>
         <result property="courseType" column="course_type"/>
+        <result property="unifiedCourse" column="unified_course"/>
         <result property="courseAttr" column="course_attr"/>
         <result property="location" column="location"/>
         <result property="openTerm" column="open_term"/>
@@ -1584,7 +1599,7 @@
         tc.credit,
         tc.course_prop,
         tc.course_type,
-        tc.course_attr,
+        tc.unified_course, tc.course_attr,
         tc.location,
         tc.open_term,
         tc.summary,
@@ -1808,7 +1823,7 @@
                tc.credit,
                tc.course_prop,
                tc.course_type,
-               tc.course_attr,
+               tc.unified_course, tc.course_attr,
                tc.location,
                tc.open_term,
                tc.summary,
@@ -2254,7 +2269,7 @@
         `hours`, theory_hours, practice_hours,
         week_hours, teach_hours, examine_hours,
         other_hours, hours_unit, credit,
-        course_prop, course_type, course_attr,
+        course_prop, course_type, course_attr, unified_course,
         `location`, open_term, summary,
         file_id, file_name, create_time,
         creator, last_modified_time, last_modifier,
@@ -2274,7 +2289,7 @@
             #{course.hours}, #{course.theoryHours}, #{course.practiceHours},
             #{course.weekHours}, #{course.teachHours}, #{course.examineHours},
             #{course.otherHours}, #{course.hoursUnit}, #{course.credit},
-            #{course.courseProp}, #{course.courseType}, #{course.courseAttr},
+            #{course.courseProp}, #{course.courseType}, #{course.courseAttr}, #{course.unifiedCourse},
             #{course.location}, #{course.openTerm}, #{course.summary},
             #{course.fileId}, #{course.fileName}, #{course.createTime},
             #{course.creator}, #{course.lastModifiedTime}, #{course.lastModifier},
@@ -2480,7 +2495,7 @@
         c.credit,
         c.course_prop,
         c.course_type,
-        c.course_attr,
+        c.unified_course, c.course_attr,
         c.location,
         c.open_term,
         c.summary,
@@ -2642,10 +2657,18 @@
                 and c.major_Id = #{majorId}
             </if>
             <if test="subMajorId != null">
-                <include refid="invokedDirectionFilter">
-                    <property name="directionParameter" value="subMajorId"/>
-                    <property name="schemeExpression" value="schemeRefCourse.scheme_id"/>
-                </include>
+                <if test="invocationNodeOnly == true">
+                    and c.sub_major_id = #{subMajorId}
+                </if>
+                <if test="invocationNodeOnly != true">
+                    <include refid="invokedDirectionFilter">
+                        <property name="directionParameter" value="subMajorId"/>
+                        <property name="schemeExpression" value="schemeRefCourse.scheme_id"/>
+                    </include>
+                </if>
+            </if>
+            <if test='type != "2" and invocationNodeOnly == true and subMajorId == null'>
+                and c.sub_major_id is null
             </if>
             <if test="categoryId != null">
                 and c.category_Id = #{categoryId}

@@ -40,7 +40,7 @@ public final class CourseInvocationScope {
     public static <T extends Course> List<T> forDirection(List<T> courses, Long directionId, Long majorId) {
         List<T> result = new ArrayList<>();
         for (T course : courses) {
-            if (directionId == null) {
+            if (directionId == null || "2".equals(course.getType())) {
                 result.add(course);
                 continue;
             }

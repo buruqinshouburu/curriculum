@@ -58,9 +58,9 @@ class CourseInvocationScopeTest {
         assertEquals(Collections.singletonList(whole), CourseInvocationScope.forDirection(rows, 99L, 10L));
         assertEquals(Collections.singletonList(whole), CourseInvocationScope.forDirection(rows, 1000L, 10L));
         assertEquals(rows, CourseInvocationScope.forDirection(rows, null, 10L));
-        assertTrue(duplicate(explicit, whole.getCourseModule(), whole.getCourseModuleChildren(), 11L));
-        assertFalse(duplicate(explicit, whole.getCourseModule(), whole.getCourseModuleChildren(), 99L));
-        assertFalse(duplicate(explicit, whole.getCourseModule(), whole.getCourseModuleChildren(), null));
+        assertFalse(duplicate(explicit, whole.getCourseModule(), whole.getCourseModuleChildren(), 11L));
+        assertTrue(duplicate(explicit, whole.getCourseModule(), whole.getCourseModuleChildren(), 99L));
+        assertTrue(duplicate(explicit, whole.getCourseModule(), whole.getCourseModuleChildren(), null));
         assertEquals(Collections.singletonList(88L), explicit.getSubMajorIds());
         Course manual = invoked(whole.getCourseModule(), whole.getCourseModuleChildren(), 11L);
         manual.setSourceId(null);
@@ -158,7 +158,7 @@ class CourseInvocationScopeTest {
         SecurityContextHolder.setUserName("scope.test");
         try {
             assertEquals(200, service.courseInvoke(request).getCode());
-            assertEquals(10L, saved.get(0).getMajorId());
+            assertEquals("2".equals(type) ? null : Long.valueOf(10), saved.get(0).getMajorId());
             assertNull(saved.get(0).getSubMajorId());
             assertNotEquals(200, service.courseInvoke(request).getCode());
             assertEquals(1, saved.size());
@@ -226,7 +226,7 @@ class CourseInvocationScopeTest {
         Course course = invoked(module, child, 11L);
         assertTrue(duplicate(course, module, child, 11L));
         assertFalse(duplicate(course, module, child, 12L));
-        assertFalse(duplicate(course, module, child, null));
+        assertTrue(duplicate(course, module, child, null));
         assertFalse(duplicate(invoked("other", child, 11L), module, child, 11L));
         assertFalse(duplicate(invoked(module, "other", 11L), module, child, 11L));
         course.setSourceId(102L);
@@ -270,13 +270,13 @@ class CourseInvocationScopeTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"2", "4"})
-    void trainingAndProjectAllowDifferentDirectionsButNotWholeMajorDuplicates(String type) {
+    void trainingIsSchemeWideButProjectsKeepDirectionScope(String type) {
         Course row = invoked("module", "child", 11L);
         row.setType(type);
         row.setMajorId(10L);
         assertTrue(duplicate(row, "module", "child", 11L));
-        assertFalse(duplicate(row, "module", "child", 12L));
-        assertFalse(duplicate(row, "module", "child", null));
+        assertEquals("2".equals(type), duplicate(row, "module", "child", 12L));
+        assertTrue(duplicate(row, "module", "child", null));
         row.setSubMajorId(null);
         assertTrue(duplicate(row, "module", "child", 12L));
         assertTrue(duplicate(row, "module", "child", null));
@@ -284,8 +284,8 @@ class CourseInvocationScopeTest {
         CourseTemplateVo target = new CourseTemplateVo();
         target.setMajorId(20L);
         target.setSubMajorId(12L);
-        assertFalse(Boolean.TRUE.equals(ReflectionTestUtils.invokeMethod(service, "isCourseAlreadyInvoked",
-                101L, Collections.singletonList(row), target)), "Another major remains independent");
+        assertEquals("2".equals(type), Boolean.TRUE.equals(ReflectionTestUtils.invokeMethod(service, "isCourseAlreadyInvoked",
+                101L, Collections.singletonList(row), target)));
         target.setMajorId(10L);
         target.setLocation("new-module");
         row.setLocation("old-module");

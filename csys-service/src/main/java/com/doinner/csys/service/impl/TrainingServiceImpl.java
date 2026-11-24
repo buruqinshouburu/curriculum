@@ -261,11 +261,10 @@ public class TrainingServiceImpl implements TrainingService {
         if (ObjectUtils.isNotEmpty(courses)) {
             courses.forEach(c -> {
                 // 学期与学时安排取值改为课程关联的 t_csys_course_ref_schedule 列表(一对多)。
-                // 其中 semesterSchedule=6(贯穿4年)/7(多学期排课) 属历史数据，已由 refreshLegacySchedule
-                // 接口刷新为新格式(每行一个 1-5 的学年)；刷新前此处仍按原规则展开，保证历史课程排课正确。
+                // 贯穿四年统一落到第八学期，明细学时只累计一次，不按学年或季节展开。
                 List<CourseSchedule> courseScheduleList = c.getCourseScheduleList();
                 if (ObjectUtils.isNotEmpty(courseScheduleList)) {
-                    if ("2".equals(c.getType()) && courseScheduleList.stream()
+                    if (courseScheduleList.stream()
                             .anyMatch(cs -> "6".equals(cs.getSemesterSchedule()))) {
                         CourseSchedule finalTerm = new CourseSchedule();
                         finalTerm.setTeachHours(courseScheduleList.stream().map(CourseSchedule::getTeachHours)
@@ -278,11 +277,7 @@ public class TrainingServiceImpl implements TrainingService {
                     }
                     courseScheduleList.forEach(cs -> {
                         if (ObjectUtils.isNotEmpty(cs.getSemesterSchedule()) && ObjectUtils.isNotEmpty(cs.getSpringAutumn())) {
-                            if ("6".equals(cs.getSemesterSchedule())) {
-                                for (int i = 1; i < 5; i++) {
-                                    createCourseSchedule(trainingSchemeVo, c, cs, termArr, trainingSchemeCourseSchedules, i);
-                                }
-                            } else if ("7".equals(cs.getSemesterSchedule())) {
+                            if ("7".equals(cs.getSemesterSchedule())) {
                                 createCourseSchedule(trainingSchemeVo, c, cs, termArr, trainingSchemeCourseSchedules, 1);
                             } else {
                                 createCourseSchedule(trainingSchemeVo, c, cs, termArr, trainingSchemeCourseSchedules, Integer.valueOf(cs.getSemesterSchedule()));
@@ -1491,6 +1486,13 @@ public class TrainingServiceImpl implements TrainingService {
                 courses,
                 trainingSchemeCourseScheduleVos,
                 trainingSchemeVo);
+        String documentName = trainingSchemeVo.getName();
+        if (trainingSchemeVo.getSubMajorIds() != null && trainingSchemeVo.getSubMajorIds().size() == 1
+                && trainingSchemeVo.getSubMajorNames() != null && trainingSchemeVo.getSubMajorNames().size() == 1
+                && StringUtils.isNotBlank(trainingSchemeVo.getSubMajorNames().get(0))) {
+            documentName = trainingSchemeVo.getSubMajorNames().get(0);
+            trainingPlanModel.setTrainingPlanName(documentName);
+        }
         //模型类中字典表转换
         translateDict(trainingPlanModel);
         //完善学时学分
@@ -1514,7 +1516,7 @@ public class TrainingServiceImpl implements TrainingService {
                 }
             }
             InputStream inputStream = generator.generate(trainingPlanModel);
-            String fileId = commonService.uploadFile(inputStream, trainingSchemeVo.getName() + ".docx", trainingPlanCategoryId);
+            String fileId = commonService.uploadFile(inputStream, documentName + ".docx", trainingPlanCategoryId);
             //更新instance
             trainingSchemeVo.setFileId(fileId);
             setUrl(trainingSchemeVo);

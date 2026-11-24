@@ -54,6 +54,7 @@ class CourseGraduationSyncTest {
     @Test
     void exemptCourseDoesNotRequireGraduationTreeAndLeavesExistingBindingUntouched() {
         Course exempt = course(3L, 1L, PUBLIC_BASIC, "3");
+        exempt.setUnifiedCourse(0);
         prepare(Collections.singletonList(exempt));
         List<CourseRefGraduation> existing = new ArrayList<>(Collections.singletonList(binding(3L, 800L)));
         when(bindings.selectExistingRefByCourseIds(anyList())).thenReturn(existing);
@@ -73,6 +74,7 @@ class CourseGraduationSyncTest {
     @Test
     void mixedSyncSkipsOnlyExemptCourseAndStillAppendsNormalBindings() {
         Course exempt = course(3L, 1L, PUBLIC_BASIC, "3");
+        exempt.setUnifiedCourse(0);
         Course ordinary = course(4L, 2L, PUBLIC_BASIC, "1");
         prepare(Arrays.asList(exempt, ordinary));
         when(bindings.selectCourseTargetRefGraduationByCourseIds(anyList()))
@@ -102,7 +104,7 @@ class CourseGraduationSyncTest {
             "other-module,3",
             "69a7f32e2dc370362ef3ee6e-extra,3"
     })
-    void exemptionRequiresExactModuleAndOptionalAttribute(String module, String attribute) {
+    void unifiedCourseSyncIgnoresModuleAndStudyAttribute(String module, String attribute) {
         Course ordinary = course(3L, 1L, module, attribute);
         ordinary.setCourseModuleName("公共基础");
         prepare(Collections.singletonList(ordinary));
@@ -130,6 +132,20 @@ class CourseGraduationSyncTest {
         verify(courses, never()).updateBindStatusById(anyLong(), anyInt());
     }
 
+    @Test
+    void unmappedGraduationIsReferencedOnlyByInvokedCourse() {
+        prepare(Collections.singletonList(course(4L, 2L, PUBLIC_BASIC, "1")));
+        when(bindings.selectCourseTargetRefGraduationByCourseIds(anyList()))
+                .thenReturn(Collections.singletonList(binding(2L, 91L)));
+        assertEquals(1, service.syncGraduationFromSource(501L).get("rowsInserted"));
+        ArgumentCaptor<List<CourseRefGraduation>> inserted = ArgumentCaptor.forClass(List.class);
+        verify(bindings).insertCourseTargetRefGraduationList(inserted.capture());
+        assertEquals(4L, inserted.getValue().get(0).getCourseId());
+        assertEquals(91L, inserted.getValue().get(0).getGraduationId());
+        verify(graduations).selectSchemeGraduationWithSourceBySchemeId(501L);
+        org.mockito.Mockito.verifyNoMoreInteractions(graduations);
+    }
+
     private void prepare(List<Course> invoked) {
         List<TrainingSchemeRefCourse> refs = new ArrayList<>();
         for (Course course : invoked) {
@@ -137,11 +153,19 @@ class CourseGraduationSyncTest {
             ref.setSchemeId(501L); ref.setCourseId(course.getId()); refs.add(ref);
         }
         when(references.selectTrainingSchemeRefCourseByTrainingSchemeVoId(501L)).thenReturn(refs);
-        when(courses.selectCoursesByIds(anyList())).thenReturn(invoked);
+        List<Course> sources = new ArrayList<>();
+        for (Course copy : invoked) {
+            Course source = new Course();
+            source.setId(copy.getSourceId());
+            source.setUnifiedCourse(copy.getUnifiedCourse());
+            sources.add(source);
+        }
+        when(courses.selectCoursesByIds(anyList())).thenReturn(invoked, sources);
     }
 
     private static Course course(Long id, Long sourceId, String module, String attribute) {
         Course course = new Course();
+        course.setUnifiedCourse(1);
         course.setId(id); course.setSourceId(sourceId); course.setCourseModule(module); course.setCourseAttr(attribute);
         return course;
     }

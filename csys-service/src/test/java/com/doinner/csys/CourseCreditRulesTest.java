@@ -49,6 +49,8 @@ class CourseCreditRulesTest {
         SecurityContextHolder.setUserId("77");
         SecurityContextHolder.setUserName("credit.writer");
         service = new CurriculumServiceImpl();
+        ReflectionTestUtils.setField(service, "courseImportAuthorVerifier",
+                mock(com.doinner.csys.service.CourseImportAuthorVerifier.class));
         for (Field field : CurriculumServiceImpl.class.getDeclaredFields()) {
             if (field.getType().isInterface())
                 ReflectionTestUtils.setField(service, field.getName(), mock(field.getType()));

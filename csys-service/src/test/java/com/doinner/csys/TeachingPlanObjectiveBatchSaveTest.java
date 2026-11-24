@@ -55,6 +55,20 @@ public class TeachingPlanObjectiveBatchSaveTest {
         ReflectionTestUtils.setField(service, "teachingPlanMapper", plans);
         ReflectionTestUtils.setField(service, "courseMapper", courses);
         ReflectionTestUtils.setField(service, "standardGraduationMapper", graduations);
+        TrainingSchemeRefCourseMapper schemes = mock(TrainingSchemeRefCourseMapper.class);
+        CourseRefGraduationMapper bindings = mock(CourseRefGraduationMapper.class);
+        ReflectionTestUtils.setField(service, "trainingSchemeRefCourseMapper", schemes);
+        ReflectionTestUtils.setField(service, "courseRefGraduationMapper", bindings);
+        when(schemes.selectQuoteCourseIdsBySourceAndScheme(1L, 10L)).thenReturn(Collections.singletonList(20L));
+        when(bindings.selectCourseTargetRefGraduationByCourseIds(anyList())).thenAnswer(call -> {
+            List<Long> owners = call.getArgument(0);
+            return Arrays.asList(501L, 502L).stream().map(id -> {
+                CourseRefGraduation ref = new CourseRefGraduation();
+                ref.setCourseId(owners.get(0));
+                ref.setGraduationId(id);
+                return ref;
+            }).collect(Collectors.toList());
+        });
         TeachingPlan plan = new TeachingPlan();
         plan.setId(101L);
         plan.setSourceCourseId(1L);
@@ -159,6 +173,7 @@ public class TeachingPlanObjectiveBatchSaveTest {
     void publicFoundationUsesOnlyNullSchemeAndNormalizesRefs() {
         when(courses.selectCourseById(1L)).thenAnswer(call -> {
             CourseVo course = new CourseVo();
+            course.setUnifiedCourse(1);
             course.setCourseModule("\u516c\u5171\u57fa\u7840");
             return course;
         });
@@ -212,6 +227,7 @@ public class TeachingPlanObjectiveBatchSaveTest {
     void rejectsForeignSchemeIdForPublicFoundation() {
         when(courses.selectCourseById(1L)).thenAnswer(call -> {
             CourseVo course = new CourseVo();
+            course.setUnifiedCourse(1);
             course.setCourseModule("\u516c\u5171\u57fa\u7840");
             return course;
         });

@@ -11,6 +11,22 @@ import java.util.Map;
  */
 public class CourseVo extends Course {
 
+    private Boolean invocationNodeOnly;
+
+    public Boolean getInvocationNodeOnly() { return invocationNodeOnly; }
+
+    public void setInvocationNodeOnly(Boolean invocationNodeOnly) { this.invocationNodeOnly = invocationNodeOnly; }
+
+    private List<Long> excludedIds;
+
+    public List<Long> getExcludedIds() {
+        return excludedIds;
+    }
+
+    public void setExcludedIds(List<Long> excludedIds) {
+        this.excludedIds = excludedIds;
+    }
+
     private static Map<String,String> propMapping=new HashMap<String,String>();
 
     static {

@@ -311,13 +311,18 @@ public class CourseServiceImpl implements CourseService {
                 continue;
             }
             boolean practical = "2".equals(invoked.getType()) || "4".equals(invoked.getType());
+            if ("2".equals(invoked.getType())) {
+                if (target.getLocation() == null || Objects.equals(invoked.getLocation(), target.getLocation())) return true;
+                continue;
+            }
             boolean directionScoped = professional || sergeantDirection || practical;
             if ((practical && targetCourseModule == null || Objects.equals(invoked.getCourseModule(), targetCourseModule))
                     && (practical && targetCourseModuleChildren == null || Objects.equals(invoked.getCourseModuleChildren(), targetCourseModuleChildren))
                     && (target.getLocation() == null || Objects.equals(invoked.getLocation(), target.getLocation()))
                     && (target.getProgramLevel() == null || Objects.equals(invoked.getProgramLevel(), target.getProgramLevel()))
                     && (!directionScoped || (Objects.equals(invoked.getMajorId(), targetMajorId)
-                    && CourseInvocationScope.containsDirection(invoked, targetSubMajorId)))) {
+                    && (targetSubMajorId == null || invoked.getSubMajorId() == null
+                        || Objects.equals(invoked.getSubMajorId(), targetSubMajorId))))) {
                 return true;
             }
         }
@@ -424,6 +429,11 @@ public class CourseServiceImpl implements CourseService {
         if(ObjectUtils.isNotEmpty(courseTemplateVo.getProgramLevel())){
             course.setProgramLevel(courseTemplateVo.getProgramLevel());
         }
+        if ("2".equals(course.getType())) {
+            course.setMajorId(null);
+            course.setSubMajorId(null);
+            course.setInvocationSubMajorIds(null);
+        }
         if (course.getMajorId() != null && (course.getType() == null
                 || "1".equals(course.getType()) || "3".equals(course.getType()))) {
             // Invocation scope belongs to the selected tree node, not the source course's applicability.
@@ -488,6 +498,12 @@ public class CourseServiceImpl implements CourseService {
 
         for (Course course : courses) {
             List<CourseSchedule> existing = course.getCourseScheduleList();
+            // Keep the explicit four-year choice; expanding it would lose the final-term rule.
+            if (ObjectUtils.isNotEmpty(existing) && existing.stream()
+                    .anyMatch(row -> "6".equals(row.getSemesterSchedule()))) {
+                skippedAlready++;
+                continue;
+            }
             boolean hasValid = false, hasLegacy = false;
             if (ObjectUtils.isNotEmpty(existing)) {
                 for (CourseSchedule cs : existing) {
@@ -617,10 +633,14 @@ public class CourseServiceImpl implements CourseService {
 
         // 只处理有源课程的被调用课程
         Map<Long, Long> invokedToSource = new LinkedHashMap<>();
+        List<Long> sourceIds = invokedCourses.stream().map(Course::getSourceId)
+                .filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        Set<Long> unifiedIds = sourceIds.isEmpty() ? Collections.emptySet() : courseMapper.selectCoursesByIds(sourceIds)
+                .stream().filter(c -> Integer.valueOf(1).equals(c.getUnifiedCourse())).map(Course::getId).collect(Collectors.toSet());
         int skippedExempt = 0;
         for (Course c : invokedCourses) {
             if (c.getSourceId() != null) {
-                if ("69a7f32e2dc370362ef3ee6e".equals(c.getCourseModule()) && "3".equals(c.getCourseAttr())) {
+                if (!"2".equals(c.getType()) && !"4".equals(c.getType()) && !unifiedIds.contains(c.getSourceId())) {
                     skippedExempt++;
                     continue;
                 }
@@ -630,7 +650,7 @@ public class CourseServiceImpl implements CourseService {
         summary.put("skippedExempt", skippedExempt);
         totalInvoked = invokedToSource.size();
         if (invokedToSource.isEmpty()) {
-            summary.put("message", skippedExempt > 0 ? "公共基础任选课程免绑定毕业要求，已跳过；已有绑定保持不变。"
+            summary.put("message", skippedExempt > 0 ? "非统设课程在培养方案中绑定，已跳过；已有绑定保持不变。"
                     : "培养方案下没有可同步的课程(无被调用课程)");
             putSyncSummary(summary, 0, 0, 0, 0, 0);
             return summary;
@@ -688,14 +708,11 @@ public class CourseServiceImpl implements CourseService {
             }
             boolean anyInserted = false;
             for (Long sourceGradId : sourceGradIds) {
-                Long schemeGradId = sourceToSchemeGradId.get(sourceGradId);
-                if (schemeGradId == null) {
-                    // 方案尚未生成对应毕业要求(可能未同步毕业要求树)，跳过
-                    skippedUnmapped++;
-                    continue;
-                }
+                if (sourceGradId == null) continue;
+                // 未映射的要求仅引用在课程上，不写入方案毕业要求树。
+                Long schemeGradId = sourceToSchemeGradId.getOrDefault(sourceGradId, sourceGradId);
                 String key = invokedCourseId + "_" + schemeGradId;
-                if (existingKeys.contains(key)) {
+                if (existingKeys.contains(key) || existingKeys.contains(invokedCourseId + "_" + sourceGradId)) {
                     skippedExisting++;
                     continue;
                 }
@@ -721,32 +738,27 @@ public class CourseServiceImpl implements CourseService {
         }
 
         // 6. 生成提示信息
-        summary.put("message", buildSyncMessage(totalInvoked, withSourceBinding, schemeHasGraduationTree,
-                coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding)
-                + (skippedExempt > 0 ? " 公共基础任选课程免绑定，跳过" + skippedExempt + "门；已有绑定保持不变。" : ""));
+        summary.put("message", buildSyncMessage(totalInvoked, withSourceBinding,
+                rowsInserted, skippedExisting, skippedNoSourceBinding)
+                + (skippedExempt > 0 ? " 非统设课程跳过" + skippedExempt + "门；已有绑定保持不变。" : ""));
         putSyncSummary(summary, coursesSynced, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding);
         return summary;
     }
 
     /**
      * 根据同步结果构造提示信息：
-     * - 方案未生成毕业要求树：明确提示需先同步毕业要求树
      * - 有源课程但无总库绑定：提示源课程未绑定毕业要求
      * - 其余：给出同步结果概览
      */
-    private String buildSyncMessage(int totalInvoked, int withSourceBinding, boolean schemeHasGraduationTree,
-                                    int coursesSynced, int rowsInserted, int skippedExisting,
-                                    int skippedUnmapped, int skippedNoSourceBinding) {
-        if (!schemeHasGraduationTree) {
-            return "该培养方案尚未生成毕业要求树，无法映射总库毕业要求，未同步任何绑定。请先同步/建立毕业要求树后再执行同步。";
-        }
+    private String buildSyncMessage(int totalInvoked, int withSourceBinding,
+                                    int rowsInserted, int skippedExisting, int skippedNoSourceBinding) {
         if (withSourceBinding == 0) {
             return "被调用的课程在总库均未绑定毕业要求，无可同步内容。";
         }
         return String.format(
                 "同步完成：共 %d 门被调用课程，新增绑定 %d 条；已存在跳过 %d 条，"
-                        + "方案无对应毕业要求跳过 %d 条，源课程未绑定毕业要求跳过 %d 条。",
-                totalInvoked, rowsInserted, skippedExisting, skippedUnmapped, skippedNoSourceBinding);
+                        + "源课程未绑定毕业要求跳过 %d 门。",
+                totalInvoked, rowsInserted, skippedExisting, skippedNoSourceBinding);
     }
 
     private void putSyncSummary(Map<String, Object> summary, int coursesSynced, int rowsInserted,

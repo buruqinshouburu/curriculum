@@ -295,7 +295,7 @@ public class TrainingPlanModel {
         if (ObjectUtils.isEmpty(scheme.getSubMajorIds())) {
             return courses;
         }
-        List<Course> scoped = courses.stream().filter(course -> course.getInvocationSubMajorIds() != null
+        List<Course> scoped = courses.stream().filter(course -> "2".equals(course.getType()) || course.getInvocationSubMajorIds() != null
                 || CourseInvocationScope.isDirectionScoped(course) && (CourseInvocationScope.hasExplicitDirections(course)
                 || (Integer.valueOf(2).equals(course.getTemplateType()) && course.getMajorId() != null)))
                 .collect(Collectors.toList());
@@ -430,7 +430,7 @@ public class TrainingPlanModel {
         Map<Integer, Double> termHoursMap = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(trainingSchemeCourseScheduleVos)) {
             for (TrainingSchemeCourseScheduleVo courseSchedule : trainingSchemeCourseScheduleVos) {
-                if (courseSchedule.getSubMajorId() != null && course.getSubMajorId() != null
+                if (!"2".equals(course.getType()) && courseSchedule.getSubMajorId() != null && course.getSubMajorId() != null
                         && !Objects.equals(courseSchedule.getSubMajorId(), course.getSubMajorId())) continue;
                 if (ObjectUtils.isNotEmpty(courseSchedule.getTeachHours())) {
                     teachHours += courseSchedule.getTeachHours();

@@ -10,6 +10,7 @@ import com.doinner.csys.utils.CourseInvocationScope;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -61,6 +62,19 @@ public class CourseMajorSelectionService {
     }
 
     public void validate(Course course) {
+        validate(course, null);
+    }
+
+    public void validate(Course course, Course stored) {
+        String module = course.getCourseModule() != null || stored == null ? course.getCourseModule() : stored.getCourseModule();
+        String child = course.getCourseModuleChildren() != null || stored == null
+                || !Objects.equals(stored.getCourseModule(), module) ? course.getCourseModuleChildren() : stored.getCourseModuleChildren();
+        if (DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE.equals(module)
+                || DictContent.DISCIPLINE_CORE_COURSES_SCHEDULE.equals(module)
+                || (stored != null && stored.getSourceId() != null && stored.getMajorId() != null)
+                || (isMilitaryModule(module) && !Arrays.asList(DictContent.POSITION_FOUNDATION, DictContent.DUTY_POSITION,
+                "69a7f3982dc370362ef3ee79", "69a7f39e2dc370362ef3ee7a").contains(child))
+                || (stored == null && module != null && !isMilitaryModule(module) && !DictContent.MAJOR_COURSES_SCHEDULE.equals(module))) return;
         List<Long> majors = course.getMajorIds();
         List<Long> directions = course.getSubMajorIds();
         if (majors == null && directions == null) return;
@@ -90,6 +104,12 @@ public class CourseMajorSelectionService {
                 }
             }
         }
+    }
+
+    private static boolean isMilitaryModule(String module) {
+        return Arrays.asList(DictContent.MILITARY_VOCATIONAL_EDUCATION, DictContent.POLITICAL_THEORY_NCO,
+                DictContent.MILITARY_FOUNDATION_NCO, DictContent.POSITION_FOUNDATION, DictContent.DUTY_POSITION,
+                "69a7f3922dc370362ef3ee78", "69a7f3982dc370362ef3ee79", "69a7f39e2dc370362ef3ee7a").contains(module);
     }
 
     public void validateInvocationOverlap(Course request, Course stored, List<Course> siblings) {

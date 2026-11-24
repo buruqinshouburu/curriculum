@@ -49,6 +49,7 @@ class TrainingScheduleContractTest {
             List<TrainingSchemeCourseScheduleVo> rows = session.getMapper(TrainingSchemeCourseScheduleMapper.class)
                     .selectTrainingSchemeCourseScheduleList(query);
             assertEquals(2, rows.size(), "One result per saved schedule ID, not per course/term or detail join");
+            assertEquals("69a7f33c2dc370362ef3ee70", rows.get(0).getCourseModule());
             assertEquals(1, rows.get(0).getTerm());
             assertEquals(1, rows.get(1).getTerm());
             assertNotEquals(rows.get(0).getId(), rows.get(1).getId());
@@ -152,18 +153,22 @@ class TrainingScheduleContractTest {
         assertEquals(4.0, rows.get(0).getPracticeHours());
     }
 
-    @Test
-    void fourYearNonPracticalDetailKeepsLegacyExpansion() {
-        List<TrainingSchemeCourseSchedule> rows = generate("1", schedule("6", "5", 12.0, 4.0));
-        assertEquals(8, rows.size());
-        for (int i = 0; i < 8; i++) assertEquals(i + 1, rows.get(i).getTerm());
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "2", "3", "4"})
+    void fourYearEveryCourseTypeUsesOnlyTermEight(String type) {
+        List<TrainingSchemeCourseSchedule> rows = generate(type, schedule("6", "5", 12.0, 4.0));
+        assertEquals(1, rows.size());
+        assertEquals(8, rows.get(0).getTerm());
+        assertEquals(12.0, rows.get(0).getTeachHours());
+        assertEquals(4.0, rows.get(0).getPracticeHours());
     }
 
-    @Test
-    void fourYearPracticalDefinitionGeneratesOneRowEvenWithMixedDetailYears() {
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "2", "3", "4"})
+    void fourYearDefinitionGeneratesOneRowEvenWithMixedDetailYears(String type) {
         CourseSchedule first = schedule("2", "5", 12.0, null);
         CourseSchedule second = schedule("6", null, 4.0, 8.0);
-        List<TrainingSchemeCourseSchedule> rows = generate("2", first, second);
+        List<TrainingSchemeCourseSchedule> rows = generate(type, first, second);
         assertEquals(1, rows.size());
         assertEquals(8, rows.get(0).getTerm());
         assertEquals(16.0, rows.get(0).getTeachHours());
@@ -232,6 +237,8 @@ class TrainingScheduleContractTest {
                 + "semester_schedule VARCHAR(10), spring_autumn VARCHAR(10), teach_hours DOUBLE,"
                 + "practice_hours DOUBLE, time_week DOUBLE, unit VARCHAR(10))");
         jdbc.execute("INSERT INTO t_csys_course VALUES (70031,'Current',NULL,NULL,'3','1',25,'1',7003,2,'1')");
+        jdbc.execute("ALTER TABLE t_csys_course ADD course_module VARCHAR(50) DEFAULT '69a7f33c2dc370362ef3ee70'");
+        jdbc.execute("ALTER TABLE t_csys_course ADD course_module_children VARCHAR(50)");
         jdbc.execute("INSERT INTO t_csys_course_ref_schedule VALUES (202,70031,'1','3',8,0,24,'2'),"
                 + "(201,70031,'1','1',16,0,1,'1'),(301,7003,'1','1',999,999,999,'2')");
         jdbc.execute("INSERT INTO t_csys_training_scheme_course_schedule VALUES"

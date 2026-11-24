@@ -156,6 +156,12 @@ public class Course extends AbstractDoinnerLogicalDelBaseEntity {
     @Excel(name = "课程属性(course_attr)")
     private String courseAttr;
 
+    private Integer unifiedCourse;
+
+    public Integer getUnifiedCourse() { return unifiedCourse; }
+
+    public void setUnifiedCourse(Integer unifiedCourse) { this.unifiedCourse = unifiedCourse; }
+
     /**
      * 实施地点(location)
      */

@@ -33,6 +33,56 @@ class CourseMajorSelectionTest {
     private static final String NS = "com.doinner.csys.dao.CourseMapper.";
 
     @Test
+    void nodeOnlyFilteringDoesNotHideDirectionalCoursesFromOverallList() {
+        Configuration config = new Configuration();
+        config.getTypeAliasRegistry().registerAliases("com.doinner.csys.domain");
+        for (String mapper : Arrays.asList("CourseMapper", "TrainingSchemeRefCourseMapper")) {
+            new XMLMapperBuilder(getClass().getResourceAsStream("/mapper/csys/" + mapper + ".xml"),
+                    config, mapper + ".xml", config.getSqlFragments()).parse();
+        }
+        CourseVo course = new CourseVo();
+        String sql = config.getMappedStatement(NS + "selectSchemeCourseList").getBoundSql(course).getSql();
+        assertFalse(sql.contains("and c.sub_major_id is null"), "Overall list must include directional courses");
+        com.doinner.csys.domain.vo.TrainingCourseVo training = new com.doinner.csys.domain.vo.TrainingCourseVo();
+        Map<String, Object> params = new HashMap<>();
+        params.put("trainingCourseVo", training);
+        String id = "com.doinner.csys.dao.TrainingSchemeRefCourseMapper.selectTrainingSchemeRefCourseByTrainingSchemeVoIdAndCourseType";
+        assertFalse(config.getMappedStatement(id).getBoundSql(params).getSql().contains("and c.sub_major_id is null"));
+        course.setInvocationNodeOnly(true);
+        training.setInvocationNodeOnly(true);
+        assertTrue(config.getMappedStatement(NS + "selectSchemeCourseList").getBoundSql(course).getSql().contains("and c.sub_major_id is null"));
+        assertTrue(config.getMappedStatement(id).getBoundSql(params).getSql().contains("and c.sub_major_id is null"));
+        course.setSubMajorId(101L);
+        training.setSubMajorId(101L);
+        assertTrue(config.getMappedStatement(NS + "selectSchemeCourseList").getBoundSql(course).getSql().contains("and c.sub_major_id = ?"));
+        assertTrue(config.getMappedStatement(id).getBoundSql(params).getSql().contains("and c.sub_major_id = ?"));
+        assertFalse(config.getMappedStatement(id).getBoundSql(params).getSql().contains("and (locate("));
+        assertFalse(config.getMappedStatement(NS + "selectSchemeCourseList").getBoundSql(course).getSql().contains("and (locate("));
+        course.setInvocationNodeOnly(false);
+        training.setInvocationNodeOnly(false);
+        assertFalse(config.getMappedStatement(NS + "selectSchemeCourseList").getBoundSql(course).getSql().contains("and c.sub_major_id = ?"));
+        assertFalse(config.getMappedStatement(id).getBoundSql(params).getSql().contains("and c.sub_major_id = ?"));
+    }
+
+    @Test
+    void publicLibraryExclusionsBindAndApplyBeforePagination() {
+        CourseVo query = new CourseVo();
+        org.springframework.web.bind.WebDataBinder binder = new org.springframework.web.bind.WebDataBinder(query);
+        binder.setConversionService(new org.springframework.format.support.DefaultFormattingConversionService());
+        binder.bind(new org.springframework.beans.MutablePropertyValues(Collections.singletonMap("excludedIds", "101,102")));
+        assertFalse(binder.getBindingResult().hasErrors());
+        assertEquals(Arrays.asList(101L, 102L), query.getExcludedIds());
+        Configuration config = new Configuration();
+        config.getTypeAliasRegistry().registerAliases("com.doinner.csys.domain");
+        InputStream xml = getClass().getResourceAsStream("/mapper/csys/CourseMapper.xml");
+        new XMLMapperBuilder(xml, config, "CourseMapper.xml", config.getSqlFragments()).parse();
+        String sql = config.getMappedStatement(NS + "selectCourseList").getBoundSql(query).getSql();
+        assertTrue(sql.contains("c.id not in"));
+        query.setExcludedIds(Collections.emptyList());
+        assertFalse(config.getMappedStatement(NS + "selectCourseList").getBoundSql(query).getSql().contains("c.id not in"));
+    }
+
+    @Test
     void onlyNewExplicitDirectionsConflictWithSiblingInvocations() {
         CourseMajorSelectionService service = new CourseMajorSelectionService(mock(StandardMajorMapper.class));
         Course stored = invocation(1L, 101L);
@@ -183,7 +233,7 @@ class CourseMajorSelectionTest {
         jdbc.execute("create table t_csys_training_scheme_ref_course (scheme_id bigint, course_id bigint)");
         jdbc.execute("create table t_csys_std_major (id bigint, parent_id bigint)");
         jdbc.execute("insert into t_csys_std_major values (101,10),(102,10),(201,20)");
-        jdbc.execute("insert into t_csys_course (id,source_id,major_Id,sub_Major_Id,type) values (1,90,10,null,'2'),(2,90,10,101,'2'),(3,91,10,null,'1'),(4,90,10,102,'2')");
+        jdbc.execute("insert into t_csys_course (id,source_id,major_Id,sub_Major_Id,type) values (1,90,10,null,'4'),(2,90,10,101,'4'),(3,91,10,null,'1'),(4,90,10,102,'4')");
         jdbc.execute("insert into t_csys_training_scheme_ref_course values (5,1),(5,2),(5,3),(6,4)");
         Map<String, Object> params = new HashMap<>();
         params.put("schemeId", 5L);
@@ -205,6 +255,11 @@ class CourseMajorSelectionTest {
             assertEquals(Arrays.asList(2L, 3L), session.selectList("scope.list", params));
             params.put("directionId", 103L);
             assertEquals(Arrays.asList(2L, 3L), session.selectList("scope.list", params));
+            jdbc.execute("update t_csys_course set type='2' where id in (1,2,4)");
+            session.clearCache();
+            params.put("directionId", 201L);
+            assertEquals(Arrays.asList(1L, 2L, 3L), session.selectList("scope.list", params),
+                    "Training subjects remain visible regardless of professional direction");
         }
     }
 
@@ -359,6 +414,22 @@ class CourseMajorSelectionTest {
             assertTrue(querySql.contains("sub_major_ids"), query);
             assertTrue(querySql.contains("invocation_sub_major_ids"), query);
         }
+    }
+
+    @Test
+    void hiddenAndOptionalMajorFieldsIgnoreHistoricalIdsOnUpdate() {
+        StandardMajorMapper mapper = mock(StandardMajorMapper.class);
+        CourseMajorSelectionService service = new CourseMajorSelectionService(mapper);
+        Course changes = new Course();
+        changes.setSubMajorIds(Collections.singletonList(999L));
+        Course stored = new Course();
+        for (String module : Arrays.asList("69a7f32e2dc370362ef3ee6e", "69a7f3342dc370362ef3ee6f", "6a50c7bdc55a5223d91a753a")) {
+            stored.setCourseModule(module);
+            assertDoesNotThrow(() -> service.validate(changes, stored));
+        }
+        org.mockito.Mockito.verifyNoInteractions(mapper);
+        stored.setCourseModuleChildren("6a50c85bc55a5223d91a753d");
+        assertThrows(CoursePermissionException.class, () -> service.validate(changes, stored));
     }
 
     @Test

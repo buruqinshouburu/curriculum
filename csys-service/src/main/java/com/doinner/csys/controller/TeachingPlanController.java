@@ -343,11 +343,11 @@ public class TeachingPlanController {
 
     /**
      * 候选毕业要求：源课在 schemeId 下被调用课（t_csys_training_scheme_ref_course）绑定的毕业要求；
-     * 被调用课均无绑定时回退源课自身 t_csys_course_ref_graduation。
+     * 非公共基础课程仅返回指定方案的调用课绑定；无绑定时返回空。
      * courseId 为总库源课程 id；schemeId 为培养方案 tab（可选）。
      * 公共基础课程：始终只返回源课公共毕业要求，忽略 schemeId。
      */
-    @ApiOperation("候选毕业要求（被调用课绑定，空则回退源课；公共基础仅源课）")
+    @ApiOperation("课程目标候选毕业要求（非公共基础课按方案，公共基础课按源课）")
     @GetMapping("/courseGraduation/{courseId}")
     public DataSet<List<StandardGraduation>> courseGraduation(@PathVariable("courseId") Long courseId,
                                                               @RequestParam(value = "schemeId", required = false) Long schemeId) {

@@ -10,6 +10,7 @@ import com.doinner.csys.permission.CoursePermissionService;
 import com.doinner.csys.service.CurriculumService;
 import com.doinner.csys.service.CourseMajorSelectionService;
 import com.doinner.csys.service.impl.CurriculumServiceImpl;
+import com.doinner.csys.service.impl.CourseServiceImpl;
 import com.doinner.csys.service.impl.TrainingServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
@@ -57,6 +58,8 @@ class SourceCourseScheduleSyncTest {
                 + "before_course_id VARCHAR(100), after_course_id VARCHAR(100), course_attr VARCHAR(10),"
                 + "type VARCHAR(10), time_week DOUBLE, unit VARCHAR(10), source_id BIGINT,"
                 + "academic_terms_number INT, semester_schedule VARCHAR(10))");
+        jdbc.execute("ALTER TABLE t_csys_course ADD course_module VARCHAR(50)");
+        jdbc.execute("ALTER TABLE t_csys_course ADD course_module_children VARCHAR(50)");
         jdbc.execute("CREATE TABLE t_csys_course_ref_schedule (id BIGINT AUTO_INCREMENT PRIMARY KEY,"
                 + "course_id BIGINT, semester_schedule VARCHAR(10), spring_autumn VARCHAR(10),"
                 + "teach_hours DOUBLE, practice_hours DOUBLE, time_week DOUBLE, unit VARCHAR(10))");
@@ -114,10 +117,11 @@ class SourceCourseScheduleSyncTest {
     void updateValidatesMajorSelectionOnceBeforePersistence() {
         CourseVo request = request("1");
         IllegalArgumentException rejected = new IllegalArgumentException("invalid direction");
-        doThrow(rejected).when(majorSelections).validate(request);
+        doThrow(rejected).when(majorSelections).validate(request, stored);
         assertSame(rejected, assertThrows(IllegalArgumentException.class, () -> service.updateCourse(request)));
-        verify(majorSelections).validate(request);
-        verifyNoInteractions(courses);
+        verify(majorSelections).validate(request, stored);
+        verify(courses).selectCourseById(1L);
+        verifyNoMoreInteractions(courses);
         assertEquals(10.0, lecture(1));
     }
 
@@ -413,12 +417,20 @@ class SourceCourseScheduleSyncTest {
         assertPracticalSchedulesUnchanged(request);
     }
 
-    @Test
-    void fourYearPracticeProjectIsNotPracticalTraining() {
-        stored.setType("4");
-        CourseVo request = request("4");
+    @ParameterizedTest
+    @ValueSource(strings = {"1", "2", "3", "4"})
+    void fourYearInvocationOverridesItsManualTermForEveryType(String type) {
+        CourseVo invoked = request(type);
+        invoked.setId(11L);
+        invoked.setSourceId(1L);
+        when(courses.selectCourseById(11L)).thenReturn(invoked);
+        CourseVo request = request(type);
+        request.setId(11L);
         request.setCourseScheduleList(Collections.singletonList(schedule("6", "1", null, null)));
-        assertPracticalSchedulesUnchanged(request);
+        service.updateCourse(request);
+        assertEquals(2, count("t_csys_training_scheme_course_schedule", "course_id=11 AND term=8"));
+        assertEquals(1, count("t_csys_training_scheme_course_schedule", "course_id=12 AND term=6"));
+        verify(courses, never()).selectCourseBySourceId(anyLong());
     }
 
     @Test
@@ -453,6 +465,33 @@ class SourceCourseScheduleSyncTest {
         stored.setType("2");
         when(courses.selectCourseBySourceId(1L)).thenReturn(
                 Arrays.asList(copy(11L, "2"), copy(12L, "2"), copy(13L, "4")));
+    }
+
+    @Test
+    void fourYearProjectSourceUpdatesProjectCopiesButNotTrainingCopies() {
+        stored.setType("4");
+        when(courses.selectCourseBySourceId(1L)).thenReturn(
+                Arrays.asList(copy(11L, "4"), copy(12L, "4"), copy(13L, "2")));
+        CourseVo request = request("4");
+        request.setCourseScheduleList(Collections.singletonList(schedule("6", "5", null, null)));
+        service.updateCourse(request);
+        assertEquals(3, count("t_csys_training_scheme_course_schedule", "course_id IN (11,12) AND term=8"));
+        assertEquals(0, count("t_csys_training_scheme_course_schedule", "course_id=13 AND term=8"));
+        assertEquals(2, count("t_csys_course_ref_schedule", "course_id IN (11,12) AND semester_schedule='6'"));
+    }
+
+    @Test
+    void legacyRefreshRetainsExplicitFourYearChoice() {
+        CourseServiceImpl target = new CourseServiceImpl();
+        ReflectionTestUtils.setField(target, "courseMapper", courses);
+        CourseScheduleMapper details = mock(CourseScheduleMapper.class);
+        ReflectionTestUtils.setField(target, "courseScheduleMapper", details);
+        Course course = copy(11L, "1");
+        course.setCourseScheduleList(Collections.singletonList(schedule("6", "5", 16, 8)));
+        when(courses.selectLegacyScheduleCourseIds()).thenReturn(Collections.singletonList(11L));
+        when(courses.selectCoursesByIds(anyList())).thenReturn(Collections.singletonList(course));
+        assertEquals(1, target.refreshLegacySchedule().get("skippedAlready"));
+        verifyNoInteractions(details);
     }
 
     @Test

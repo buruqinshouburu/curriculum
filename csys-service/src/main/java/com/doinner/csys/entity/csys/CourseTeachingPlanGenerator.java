@@ -490,7 +490,11 @@ public class CourseTeachingPlanGenerator {
                 } else if (multi) {
                     h2(doc, "培养方案" + (g.getSchemeId() == null ? "" : " " + g.getSchemeId()));
                 }
-                writeObjectiveTable(g.getObjectives(), g.getObjectiveRefMap(), doc);
+                XWPFTable table = writeObjectiveTable(g.getObjectives(), g.getObjectiveRefMap(), doc);
+                if (g.getSchemeId() != null) {
+                    table.getCTTbl().getTblPr().addNewTblCaption()
+                            .setVal(TeachingPlanWordImporter.SCHEME_PREFIX + g.getSchemeId());
+                }
             }
             return;
         }
@@ -502,7 +506,7 @@ public class CourseTeachingPlanGenerator {
      * 写一张「目标类型 | 目标内容 | 支撑毕业要求」表。
      * 按 知识/能力/素质 分组，相同类型连续行合并“目标类型”列。
      */
-    private void writeObjectiveTable(List<TeachingPlanObjective> objs,
+    private XWPFTable writeObjectiveTable(List<TeachingPlanObjective> objs,
                                      Map<Long, List<TeachingPlanObjectiveRef>> refMap,
                                      XWPFDocument doc) {
         int cols = 3;
@@ -528,6 +532,7 @@ public class CourseTeachingPlanGenerator {
             }
             for (TeachingPlanObjective o : g) {
                 setCell(t, r, 1, o.getContent(), false);
+                markObjective(t.getRow(r).getCell(1), o.getId(), false);
                 setCell(t, r, 2, joinRefs(refMap, o.getId()), false);
                 r++;
             }
@@ -541,6 +546,19 @@ public class CourseTeachingPlanGenerator {
             setCell(t, 1, 1, "", false);
             setCell(t, 1, 2, "", false);
         }
+        return t;
+    }
+
+    // 文档内关联键只用于匹配两张表，导入时不作为数据库主键。
+    private void markObjective(XWPFTableCell cell, Long id, boolean assessment) {
+        if (id == null) return;
+        var paragraph = cell.getParagraphs().get(0).getCTP();
+        var start = paragraph.addNewBookmarkStart();
+        var bookmarkId = java.math.BigInteger.valueOf(id).shiftLeft(1)
+                .add(java.math.BigInteger.valueOf(assessment ? 1 : 0));
+        start.setId(bookmarkId);
+        start.setName((assessment ? "CsysRef_" : "CsysGoal_") + id);
+        paragraph.addNewBookmarkEnd().setId(bookmarkId);
     }
 
     /** 教学内容与时间安排表：专题 | 内容 | 学时安排 */
@@ -1213,6 +1231,7 @@ public class CourseTeachingPlanGenerator {
                 int r = i + 2;
                 col = 0;
                 setCell(t, r, col++, objective.getContent(), false);
+                markObjective(t.getRow(r).getCell(0), objective.getId(), true);
                 List<TeachingPlanObjectiveAssessment> relations = relationMap.get(objective.getId());
                 for (int assessmentIndex = 0; assessmentIndex < formative.size(); assessmentIndex++) {
                     TeachingPlanAssessment assessment = formative.get(assessmentIndex);

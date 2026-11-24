@@ -13,6 +13,13 @@ public class TrainingSchemeCourseScheduleVo extends TrainingSchemeCourseSchedule
 
     private String courseAttr;
     private String c_type;
+    private String courseModule;
+    private String courseModuleChildren;
+
+    public String getCourseModule() { return courseModule; }
+    public void setCourseModule(String courseModule) { this.courseModule = courseModule; }
+    public String getCourseModuleChildren() { return courseModuleChildren; }
+    public void setCourseModuleChildren(String courseModuleChildren) { this.courseModuleChildren = courseModuleChildren; }
     /** 课程顶层原始时间小计，混合单位时不能据此换算学时。 */
     private String timeWeek;
     /** 课程首条安排的单位；各组实际单位见 courseScheduleList。 */

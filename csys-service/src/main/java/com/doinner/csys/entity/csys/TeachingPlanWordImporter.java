@@ -46,6 +46,7 @@ import java.util.stream.Collectors;
  * 只做解析，不落库；匹配失败写入 issues，调用方决定跳过策略。
  */
 public class TeachingPlanWordImporter {
+    static final String SCHEME_PREFIX = "csys-objective-scheme:";
 
     public static final int DOC_TYPE_COURSE = CourseTeachingPlanGenerator.DOC_TYPE_COURSE;
     public static final int DOC_TYPE_PRACTICE_SUBJECT = CourseTeachingPlanGenerator.DOC_TYPE_PRACTICE_SUBJECT;
@@ -126,6 +127,7 @@ public class TeachingPlanWordImporter {
     }
 
     public static class ParsedObjective {
+        private String documentKey;
         public TeachingPlanObjective objective = new TeachingPlanObjective();
         public List<String> graduationNames = new ArrayList<>();
         public List<ParsedObjectiveAssessment> assessments = new ArrayList<>();
@@ -250,7 +252,7 @@ public class TeachingPlanWordImporter {
                 if (grid.isEmpty()) {
                     continue;
                 }
-                dispatchTable(section, subSection, pendingSchemeTitle, grid, result, ctx);
+                dispatchTable(section, subSection, pendingSchemeTitle, table, grid, result, ctx);
                 // 方案小标题只作用于紧随其后的目标/任务背景表（含 type2 训练目的节，保持对称清理）
                 if (section.contains("目标与支撑毕业要求") || section.contains("任务背景")
                         || section.contains("训练目的")) {
@@ -274,7 +276,7 @@ public class TeachingPlanWordImporter {
     }
 
     private void dispatchTable(String section, String subSection, String schemeTitle,
-                               List<List<String>> grid, ParseResult result, ParseContext ctx) {
+                               XWPFTable table, List<List<String>> grid, ParseResult result, ParseContext ctx) {
         String header = joinHeader(grid.get(0));
         // 基本信息：含课程名称/课目名称/项目名称
         if (headerContains(grid, "课程名称") || headerContains(grid, "课目名称")
@@ -291,13 +293,35 @@ public class TeachingPlanWordImporter {
         }
         // 目标与支撑毕业要求
         if (header.contains("目标类型") && header.contains("支撑毕业要求")) {
-            parseObjectives(grid, schemeTitle, result, ctx);
+            String caption = table.getCTTbl().getTblPr() != null && table.getCTTbl().getTblPr().isSetTblCaption()
+                    ? table.getCTTbl().getTblPr().getTblCaption().getVal() : "";
+            Long markedScheme = null;
+            if (caption != null && caption.startsWith(SCHEME_PREFIX)) {
+                for (TeachingPlanSchemeVo scheme : ctx.schemes) {
+                    if (scheme.getSchemeId() != null && caption.equals(SCHEME_PREFIX + scheme.getSchemeId())) {
+                        markedScheme = scheme.getSchemeId();
+                        if (StringUtils.isNotBlank(schemeTitle) && !schemeTitle.equals(buildSchemeTitle(scheme))
+                                && !schemeTitle.equals("培养方案 " + markedScheme)) markedScheme = null;
+                        break;
+                    }
+                }
+                if (ctx.publicFoundation || markedScheme == null) {
+                    result.issues.add(TeachingPlanImportIssueVo.error(section, schemeTitle, "schemeId",
+                            "目标表的培养方案标识与当前课程或方案小标题不一致，请核对后重新导入"));
+                    return;
+                }
+            } else if (ctx.publicFoundation && StringUtils.isNotBlank(schemeTitle)) {
+                result.issues.add(TeachingPlanImportIssueVo.error(section, schemeTitle, "schemeId",
+                        "统设课程不能导入按专业区分的课程目标表"));
+                return;
+            }
+            parseObjectives(table, grid, schemeTitle, markedScheme, result, ctx);
             return;
         }
         // 课程目标达成考核评价设计：课程目标 | 过程性/终结性考核占比 | 课程目标权重 | 考核评价内容
         if (header.contains("课程目标") && header.contains("课程目标权重")
                 && header.contains("考核评价内容")) {
-            parseObjectiveAssessmentDesign(grid, result);
+            parseObjectiveAssessmentDesign(table, grid, result, ctx);
             return;
         }
         // 教学内容 type1
@@ -417,7 +441,7 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    private void parseObjectives(List<List<String>> grid, String schemeTitle,
+    private void parseObjectives(XWPFTable table, List<List<String>> grid, String schemeTitle, Long markedScheme,
                                  ParseResult result, ParseContext ctx) {
         // 非公共基础且课程未被任何培养方案引用：目标无处归属（scheme_id 为空在前端不可见），整组跳过
         if (!ctx.publicFoundation && (ctx.schemes == null || ctx.schemes.isEmpty())) {
@@ -425,7 +449,7 @@ public class TeachingPlanWordImporter {
                     "课程未被任何培养方案引用，目标无法归属培养方案，该组目标跳过；请先在培养方案中挂接该课程后重新导入"));
             return;
         }
-        Long schemeId = resolveSchemeId(schemeTitle, result, ctx);
+        Long schemeId = markedScheme != null ? markedScheme : resolveSchemeId(schemeTitle, result, ctx);
         if (schemeId == null && !ctx.publicFoundation && schemeTitle != null) {
             // 已记 ERROR，整组跳过
             return;
@@ -459,6 +483,7 @@ public class TeachingPlanWordImporter {
                 continue;
             }
             ParsedObjective po = new ParsedObjective();
+            po.documentKey = objectiveBookmark(table, r, 1, "CsysGoal_");
             po.schemeTitle = schemeTitle;
             po.objective.setSchemeId(schemeId);
             po.objective.setContent(content.trim());
@@ -479,7 +504,15 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    private void parseObjectiveAssessmentDesign(List<List<String>> grid, ParseResult result) {
+    private String objectiveBookmark(XWPFTable table, int row, int col, String prefix) {
+        XWPFTableCell cell = table.getRow(row).getCell(col);
+        if (cell == null) return null;
+        return cell.getParagraphs().stream().flatMap(p -> p.getCTP().getBookmarkStartList().stream())
+                .map(b -> b.getName()).filter(n -> n != null && n.startsWith(prefix))
+                .map(n -> n.substring(prefix.length())).findFirst().orElse(null);
+    }
+
+    private void parseObjectiveAssessmentDesign(XWPFTable table, List<List<String>> grid, ParseResult result, ParseContext ctx) {
         if (grid.size() < 2) {
             return;
         }
@@ -508,9 +541,20 @@ public class TeachingPlanWordImporter {
             if (StringUtils.isBlank(objectiveText) || objectiveText.contains("考核评价项总占比")) {
                 continue;
             }
-            ParsedObjective objective = findObjective(result, objectiveText);
+            String key = objectiveBookmark(table, r, 0, "CsysRef_");
+            List<ParsedObjective> matches = result.objectives.stream()
+                    .filter(o -> o.objective != null && objectiveText.trim().equals(StringUtils.trimToEmpty(o.objective.getContent())))
+                    .filter(o -> key == null || key.equals(o.documentKey)).collect(Collectors.toList());
+            if (matches.size() > 1 || (matches.isEmpty() && (key != null ||
+                    (!ctx.publicFoundation && ctx.schemes.size() != 1)))) {
+                result.issues.add(TeachingPlanImportIssueVo.error("考核评价", objectiveText, "objectiveId",
+                        "无法唯一确定考核项对应的课程目标，请核对专业和目标内容"));
+                continue;
+            }
+            ParsedObjective objective = matches.isEmpty() ? null : matches.get(0);
             if (objective == null) {
                 objective = new ParsedObjective();
+                if (!ctx.publicFoundation) objective.objective.setSchemeId(ctx.schemes.get(0).getSchemeId());
                 objective.objective.setContent(objectiveText);
                 objective.objective.setSourceMode(2);
                 objective.objective.setSort(result.objectives.size() + 1);
@@ -535,17 +579,6 @@ public class TeachingPlanWordImporter {
         }
     }
 
-    private ParsedObjective findObjective(ParseResult result, String content) {
-        String normalized = content == null ? "" : content.trim();
-        for (ParsedObjective objective : result.objectives) {
-            if (objective != null && objective.objective != null
-                    && normalized.equals(StringUtils.trimToEmpty(objective.objective.getContent()))) {
-                return objective;
-            }
-        }
-        return null;
-    }
-
     private Long resolveSchemeId(String schemeTitle, ParseResult result, ParseContext ctx) {
         if (ctx.publicFoundation) {
             return null;
@@ -557,25 +590,15 @@ public class TeachingPlanWordImporter {
             return null;
         }
         String title = schemeTitle.trim();
-        // 精确匹配 buildSchemeTitle
-        for (TeachingPlanSchemeVo s : ctx.schemes) {
-            if (s == null) {
-                continue;
-            }
-            String built = buildSchemeTitle(s);
-            if (title.equals(built)) {
-                return s.getSchemeId();
-            }
+        List<Long> matches = ctx.schemes.stream().filter(Objects::nonNull)
+                .filter(s -> title.equals(buildSchemeTitle(s))).map(TeachingPlanSchemeVo::getSchemeId)
+                .distinct().collect(Collectors.toList());
+        if (matches.isEmpty()) {
+            matches = ctx.schemes.stream().filter(Objects::nonNull)
+                    .filter(s -> StringUtils.isNotBlank(s.getSchemeName()) && title.contains(s.getSchemeName()))
+                    .map(TeachingPlanSchemeVo::getSchemeId).distinct().collect(Collectors.toList());
         }
-        // 模糊：包含方案名
-        for (TeachingPlanSchemeVo s : ctx.schemes) {
-            if (s == null || StringUtils.isBlank(s.getSchemeName())) {
-                continue;
-            }
-            if (title.contains(s.getSchemeName())) {
-                return s.getSchemeId();
-            }
-        }
+        if (matches.size() == 1) return matches.get(0);
         result.issues.add(TeachingPlanImportIssueVo.error("四、课程目标与支撑毕业要求", schemeTitle, "schemeId",
                 "无法匹配培养方案小标题「" + schemeTitle + "」，该组目标跳过。可用小标题："
                         + String.join(" / ", availableSchemeTitles(ctx))));

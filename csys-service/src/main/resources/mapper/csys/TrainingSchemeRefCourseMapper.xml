@@ -131,6 +131,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         select tsrc.* from t_csys_training_scheme_ref_course tsrc
         inner join t_csys_course c on c.id=tsrc.course_id
         where tsrc.scheme_id=#{trainingCourseVo.schemeId}
+        <if test='trainingCourseVo.type == "2" and trainingCourseVo.location != null'>
+            and c.location = #{trainingCourseVo.location}
+        </if>
         <choose>
             <when test='trainingCourseVo.type == "1"'>
                 and c.type in (1,3)
@@ -167,10 +170,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             and c.credit=#{trainingCourseVo.credit}
         </if>
         <if test="trainingCourseVo.subMajorId !=null">
-            <include refid="com.doinner.csys.dao.CourseMapper.invokedDirectionFilter">
-                <property name="directionParameter" value="trainingCourseVo.subMajorId"/>
-                <property name="schemeExpression" value="tsrc.scheme_id"/>
-            </include>
+            <if test="trainingCourseVo.invocationNodeOnly == true">
+                and c.sub_major_id = #{trainingCourseVo.subMajorId}
+            </if>
+            <if test="trainingCourseVo.invocationNodeOnly != true">
+                <include refid="com.doinner.csys.dao.CourseMapper.invokedDirectionFilter">
+                    <property name="directionParameter" value="trainingCourseVo.subMajorId"/>
+                    <property name="schemeExpression" value="tsrc.scheme_id"/>
+                </include>
+            </if>
+        </if>
+        <if test='trainingCourseVo.type != "2" and trainingCourseVo.invocationNodeOnly == true and trainingCourseVo.subMajorId == null'>
+            and c.sub_major_id is null
         </if>
         <if test="trainingCourseVo.courseModuleChildren !=null">
             and c.course_Module_Children=#{trainingCourseVo.courseModuleChildren}

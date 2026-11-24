@@ -1140,10 +1140,11 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
 
             // 第四节目标分组（数据驱动）：按目标实际 scheme_id 分布分组，不再按课程模块预判。
-            // 只有 scheme_id 为空的目标 -> 单组单表(无小标题)；
-            // 出现任一非空 scheme_id -> 每个 scheme_id 一张表(null 组标题「通用」，非 null 组带方案小标题)。
+            // 只有一个实际有数据的专业类时导出单表；多个专业类时按方案分组展示。
+            boolean publicFoundation = detail != null && detail.getPublicFoundation() != null
+                    ? detail.getPublicFoundation() : Integer.valueOf(1).equals(course.getUnifiedCourse());
             List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups =
-                    buildSchemeObjectiveGroups(planId, schemes);
+                    buildSchemeObjectiveGroups(planId, schemes, publicFoundation);
             m.setSchemeObjectiveGroups(groups);
             // 兼容旧字段：保留首组，供 type2/3 等仍读 objectives 的逻辑使用
             if (!groups.isEmpty()) {
@@ -1185,8 +1186,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             List<TeachingPlanTargetDesign> designs =
                     teachingPlanModuleService.listTargetDesign(planId, null, null);
             if (Objects.equals(m.getDocType(), CourseTeachingPlanGenerator.DOC_TYPE_COURSE)) {
-                boolean publicFoundation = detail != null && detail.getPublicFoundation() != null
-                        ? detail.getPublicFoundation() : isPublicFoundationCourseModuleValue(course.getCourseModule());
                 if (!publicFoundation) {
                     // 前端按当前引用方案顺序合并；未引用或空 scheme 的设计不显示。
                     List<TeachingPlanTargetDesign> ordered = new ArrayList<>();
@@ -1274,14 +1273,14 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
      * 非公共基础时由目标数据 scheme_id 分布决定单组/多组。
      */
     private List<CourseTeachingPlanModel.SchemeObjectiveGroup> buildSchemeObjectiveGroups(
-            Long planId, List<TeachingPlanSchemeVo> schemes) {
+            Long planId, List<TeachingPlanSchemeVo> schemes, boolean unified) {
         List<CourseTeachingPlanModel.SchemeObjectiveGroup> groups = new ArrayList<>();
         if (planId == null) {
             return groups;
         }
-        // onlyNullScheme=false + schemeId=null -> 不过滤 scheme，全量取 plan 下目标
+        // 与编辑页相同：统设只读取通用目标，不将历史专业目标混入单表。
         List<TeachingPlanObjective> all =
-                teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, null, false);
+                teachingPlanObjectiveMapper.selectByPlanAndScheme(planId, null, unified);
         if (ObjectUtils.isEmpty(all)) {
             CourseTeachingPlanModel.SchemeObjectiveGroup g =
                     new CourseTeachingPlanModel.SchemeObjectiveGroup();
@@ -1290,9 +1289,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             groups.add(g);
             return groups;
         }
-        // 公共基础（聚合 course_Module 全部为公共基础）：强制单组单表，不按培养方案区分，
-        // 兼容历史数据仍带 scheme_id 的场景（合并进单组，标题不显示）
-        if (isPublicFoundationPlan(planId)) {
+        if (unified) {
             CourseTeachingPlanModel.SchemeObjectiveGroup g =
                     new CourseTeachingPlanModel.SchemeObjectiveGroup();
             g.setSchemeId(null);
@@ -1317,8 +1314,8 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
             }
             byScheme.computeIfAbsent(o.getSchemeId(), k -> new ArrayList<>()).add(o);
         }
-        // 是否多组：存在任一非空 scheme_id
-        boolean multi = byScheme.keySet().stream().anyMatch(Objects::nonNull);
+        // 只有实际保存了多个专业类的数据时才显示专业维度；单专业数据按普通单表导出。
+        boolean multi = byScheme.values().stream().filter(ObjectUtils::isNotEmpty).count() > 1;
         // 排序：null 组最前；非 null 组按 schemes 列表顺序；schemes 未覆盖的兜底追加
         List<Long> orderedSchemeIds = new ArrayList<>();
         if (byScheme.containsKey(null)) {
@@ -2541,9 +2538,9 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
         // 目标 + 支撑毕业要求
         int objCount = 0;
         int refCount = 0;
-        Map<String, TeachingPlanObjective> objectiveMap = new LinkedHashMap<>();
         if (ObjectUtils.isNotEmpty(parsed.objectives)) {
             Map<Long, Map<String, List<StandardGraduation>>> schemeGradCache = new HashMap<>();
+            Map<Long, Map<Long, Long>> ownersByScheme = new HashMap<>();
             for (TeachingPlanWordImporter.ParsedObjective po : parsed.objectives) {
                 if (po == null || po.objective == null || StringUtils.isBlank(po.objective.getContent())) {
                     continue;
@@ -2557,7 +2554,6 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                 prepareEntity(o);
                 teachingPlanObjectiveMapper.insert(o);
                 objCount++;
-                objectiveMap.putIfAbsent(normalizeImportKey(o.getContent()), o);
                 if (ObjectUtils.isEmpty(po.graduationNames) || o.getId() == null) {
                     continue;
                 }
@@ -2579,7 +2575,10 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                     ref.setPlanId(planId);
                     ref.setObjectiveId(o.getId());
                     ref.setSchemeId(schemeId);
-                    ref.setQuoteCourseId(quoteCourseId);
+                    Long owner = ownersByScheme.computeIfAbsent(schemeId,
+                            id -> teachingPlanModuleService.objectiveGraduationCourses(courseId, id)).get(g.getId());
+                    if (owner == null) throw new IllegalArgumentException("观测点未绑定至当前课程或培养方案: " + g.getId());
+                    ref.setQuoteCourseId(owner);
                     ref.setGraduationId(g.getId());
                     ref.setSourceGraduationId(g.getSourceId());
                     ref.setGraduationCode(g.getCode());
@@ -2897,8 +2896,7 @@ public class TeachingPlanServiceImpl implements TeachingPlanService {
                         || ObjectUtils.isEmpty(parsedObjective.assessments)) {
                     continue;
                 }
-                TeachingPlanObjective objective = objectiveMap.get(
-                        normalizeImportKey(parsedObjective.objective.getContent()));
+                TeachingPlanObjective objective = parsedObjective.objective;
                 if (objective == null || objective.getId() == null) {
                     result.getIssues().add(TeachingPlanImportIssueVo.warn(
                             "八、考核评价", parsedObjective.objective.getContent(), "objectiveId",

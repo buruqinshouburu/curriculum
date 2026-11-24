@@ -55,6 +55,23 @@ public class TeachingPlanContextRegressionTest {
     }
 
     @Test
+    void nonPublicCandidatesNeverFallBackToSourceOrOtherSchemes() {
+        TeachingPlanModuleServiceImpl service = spy(new TeachingPlanModuleServiceImpl());
+        doReturn(false).when(service).isPublicFoundationCourse(8L);
+        CourseMapper courses = mock(CourseMapper.class);
+        CourseVo source = new CourseVo();
+        source.setType("1");
+        when(courses.selectCourseById(8L)).thenReturn(source);
+        ReflectionTestUtils.setField(service, "courseMapper", courses);
+        com.doinner.csys.dao.TrainingSchemeRefCourseMapper refs = mock(com.doinner.csys.dao.TrainingSchemeRefCourseMapper.class);
+        ReflectionTestUtils.setField(service, "trainingSchemeRefCourseMapper", refs);
+        assertTrue(service.listCourseGraduationByScheme(8L, null).isEmpty());
+        verifyNoInteractions(refs);
+        assertTrue(service.listCourseGraduationByScheme(8L, 42L).isEmpty());
+        verify(refs).selectQuoteCourseIdsBySourceAndScheme(8L, 42L);
+    }
+
+    @Test
     void publicSourceQuotedAsProfessionalRequiresSchemeInBothDetailAndSave() {
         assertClassification(DictContent.GENERAL_EDUCATION_COURSES_SCHEDULE, "professional", false);
     }
@@ -175,6 +192,7 @@ public class TeachingPlanContextRegressionTest {
         source.setId(8L);
         source.setType("1");
         source.setCourseModule(sourceModule);
+        source.setUnifiedCourse(expected ? 1 : 0);
         when(courses.selectCourseById(8L)).thenReturn(source);
         TeachingPlanQuoteAggVo aggregate = new TeachingPlanQuoteAggVo();
         aggregate.setCourseModule(quoteModule);

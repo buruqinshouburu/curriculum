@@ -16,6 +16,7 @@ import com.doinner.csys.domain.*;
 import com.doinner.csys.domain.vo.*;
 import com.doinner.csys.io.utils.ExcelUtils;
 import com.doinner.csys.service.CurriculumService;
+import com.doinner.csys.service.CourseImportAuthorVerifier;
 import com.doinner.csys.service.CourseMajorSelectionService;
 import com.doinner.csys.service.TrainingService;
 import com.doinner.csys.utils.CourseCreditRules;
@@ -65,6 +66,8 @@ import java.util.stream.Collectors;
 public class CurriculumServiceImpl implements CurriculumService {
     @javax.annotation.Resource
     private CoursePermissionService coursePermissions;
+    @Resource
+    private CourseImportAuthorVerifier courseImportAuthorVerifier;
 
     @Resource
     protected CourseMapper courseMapper;
@@ -540,11 +543,13 @@ public class CurriculumServiceImpl implements CurriculumService {
      * 用于新增/修改(type=2/4 统一)与缺编号数据刷新。
      */
     private String generateCourseCodeIfReady(CourseVo course) {
-        if (course == null) {
+        if (course == null || StringUtils.isBlank(course.getVersion())
+                || course.getVersion().length() < 2 || StringUtils.isBlank(course.getEducationLevel())) {
             return null;
         }
         if (StringUtils.isBlank(course.getCollegeName()) && course.getCollegeId() != null) {
-            SysDept sysDept = doinnerDeptService.getInfo(course.getCollegeId()).getData();
+            var department = doinnerDeptService.getInfo(course.getCollegeId());
+            SysDept sysDept = department == null ? null : department.getData();
             if (sysDept != null) {
                 course.setCollegeName(sysDept.getDeptName());
             }
@@ -1158,7 +1163,6 @@ public class CurriculumServiceImpl implements CurriculumService {
     @Transactional(rollbackFor = {Exception.class})
     @CoursePermission(value = "#p0.id", sourceCoursesOnly = true)
     public CourseVo updateCourse(CourseVo course) {
-        courseMajorSelectionService.validate(course);
         coursePermissions.preserveCourseOwners(course);
         coursePermissions.validateCourseContent(course);
 //        if (course.getCollegeId() != null){
@@ -1171,6 +1175,7 @@ public class CurriculumServiceImpl implements CurriculumService {
         ;
         CourseVo dbCourse = courseMapper.selectCourseById(course.getId());
 
+        courseMajorSelectionService.validate(course, dbCourse);
         validateInvocationSelection(course, dbCourse);
 
         //查看版本（**）+培训层次(*)+开课单位(**)是否有修改 修改的话更新课程编号
@@ -1199,12 +1204,12 @@ public class CurriculumServiceImpl implements CurriculumService {
             if (dbCourse.getSourceId() == null && ("1".equals(scheduleType) || "3".equals(scheduleType))) {
                 overwriteInvokedCourseSchedules(course, dbCourse);
             }
-            if ("2".equals(scheduleType) && course.getCourseScheduleList().stream()
+            if (course.getCourseScheduleList().stream()
                     .anyMatch(row -> "6".equals(row.getSemesterSchedule()))) {
                 moveConfiguredSchedulesToFinalTerm(course.getId());
-                if (dbCourse.getSourceId() == null) {
+                if (dbCourse.getSourceId() == null && ("2".equals(scheduleType) || "4".equals(scheduleType))) {
                     for (Course invoked : courseMapper.selectCourseBySourceId(course.getId())) {
-                        if ("2".equals(invoked.getType())) {
+                        if (scheduleType.equals(invoked.getType())) {
                             normalizeFourYearPracticalDetails(invoked.getId());
                             moveConfiguredSchedulesToFinalTerm(invoked.getId());
                         }
@@ -1370,21 +1375,26 @@ public class CurriculumServiceImpl implements CurriculumService {
     }
 
     private void updateCourseCode(CourseVo sourceCourse, CourseVo newCourse) {
-        // code 为空(如 type=4 老数据从未生成) -> 直接补生成(字段空跳过)
+        if (sourceCourse == null) {
+            throw new IllegalArgumentException("课程不存在，请刷新后重试");
+        }
+        if (StringUtils.isBlank(newCourse.getEducationLevel())) {
+            newCourse.setEducationLevel(sourceCourse.getEducationLevel());
+        }
         if (StringUtils.isBlank(newCourse.getCode())) {
-            String code = generateCourseCodeIfReady(newCourse);
-            if (StringUtils.isNotBlank(code)) {
-                newCourse.setCode(code);
-            }
+            newCourse.setCode(sourceCourse.getCode());
+        }
+        if (StringUtils.isNotBlank(newCourse.getCode())
+                && Objects.equals(sourceCourse.getVersion(), newCourse.getVersion())
+                && Objects.equals(sourceCourse.getEducationLevel(), newCourse.getEducationLevel())
+                && Objects.equals(sourceCourse.getCollegeId(), newCourse.getCollegeId())) {
             return;
         }
-        if(sourceCourse.getVersion().equals(newCourse.getVersion())
-                &&sourceCourse.getEducationLevel().equals(newCourse.getEducationLevel())
-                &&sourceCourse.getCollegeId()==newCourse.getCollegeId()) {
-            return;
+        // 历史数据缺少编号字段时保留原编号，不生成含 null 的编号。
+        String courseCodeNew = generateCourseCodeIfReady(newCourse);
+        if (StringUtils.isNotBlank(courseCodeNew)) {
+            newCourse.setCode(courseCodeNew);
         }
-        String courseCodeNew = getCourseCode_new(newCourse);
-        newCourse.setCode(courseCodeNew);
     }
 
 
@@ -2346,13 +2356,18 @@ public class CurriculumServiceImpl implements CurriculumService {
             // Map<String, String> kgDictionaryIdToNameMap = getKgDictionaryNameToIdMap(kgCourseModuleType);
             //List<Course> courseList = new ArrayList<>();
             if (CollectionUtils.isNotEmpty(excelVos)) {
+                List<CourseVo> rows = new ArrayList<>(excelVos.size());
                 for (CourseExcelVo excelVo : excelVos) {
                     CourseVo courseVo = new CourseVo();
                     BeanUtils.copyProperties(excelVo, courseVo);
+                    rows.add(courseVo);
+                }
+                courseImportAuthorVerifier.verify(rows);
+                for (CourseVo courseVo : rows) {
                     courseVo.setVersion(version);
                     courseVo.setCode(getCourseCode_new(courseVo));
                     // 处理学院
-                    courseVo.setCollegeId(deptIdNameMap.get(excelVo.getCollegeName()));
+                    courseVo.setCollegeId(deptIdNameMap.get(courseVo.getCollegeName()));
                     // 处理 多个字典合成一列的
                     // dealCourseModuleAndChildrenName(excelVo.getCourseModuleAndChildrenName(), courseVo,kgDictionaryIdToNameMap);
                     courseVo.setCourseModule(courseModule);
@@ -2365,7 +2380,6 @@ public class CurriculumServiceImpl implements CurriculumService {
                     UserUtils.reflash(courseVo);
                     courseVo.setSysflag(0);
                     courseVo.setStatus(0);
-                    courseVo.setCourseAttr(excelVo.getCourseAttr());
                     CourseCreditRules.normalize(courseVo);
                     courseVo.setCode(getCourseCode_new(courseVo));
                     courseVo.setSubMajorId(subMajorId);

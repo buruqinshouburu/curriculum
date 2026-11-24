@@ -278,10 +278,8 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             new HashSet<>(Arrays.asList("1", "2", "3", "9"));
 
     /**
-     * 普通课程(type1/3)源课是否属公共基础：聚合被引用课程的 course_Module 多值串，
-     * 拆分后每一项均为公共基础（兼容 id(hex) 与已译名称「含公共基础」两种形态）。
-     * 聚合为空时回退源课自身 course_Module。
-     * 公共基础：目标/任务背景按 plan 单组（scheme_id 恒为 null），不按培养方案拆分。
+     * 沿用接口字段 publicFoundation 表示教学计划是否按源课程统一维护。
+     * 判断只取源课程的统设标志，与课程模块、修读要求无关。
      */
     @Override
     public boolean isPublicFoundationCourse(Long sourceCourseId) {
@@ -292,12 +290,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (course == null) {
             return false;
         }
-        TeachingPlanQuoteAggVo agg = teachingPlanMapper.selectQuoteAggBySourceCourseId(sourceCourseId);
-        String module = agg == null ? null : agg.getCourseModule();
-        if (StringUtils.isBlank(module)) {
-            module = course.getCourseModule();
-        }
-        return isOnlyPublicFoundationCourseModule(module);
+        return Integer.valueOf(1).equals(course.getUnifiedCourse());
     }
 
     /**
@@ -540,7 +533,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         boolean batchPublicFoundation = isPublicFoundationPlan(saveVo.getPlanId());
         Long batchSchemeId = batchPublicFoundation ? null : saveVo.getSchemeId();
         if (!batchPublicFoundation && batchSchemeId == null) {
-            throw new IllegalArgumentException("非公共基础课程批量保存目标必须指定 schemeId");
+            throw new IllegalArgumentException("非统设课程批量保存目标必须指定培养方案");
         }
         validateObjectiveBatchScheme(rows, batchSchemeId, batchPublicFoundation);
         if (plan.getPlanType() != null && plan.getPlanType() == 1 && ObjectUtils.isNotEmpty(rows)) {
@@ -648,7 +641,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             throw new IllegalArgumentException("目标内容不能为空");
         }
         if (!publicFoundation && objective.getSchemeId() == null) {
-            throw new IllegalArgumentException("非公共基础课程新增目标必须指定 schemeId");
+            throw new IllegalArgumentException("非统设课程新增目标必须指定培养方案");
         }
     }
 
@@ -726,7 +719,13 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
         if (isPublicFoundationCourse(courseId)) {
             return listGraduationsByCourseId(courseId);
         }
-        // 1) 查该培养方案下被调用课（经 t_csys_training_scheme_ref_course）
+        CourseVo source = courseMapper.selectCourseById(courseId);
+        if (source == null) return new ArrayList<>();
+        if (!"2".equals(source.getType()) && !"4".equals(source.getType())) {
+            return schemeId == null ? new ArrayList<>() : listGraduationsByQuoteCourseIds(
+                    trainingSchemeRefCourseMapper.selectQuoteCourseIdsBySourceAndScheme(courseId, schemeId));
+        }
+        // 训练课目与实践项目保留原有候选范围。
         List<Long> quoteIds;
         if (schemeId != null) {
             quoteIds = trainingSchemeRefCourseMapper.selectQuoteCourseIdsBySourceAndScheme(courseId, schemeId);
@@ -787,6 +786,21 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             return new ArrayList<>();
         }
         return listGraduationsByCourseIds(Collections.singletonList(courseId));
+    }
+
+    @Override
+    public Map<Long, Long> objectiveGraduationCourses(Long sourceCourseId, Long schemeId) {
+        List<Long> ids = schemeId == null ? Collections.singletonList(sourceCourseId)
+                : trainingSchemeRefCourseMapper.selectQuoteCourseIdsBySourceAndScheme(sourceCourseId, schemeId);
+        Map<Long, Long> owners = new HashMap<>();
+        if (ObjectUtils.isNotEmpty(ids)) {
+            for (CourseRefGraduation ref : courseRefGraduationMapper.selectCourseTargetRefGraduationByCourseIds(ids)) {
+                if (ref.getCourseId() != null && ref.getGraduationId() != null) {
+                    owners.merge(ref.getGraduationId(), ref.getCourseId(), Math::min);
+                }
+            }
+        }
+        return owners;
     }
 
     private List<StandardGraduation> listGraduationsByCourseIds(List<Long> courseIds) {
@@ -980,6 +994,7 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
             }
         }
         Map<Long, StandardGraduation> gradMap = loadGraduationMap(graduationIds);
+        Map<Long, Long> owners = objectiveGraduationCourses(teachingPlanMapper.selectById(planId).getSourceCourseId(), schemeId);
         Set<Long> bound = new HashSet<>();
         int sort = 1;
         for (TeachingPlanObjectiveRef ref : refs) {
@@ -1015,9 +1030,9 @@ public class TeachingPlanModuleServiceImpl implements TeachingPlanModuleService 
                 ref.setGraduationBindSource("course_ref_graduation");
             }
             // objective_ref.quote_course_id NOT NULL：绑定弹框数据不带该字段，按计划 context 调用课程自动补快照
-            if (ref.getQuoteCourseId() == null) {
-                ref.setQuoteCourseId(resolvePlanQuoteCourseId(planId));
-            }
+            Long owner = owners.get(ref.getGraduationId());
+            if (owner == null) throw new IllegalArgumentException("观测点未绑定至当前课程或培养方案: " + ref.getGraduationId());
+            ref.setQuoteCourseId(owner);
             UserUtils.reflash(ref);
             teachingPlanObjectiveRefMapper.insert(ref);
         }

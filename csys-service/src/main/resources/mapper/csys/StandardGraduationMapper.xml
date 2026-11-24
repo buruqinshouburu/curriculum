@@ -33,7 +33,7 @@
         <result property="graduationType" column="graduation_Type"/>
         <result property="sourceId" column="source_Id"/>
         <result property="schemeId" column="scheme_Id"/>
-
+        <result property="educationLevel" column="education_level"/>
     </resultMap>
     <resultMap type="com.doinner.csys.domain.StandardGraduation" id="StandardGraduationAllResult">
         <result property="id" column="id"/>

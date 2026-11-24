@@ -4,10 +4,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TrainingCourseVo {
+    private Boolean invocationNodeOnly;
+
+    public Boolean getInvocationNodeOnly() { return invocationNodeOnly; }
+
+    public void setInvocationNodeOnly(Boolean invocationNodeOnly) { this.invocationNodeOnly = invocationNodeOnly; }
+
     private Long  schemeId;
     private String  name;
     private String code ;
     private String  type;
+    private String location;
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
     private Long  categoryId;
     private Long  majorId;
     private Long  collegeId;
